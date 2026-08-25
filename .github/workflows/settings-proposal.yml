@@ -80,6 +80,11 @@ jobs:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다 — 파이프라인의 결과는
+          # 맨 끝 tee의 것이고 tee는 거의 안 죽는다. 2026-08-25에 매수가
+          # KIS 403으로 통째로 터졌는데 워크플로는 초록불로 끝났다.
+          # 조용히 성공한 척하는 실패라 여기서 막는다.
+          set -o pipefail
           python scripts/propose_settings.py \
             ${{ github.event.inputs.no_telegram == 'true' && '--no-telegram' || '' }} \
             ${{ github.event.inputs.skip_turnover == 'true' && '--skip-turnover' || '' }} \
