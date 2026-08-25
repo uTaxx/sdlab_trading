@@ -56,6 +56,11 @@ _MARKET_ORDER_DVSN = "01"  # 시장가
 # 저장소(koreainvestment/open-trading-api)의 COLUMN_MAPPING과 대조해 확인했다.
 _DAILY_CCLD_TR_ID = {"paper": "VTTC0081R", "real": "TTTC0081R"}
 
+# 주문체결조회는 한 번에 50건까지 온다. 기간으로 부르면 연속조회로 이어받는데,
+# 잘못된 응답으로 무한히 도는 것을 막으려 쪽수 상한을 둔다. 20쪽 = 1000건이면
+# 이 저장소의 몇 달치보다 넉넉하다.
+_CCLD_MAX_PAGES = 20
+
 # 주식잔고조회 TR_ID (같은 저장소에서 확인).
 _BALANCE_TR_ID = {"paper": "VTTC8434R", "real": "TTTC8434R"}
 
@@ -396,45 +401,78 @@ class KISClient(MarketDataSource):
             reference_price=reference_price,
         )
 
-    def _daily_ccld_rows(self, order_date: date | None = None) -> list[dict] | None:
-        """그날 주문체결조회 원본 행들. 조회를 거부당하면 None.
+    def _daily_ccld_rows(
+        self, order_date: date | None = None, end_date: date | None = None
+    ) -> list[dict] | None:
+        """주문체결조회 원본 행들. 조회를 거부당하면 None.
 
-        체결가 확인(get_fill)과 미체결 주문 찾기(get_open_orders)가 같은
-        API를 본다 — 한 번만 짜 두고 둘이 나눠 쓴다."""
+        체결가 확인(get_fill), 미체결 주문 찾기(get_open_orders), 기간 대조
+        (get_orders_between)이 같은 API를 본다 — 한 번만 짜 두고 나눠 쓴다.
+
+        한 번에 오는 것은 50건까지라, 기간으로 부르면 **연속조회로 끝까지
+        따라간다.** 안 따라가면 오래된 것부터 조용히 빠지는데, 대조 도구에서
+        그건 "증권사에 없는 주문"으로 둔갑한다."""
         env = "paper" if self.is_paper else "real"
-        day = (order_date or date.today()).strftime("%Y%m%d")  # noqa: DTZ011 — 날짜만 필요
+        시작 = (order_date or date.today()).strftime("%Y%m%d")  # noqa: DTZ011 — 날짜만 필요
+        끝 = (end_date or order_date or date.today()).strftime("%Y%m%d")  # noqa: DTZ011
 
-        response = self._get_with_retry(
-            f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
-            headers=self._auth_headers(_DAILY_CCLD_TR_ID[env]),
-            params={
-                "CANO": self.account_no,
-                "ACNT_PRDT_CD": self.account_product_cd,
-                "INQR_STRT_DT": day,
-                "INQR_END_DT": day,
-                "SLL_BUY_DVSN_CD": "00",  # 00: 전체
-                "INQR_DVSN": "00",  # 00: 역순
-                "PDNO": "",
-                "CCLD_DVSN": "00",  # 00: 전체(체결/미체결 모두)
-                "ORD_GNO_BRNO": "",
-                "ODNO": "",
-                "INQR_DVSN_3": "00",
-                "INQR_DVSN_1": "",
-                "CTX_AREA_FK100": "",
-                "CTX_AREA_NK100": "",
-            },
-            timeout=10,
-        )
-        payload = _kis_payload(response)
-        if payload is None:
-            response.raise_for_status()
-            raise RuntimeError(f"KIS 체결조회 응답을 해석할 수 없습니다: {response.text[:300]}")
-        if payload.get("rt_cd") != "0":
-            logger.warning(
-                f"체결조회 거부: {payload.get('msg1')} (msg_cd={payload.get('msg_cd')})"
+        모은것: list[dict] = []
+        fk = nk = ""
+        tr_cont = ""
+        for _ in range(_CCLD_MAX_PAGES):
+            headers = self._auth_headers(_DAILY_CCLD_TR_ID[env])
+            if tr_cont:
+                headers["tr_cont"] = tr_cont
+            response = self._get_with_retry(
+                f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+                headers=headers,
+                params={
+                    "CANO": self.account_no,
+                    "ACNT_PRDT_CD": self.account_product_cd,
+                    "INQR_STRT_DT": 시작,
+                    "INQR_END_DT": 끝,
+                    "SLL_BUY_DVSN_CD": "00",  # 00: 전체
+                    "INQR_DVSN": "00",  # 00: 역순
+                    "PDNO": "",
+                    "CCLD_DVSN": "00",  # 00: 전체(체결/미체결 모두)
+                    "ORD_GNO_BRNO": "",
+                    "ODNO": "",
+                    "INQR_DVSN_3": "00",
+                    "INQR_DVSN_1": "",
+                    "CTX_AREA_FK100": fk,
+                    "CTX_AREA_NK100": nk,
+                },
+                timeout=10,
             )
-            return None
-        return list(payload.get("output1") or [])
+            payload = _kis_payload(response)
+            if payload is None:
+                response.raise_for_status()
+                raise RuntimeError(f"KIS 체결조회 응답을 해석할 수 없습니다: {response.text[:300]}")
+            if payload.get("rt_cd") != "0":
+                logger.warning(
+                    f"체결조회 거부: {payload.get('msg1')} (msg_cd={payload.get('msg_cd')})"
+                )
+                return None if not 모은것 else 모은것
+
+            모은것.extend(payload.get("output1") or [])
+
+            # 헤더의 tr_cont가 M/F면 다음 쪽이 있다. 이어받을 열쇠는 본문에 온다.
+            다음 = str(response.headers.get("tr_cont", "")).strip().upper()
+            if 다음 not in ("M", "F"):
+                break
+            fk = str(payload.get("ctx_area_fk100", "") or "").strip()
+            nk = str(payload.get("ctx_area_nk100", "") or "").strip()
+            tr_cont = "N"
+        else:
+            logger.warning(
+                f"체결조회가 {_CCLD_MAX_PAGES}쪽에서 멈췄습니다 — 더 있을 수 있습니다. "
+                "기간을 나눠 다시 부르세요."
+            )
+        return 모은것
+
+    def get_orders_between(self, start: date, end: date) -> list[dict] | None:
+        """기간 안의 주문체결 원본 행들. 우리 기록과 대조할 때 쓴다."""
+        return self._daily_ccld_rows(start, end)
 
     def get_fill(self, order_id: str, order_date: date | None = None) -> FillInfo | None:
         """주문번호로 실제 체결 수량·평균 체결가를 조회한다.

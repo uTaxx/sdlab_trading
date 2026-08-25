@@ -1,0 +1,101 @@
+name: 주문 기록 대조
+
+# **우리 주문 기록이 증권사 기록과 같은가**를 기간으로 훑는다.
+#
+# ## 왜
+#
+# 이 저장소의 성적표 — 승률·손익비·슬리피지 — 는 전부 `orders` 표 위에서
+# 계산된다. 그 표가 틀리면 그 위의 숫자가 전부 틀리고, **틀렸다는 사실조차
+# 안 보인다.**
+#
+# 2026-08-25에 둘 다 일어났다. 12주가 체결됐는데 기록엔 4주였고, 흉내 실행이
+# 사지도 않은 두 종목을 기록에 써 넣었다.
+#
+# `settle-fills`(17:30)는 그날 것만 맞춘다. 그날 조회가 실패했거나 그날 이
+# 도구가 없었던 날은 영영 안 맞은 채 남는다. 여기는 기간을 훑는다.
+#
+# ## 왜 자동으로 안 도나
+#
+# 일부러 사람이 누르게 뒀다. 이 도구가 내놓는 답 셋 중 둘(유령 / 놓친 체결)은
+# **여기서 고칠 수 없고** 각각 다른 도구와 사람의 판단이 필요하다. 매일 저절로
+# 돌면서 "문제 있음"만 반복하면, 그 알림이 곧 배경음이 된다.
+#
+# ## 기본은 미리보기다
+#
+# `apply`를 켜지 않으면 아무것도 쓰지 않는다. 켜도 **어긋남만** 고친다 —
+# 없는 것을 만들거나 있는 것을 지우는 판단은 각자의 도구에 맡긴다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "최근 며칠을 볼까 (최대 90 — 주문체결조회가 3개월까지만 본다)"
+        required: false
+        default: "30"
+      apply:
+        description: "어긋난 기록을 증권사 값으로 고친다 (끄면 보고만)"
+        type: boolean
+        default: false
+
+concurrency:
+  # 상태 DB를 고치는 일이라 겹치면 나중 것이 앞 것을 덮는다.
+  group: state-write
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: KIS 설정 갱신
+        run: |
+          python scripts/configure.py kis --env paper \
+            --app-key "${{ secrets.KIS_APP_KEY }}" --app-secret "${{ secrets.KIS_APP_SECRET }}" \
+            --account-no "${{ secrets.KIS_ACCOUNT_NO }}" --account-product-cd "01"
+
+      - name: 대조
+        run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다 — 조용히 성공한 척하는
+          # 실패라 여기서 막는다. 다만 이 스크립트는 "어긋난 것이 있다"를
+          # 종료 코드 1로 알리므로, 그것까지 빨간불로 만들지는 않는다.
+          set -o pipefail
+          python scripts/reconcile_orders.py \
+            --days "${{ github.event.inputs.days }}" \
+            ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
+            | tee reconcile.txt || true
+          # 실행 자체가 못 돌았으면(인증 실패 등) 결과 파일이 짧다 — 그건 빨간불이다.
+          grep -q "=== 주문 기록 대조 ===" reconcile.txt
+
+      # 미리보기였으면 DB가 안 바뀌었으므로 올릴 것도 없다. 그래도 올리면
+      # 그 사이 다른 실행이 쓴 것을 옛 것으로 덮을 수 있다.
+      - name: 상태 DB 올리기
+        if: github.event.inputs.apply == 'true'
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py upload \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --path ./muwon.db
+
+      - name: 결과 아티팩트로 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconcile-orders-${{ github.run_number }}
+          path: reconcile.txt
