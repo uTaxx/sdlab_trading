@@ -63,6 +63,48 @@ class FillInfo:
 
 
 @dataclass(frozen=True)
+class OpenOrder:
+    """아직 다 채워지지 않은 주문 하나 — 증권사가 들고 있는 미체결분.
+
+    시장가 주문은 대개 즉시 다 체결되지만, 호가에 물량이 모자라면 일부만
+    되고 나머지(잔여)가 장 마감까지 남는다. 남아 있는 동안에는 아직
+    **되돌릴 수 있다** — 그게 이 자료형이 있는 이유다.
+
+    취소 주문을 넣으려면 주문번호만으로는 모자라고, 증권사가 그 주문을
+    받은 지점번호(branch_no)와 주문구분코드(ord_dvsn_cd)를 원주문과 똑같이
+    되돌려줘야 한다. 그래서 조회 결과를 통째로 들고 다닌다."""
+
+    order_id: str
+    symbol: str
+    name: str
+    side: OrderSide
+    ordered_quantity: int
+    filled_quantity: int
+    #: 아직 안 채워진 수량. 이만큼이 취소 대상이다.
+    remaining: int
+    #: 주문 단가. 시장가면 0으로 온다.
+    price: float
+    #: 주문구분코드(01=시장가, 00=지정가 …). 취소할 때 그대로 되돌려준다.
+    ord_dvsn_cd: str
+    #: 주문채번지점번호 = 취소 요청의 KRX_FWDG_ORD_ORGNO.
+    branch_no: str
+    #: 거래소ID구분코드(KRX/NXT/SOR). 비어 있으면 KRX로 본다.
+    exchange: str = "KRX"
+    #: 주문시각(HHMMSS). 사람에게 보여줄 때만 쓴다.
+    ordered_at: str = ""
+
+    @property
+    def 한줄(self) -> str:
+        방향 = "매수" if self.side == OrderSide.BUY else "매도"
+        이름 = self.name or self.symbol
+        때 = f" ({self.ordered_at[:2]}:{self.ordered_at[2:4]})" if len(self.ordered_at) >= 4 else ""
+        return (
+            f"{이름}({self.symbol}) {방향} {self.ordered_quantity}주 중 "
+            f"{self.filled_quantity}주 체결 · 잔여 {self.remaining}주{때}"
+        )
+
+
+@dataclass(frozen=True)
 class Holding:
     """증권사 계좌가 실제로 들고 있다고 말하는 보유 종목 하나."""
 

@@ -38,6 +38,7 @@ from muwon.domain.types import (
     AccountBalance,
     FillInfo,
     Holding,
+    OpenOrder,
     OrderResult,
     OrderSide,
 )
@@ -62,6 +63,19 @@ _BALANCE_TR_ID = {"paper": "VTTC8434R", "real": "TTTC8434R"}
 #: 있는 수량을 받는다. 2026-08-25에 우리 현금이 계좌와 294만원 어긋난
 #: 채로 그 위에서 비중 상한이 돌았다.
 _PSBL_ORDER_TR_ID = {"paper": "VTTC8908R", "real": "TTTC8908R"}
+
+# 주식주문(정정취소) TR_ID. 취소는 모의투자에서도 된다.
+#
+# 짝이 되는 "주식정정취소가능주문조회"(TTTC0084R)는 **실전에만 있다** —
+# 모의투자 계좌로는 호출할 수 없다. 그래서 취소할 주문 목록은 이미 쓰고 있는
+# 주문체결조회(inquire-daily-ccld)에서 잔여수량으로 뽑는다. 두 환경에서 같은
+# 길을 쓰게 되니 오히려 시험하기 쉽다.
+_RVSECNCL_TR_ID = {"paper": "VTTC0013U", "real": "TTTC0013U"}
+
+# 정정취소구분코드: 01=정정(값을 바꾼다), 02=취소(없던 일로 한다).
+# 우리는 취소만 쓴다 — 정정은 "얼마에 다시 낼 것인가"라는 판단이 필요한데,
+# 그 판단은 다음 실행에서 전략이 처음부터 다시 하는 편이 낫다.
+_취소 = "02"
 
 # KIS는 초당 호출 횟수를 제한한다 — 모의투자가 실전투자보다 훨씬 빡빡하다
 # (문서상 모의투자 초당 2건, 실전투자 초당 20건). 요청 간 최소 간격을 둬서
@@ -382,17 +396,11 @@ class KISClient(MarketDataSource):
             reference_price=reference_price,
         )
 
-    def get_fill(self, order_id: str, order_date: date | None = None) -> FillInfo | None:
-        """주문번호로 실제 체결 수량·평균 체결가를 조회한다.
+    def _daily_ccld_rows(self, order_date: date | None = None) -> list[dict] | None:
+        """그날 주문체결조회 원본 행들. 조회를 거부당하면 None.
 
-        시장가 주문은 넣어봐야 얼마에 체결되는지 알 수 있어서, 주문 시점의
-        기준가(직전 종가)만 기록하면 손익 집계에 오차가 쌓인다. 체결 직후
-        이걸로 실제 값을 받아와 기록을 바로잡는다.
-
-        해당 주문번호를 못 찾으면 None을 돌려준다(조회 시점에 아직 반영되지
-        않았을 수 있다). 필드명은 한국투자증권 공식 예제 저장소의
-        COLUMN_MAPPING과 대조했다: odno=주문번호, tot_ccld_qty=총체결수량,
-        avg_prvs=평균가, ord_qty=주문수량."""
+        체결가 확인(get_fill)과 미체결 주문 찾기(get_open_orders)가 같은
+        API를 본다 — 한 번만 짜 두고 둘이 나눠 쓴다."""
         env = "paper" if self.is_paper else "real"
         day = (order_date or date.today()).strftime("%Y%m%d")  # noqa: DTZ011 — 날짜만 필요
 
@@ -426,8 +434,24 @@ class KISClient(MarketDataSource):
                 f"체결조회 거부: {payload.get('msg1')} (msg_cd={payload.get('msg_cd')})"
             )
             return None
+        return list(payload.get("output1") or [])
 
-        for row in payload.get("output1") or []:
+    def get_fill(self, order_id: str, order_date: date | None = None) -> FillInfo | None:
+        """주문번호로 실제 체결 수량·평균 체결가를 조회한다.
+
+        시장가 주문은 넣어봐야 얼마에 체결되는지 알 수 있어서, 주문 시점의
+        기준가(직전 종가)만 기록하면 손익 집계에 오차가 쌓인다. 체결 직후
+        이걸로 실제 값을 받아와 기록을 바로잡는다.
+
+        해당 주문번호를 못 찾으면 None을 돌려준다(조회 시점에 아직 반영되지
+        않았을 수 있다). 필드명은 한국투자증권 공식 예제 저장소의
+        COLUMN_MAPPING과 대조했다: odno=주문번호, tot_ccld_qty=총체결수량,
+        avg_prvs=평균가, ord_qty=주문수량."""
+        rows = self._daily_ccld_rows(order_date)
+        if rows is None:
+            return None
+
+        for row in rows:
             if str(row.get("odno", "")).lstrip("0") != str(order_id).lstrip("0"):
                 continue
             filled = int(float(row.get("tot_ccld_qty") or 0))
@@ -441,6 +465,111 @@ class KISClient(MarketDataSource):
                 avg_fill_price=avg_price,
             )
         return None
+
+    def get_open_orders(self, order_date: date | None = None) -> list[OpenOrder]:
+        """아직 다 채워지지 않은 그날 주문들 — 되돌릴 수 있는 것만.
+
+        "정정취소가능주문조회"가 모의투자에 없어서, 이미 쓰고 있는
+        주문체결조회에서 뽑는다. 남기는 기준은 셋이다:
+          - 취소여부(cncl_yn)가 Y가 아니고,
+          - 잔여수량(rmn_qty)이 1주 이상이고,
+          - 주문번호가 있다.
+
+        조회가 실패하면 **빈 목록이 아니라 예외**를 올린다. 여기서 조용히
+        빈 목록을 주면 "취소할 게 없습니다"로 읽혀서, 남아 있는 주문을 못
+        본 채로 지나가게 된다."""
+        rows = self._daily_ccld_rows(order_date)
+        if rows is None:
+            raise RuntimeError("미체결 주문을 조회하지 못했습니다 — 취소할 것이 없는지 알 수 없습니다.")
+
+        나온것: list[OpenOrder] = []
+        for row in rows:
+            if str(row.get("cncl_yn", "")).upper() == "Y":
+                continue
+            order_id = str(row.get("odno", "")).strip()
+            if not order_id or order_id.lstrip("0") == "":
+                continue
+
+            주문 = int(float(row.get("ord_qty") or 0))
+            체결 = int(float(row.get("tot_ccld_qty") or 0))
+            남은것 = row.get("rmn_qty")
+            잔여 = int(float(남은것)) if str(남은것 or "").strip() else 주문 - 체결
+            if 잔여 <= 0:
+                continue
+
+            나온것.append(
+                OpenOrder(
+                    order_id=order_id,
+                    symbol=str(row.get("pdno", "")).strip(),
+                    name=str(row.get("prdt_name", "")).strip(),
+                    # 01=매도, 02=매수 (KIS 주문체결조회 sll_buy_dvsn_cd)
+                    side=OrderSide.SELL if str(row.get("sll_buy_dvsn_cd", "")) == "01" else OrderSide.BUY,
+                    ordered_quantity=주문,
+                    filled_quantity=체결,
+                    remaining=잔여,
+                    price=float(row.get("ord_unpr") or 0),
+                    ord_dvsn_cd=str(row.get("ord_dvsn_cd", "")).strip() or _MARKET_ORDER_DVSN,
+                    branch_no=str(row.get("ord_gno_brno", "")).strip(),
+                    # KIS 공식 예제의 필드명이 excg_id_dvsn_Cd(대문자 C)로
+                    # 적혀 있다. 어느 쪽으로 오든 읽도록 둘 다 본다.
+                    exchange=str(
+                        row.get("excg_id_dvsn_cd") or row.get("excg_id_dvsn_Cd") or "KRX"
+                    ).strip()
+                    or "KRX",
+                    ordered_at=str(row.get("ord_tmd", "")).strip(),
+                )
+            )
+        return 나온것
+
+    def cancel_order(self, order: OpenOrder) -> str:
+        """미체결 잔여를 **전량 취소**한다. 새로 채번된 취소주문번호를 돌려준다.
+
+        지금까지 이 저장소에는 낸 주문을 되돌릴 길이 없었다 — 잘못 나갔다는
+        걸 알아도 한국투자증권에 직접 로그인하는 수밖에 없었다. 이게 그 길이다.
+
+        일부만 취소하는 길은 일부러 안 만들었다. 되돌리는 상황은 "이 주문이
+        잘못됐다"는 판단이고, 그때 몇 주만 남기는 선택은 새 판단이지
+        되돌리기가 아니다. 되돌리기는 전부 아니면 전무로 둔다.
+
+        이미 체결된 주문은 KIS가 거부한다(그게 맞다). 그 거부는
+        KISOrderRejected로 그대로 올라온다."""
+        env = "paper" if self.is_paper else "real"
+
+        response = self._post_with_rate_limit_retry(
+            f"{self.base_url}/uapi/domestic-stock/v1/trading/order-rvsecncl",
+            headers=self._auth_headers(_RVSECNCL_TR_ID[env]),
+            json={
+                "CANO": self.account_no,
+                "ACNT_PRDT_CD": self.account_product_cd,
+                "KRX_FWDG_ORD_ORGNO": order.branch_no,
+                "ORGN_ODNO": order.order_id,
+                "ORD_DVSN": order.ord_dvsn_cd,
+                "RVSE_CNCL_DVSN_CD": _취소,
+                "ORD_QTY": str(order.remaining),
+                "ORD_UNPR": "0",  # 취소에는 단가가 의미 없다
+                "QTY_ALL_ORD_YN": "Y",  # 잔량 전부
+                "EXCG_ID_DVSN_CD": order.exchange,
+            },
+            timeout=10,
+        )
+        payload = _kis_payload(response)
+        if payload is None:
+            response.raise_for_status()
+            raise RuntimeError(f"KIS 취소 응답을 해석할 수 없습니다: {response.text[:300]}")
+
+        if payload.get("rt_cd") != "0":
+            raise KISOrderRejected(
+                rt_cd=str(payload.get("rt_cd", "")),
+                msg_cd=str(payload.get("msg_cd", "")),
+                msg1=str(payload.get("msg1", payload)),
+            )
+
+        새주문번호 = str((payload.get("output") or {}).get("ODNO", ""))
+        logger.info(
+            f"취소 접수: {order.symbol} 원주문 {order.order_id} 잔여 "
+            f"{order.remaining}주 → 취소주문 {새주문번호}"
+        )
+        return 새주문번호
 
     def get_orderable(self, symbol: str, price: float) -> int:
         """이 종목을 **미수 없이** 몇 주까지 살 수 있나. 못 물어보면 -1.

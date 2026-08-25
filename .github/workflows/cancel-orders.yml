@@ -1,0 +1,102 @@
+name: 미체결 주문 취소
+
+# **낸 주문을 되돌리는 버튼.** 이 저장소에 지금까지 없던 길이다.
+#
+# ## 왜 필요한가
+#
+# 시장가 주문은 대개 즉시 다 체결되지만, 호가에 물량이 모자라면 일부만 되고
+# 나머지(잔여)가 장 마감까지 남는다. 남아 있는 동안 그 주문은 아직 살아 있어서,
+# 몇 분 뒤 값이 크게 움직인 자리에서 마저 체결될 수 있다.
+#
+# 지금까지는 잘못 나간 주문을 알아채도 한국투자증권에 직접 로그인하는 수밖에
+# 없었다. 그 사이에도 주문은 살아 있었다.
+#
+# ## 언제 쓰나
+#
+# 텔레그램 체결 알림에 "잔여 N주"가 찍혔는데 그 N주를 원하지 않을 때.
+# 승인하지 않은 종목이 나갔을 때. 매도 스위치를 껐는데 매도가 이미 나갔을 때.
+#
+# ## 기본은 미리보기다
+#
+# `apply`를 켜지 않으면 미체결 목록만 보여주고 주문은 건드리지 않는다.
+# 무엇이 남아 있는지 먼저 보고 나서 누르라는 뜻이다.
+#
+# ## 상태 DB는 안 바뀐다
+#
+# 우리 기록에는 **체결된 수량만** 들어 있고 잔여는 애초에 없다. 취소해도
+# 고칠 것이 없어서 DB를 도로 올리지 않는다 — 올리면 그 사이 다른 실행이 쓴
+# 것을 옛 것으로 덮을 수 있다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "이 종목만 취소 (쉼표로 여럿 — 비우면 미체결 전부가 대상)"
+        required: false
+        default: ""
+      order_ids:
+        description: "이 주문번호만 취소 (쉼표로 여럿 — 비우면 종목 기준으로 고른다)"
+        required: false
+        default: ""
+      apply:
+        description: "실제로 취소한다 (끄면 미체결 목록만 보여준다)"
+        type: boolean
+        default: false
+
+concurrency:
+  # 매수와 겹치면 방금 낸 주문을 그 자리에서 취소하는 꼴이 된다.
+  group: execute-approved
+  cancel-in-progress: false
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: KIS·텔레그램 설정 갱신
+        run: |
+          python scripts/configure.py kis --env paper \
+            --app-key "${{ secrets.KIS_APP_KEY }}" --app-secret "${{ secrets.KIS_APP_SECRET }}" \
+            --account-no "${{ secrets.KIS_ACCOUNT_NO }}" --account-product-cd "01"
+          python scripts/configure.py telegram \
+            --token "${{ secrets.TELEGRAM_BOT_TOKEN }}" --chat-id "${{ secrets.TELEGRAM_CHAT_ID }}"
+
+      - name: 취소
+        run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다 — 조용히 성공한 척하는
+          # 실패라 여기서 막는다.
+          set -o pipefail
+          args=""
+          for s in $(echo "${{ github.event.inputs.symbols }}" | tr ',' ' '); do
+            args="$args --symbol $s"
+          done
+          for o in $(echo "${{ github.event.inputs.order_ids }}" | tr ',' ' '); do
+            args="$args --order-id $o"
+          done
+          python scripts/cancel_open_orders.py $args \
+            ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
+            | tee cancel.txt
+
+      - name: 결과 아티팩트로 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cancel-orders-${{ github.run_number }}
+          path: cancel.txt
