@@ -243,3 +243,70 @@ h2:first-child { margin-top: 0; }
 .낱말 .잔글 { margin-top: 0; }
 .낱말 p { font-size: 14.5px; line-height: 1.65; }
 #용어찾기 { margin-top: 4px; }
+
+/* ── 머리의 매수·매도 스위치 ─────────────────────────
+   하루 중 제일 급할 때 찾는 것이라 어느 탭에서도 늘 보인다.
+   세로 두 줄로 두는 이유는 폰 폭(390px)에서 가로로 놓으면 제목과
+   부딪혀 줄이 넘치기 때문이다. */
+.스위치들 { display: flex; flex-direction: column; gap: 6px; }
+
+.스위치 {
+  display: grid;
+  grid-template-columns: auto 34px auto;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--글2);
+  user-select: none;
+}
+.스위치 .이름 { font-weight: 600; letter-spacing: -.01em; }
+
+/* 진짜 체크박스는 숨기지 않고 투명하게 겹쳐 둔다 — 안 그러면 키보드로
+   못 옮기고 화면낭독기가 못 읽는다. */
+.스위치 input {
+  grid-column: 2; grid-row: 1;
+  width: 34px; height: 20px; margin: 0; padding: 0;
+  opacity: 0; cursor: pointer;
+}
+.스위치 .홈 {
+  grid-column: 2; grid-row: 1;
+  width: 34px; height: 20px; border-radius: 20px;
+  background: var(--선); border: 1px solid var(--선);
+  transition: background .15s, border-color .15s;
+  pointer-events: none;
+}
+.스위치 .홈::after {
+  content: ""; display: block;
+  width: 14px; height: 14px; margin: 2px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  transition: transform .15s;
+}
+.스위치 input:checked + .홈 { background: var(--켜짐); border-color: var(--켜짐); }
+.스위치 input:checked + .홈::after { transform: translateX(14px); }
+.스위치 input:focus-visible + .홈 { outline: 2px solid var(--강조); outline-offset: 2px; }
+.스위치 input:disabled + .홈 { opacity: .45; }
+.스위치 input:disabled ~ .상태 { opacity: .55; }
+
+.스위치 .상태 { font-variant-numeric: tabular-nums; min-width: 26px; }
+.스위치 input:checked ~ .상태 { color: var(--켜짐); font-weight: 600; }
+
+/* 매도가 꺼진 것은 매수가 꺼진 것보다 위험하다 — 손절이 안 걸린다.
+   꺼진 상태를 회색이 아니라 경고색으로 세게 보여 준다. */
+.스위치.위험 .홈 { background: var(--꺼짐); border-color: var(--꺼짐); }
+.스위치.위험 .상태 { color: var(--꺼짐); font-weight: 700; }
+
+/* 폰 폭에서도 **두 줄 그대로** 오른쪽에 붙어 있는다.
+   가로로 눕히면 한 줄에 들어가긴 하는데, 두 스위치가 나란히 있으면
+   급할 때 엉뚱한 쪽을 누른다 — 하나는 기회를 놓치는 것이고 다른 하나는
+   손절이 멈추는 것이라, 헷갈리는 값이 서로 너무 다르다. */
+@media (max-width: 420px) {
+  .싸개 { padding-left: 14px; padding-right: 14px; }
+  h1 { font-size: 18px; }
+  .부제 { font-size: 12px; }
+  .스위치 { grid-template-columns: auto 30px auto; gap: 5px; font-size: 11.5px; }
+  .스위치 input, .스위치 .홈 { width: 30px; height: 18px; }
+  .스위치 .홈::after { width: 12px; height: 12px; }
+  .스위치 input:checked + .홈::after { transform: translateX(12px); }
+}

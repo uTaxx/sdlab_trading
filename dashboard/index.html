@@ -27,9 +27,36 @@
       <h1>매매 대시보드</h1>
       <p class="부제">증권사 계좌를 그대로 조회한 값입니다 · 모의투자</p>
     </div>
+    <!--
+      스위치 둘을 머리 오른쪽에 세로로 둔다. 하루 중 제일 급할 때 찾는
+      것이라 어느 탭에 있든 늘 보여야 한다.
+
+      **매도는 매수와 위험이 다르다.** 매수를 끄면 기회를 놓칠 뿐이지만
+      매도를 끄면 손절이 안 걸린다 — 꺼져 있을 때 색과 글이 매수보다
+      세게 나오도록 해 뒀다.
+    -->
     <div class="오른쪽">
-      <span id="킬딱지" class="딱지 켜짐 숨김">매매 켜짐</span>
+      <div id="스위치들" class="스위치들 숨김">
+        <label class="스위치" for="매수스위치">
+          <span class="이름">매수</span>
+          <input type="checkbox" id="매수스위치" role="switch">
+          <span class="홈" aria-hidden="true"></span>
+          <span class="상태" id="매수상태">—</span>
+        </label>
+        <label class="스위치" for="매도스위치">
+          <span class="이름">매도</span>
+          <input type="checkbox" id="매도스위치" role="switch">
+          <span class="홈" aria-hidden="true"></span>
+          <span class="상태" id="매도상태">—</span>
+        </label>
+      </div>
     </div>
+  </div>
+
+  <div id="매도경고" class="알림 숨김" style="margin-top:12px">
+    <strong>🛑 매도가 꺼져 있습니다.</strong><br>
+    손절·익절·보유일수 청산이 <b>전부 멈춰 있습니다.</b> 들고 있는 종목의
+    값이 얼마나 빠지든 자동으로는 아무 일도 일어나지 않습니다.
   </div>
 
   <!-- ── 열쇠 넣기 ───────────────────────────────────── -->
@@ -219,7 +246,8 @@
       <div id="기준알림"></div>
 
       <h2>매매 스위치</h2>
-      <p class="h2곁말">끄면 <b>새로 사는 것이 전부 멈춥니다.</b> 들고 있는 것의 손절은 그대로 돕니다.</p>
+      <p class="h2곁말">화면 맨 위 스위치와 같은 것입니다. 여기서는 <b>지금 어떤
+        상태이고 그게 무슨 뜻인지</b>를 풀어서 보여 줍니다.</p>
       <div class="칸 넓게">
         <div class="줄" style="margin:0; justify-content:space-between">
           <div>
@@ -229,6 +257,29 @@
           <button id="킬전환">바꾸기</button>
         </div>
       </div>
+      <div class="칸 넓게" style="margin-top:10px">
+        <div class="줄" style="margin:0; justify-content:space-between">
+          <div>
+            <div class="값" id="매도값" style="font-size:19px">—</div>
+            <div class="곁말" id="매도곁말">불러오는 중…</div>
+          </div>
+          <button id="매도전환">바꾸기</button>
+        </div>
+      </div>
+      <details>
+        <summary>왜 두 스위치의 규칙이 다른가</summary>
+        <p style="margin-top:8px">
+          매수를 못 하면 <b>기회를 놓칠 뿐</b>이지만, 매도를 못 하면
+          <b>손실이 그대로 자랍니다.</b> 그래서 고장났을 때 기우는 쪽을
+          반대로 잡아 뒀습니다.
+        </p>
+        <ul style="margin:6px 0 0; padding-left:18px">
+          <li><b>매수</b> — 시트와 대시보드가 <b>둘 다 켜야</b> 켜집니다.
+            설정을 못 읽으면 <b>꺼집니다.</b></li>
+          <li><b>매도</b> — 시트와 대시보드가 <b>둘 다 꺼야</b> 꺼집니다.
+            설정을 못 읽으면 <b>켜집니다.</b></li>
+        </ul>
+      </details>
 
       <h2>쓰는 전략</h2>
       <p class="h2곁말">고르면 <b>다음 실행부터</b> 적용됩니다. 지금 들고 있는 것은 안 건드립니다.</p>

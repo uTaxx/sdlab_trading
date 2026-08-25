@@ -146,7 +146,24 @@ class TradingEngine:
         state_repository.record_signals(self._session_factory, signals)
 
         # 1) 청산: 손절 우선, 그다음 전략 매도 신호
-        for symbol, position in list(positions.items()):
+        #
+        # **매도 스위치가 꺼져 있으면 이 구간을 통째로 건너뛴다.** 손절도
+        # 익절도 보유일수 청산도 안 걸린다. 값이 반토막 나도 아무 일이
+        # 일어나지 않는다는 뜻이라, 조용히 지나가면 안 된다 —
+        # 들고 있는 것이 있으면 화면과 알림에 그 사실을 남긴다.
+        매도켬 = self._risk_manager.get_policy().sell_enabled
+        if not 매도켬 and positions:
+            summary.rejections.append(
+                f"🛑 매도 스위치가 꺼져 있어 보유 {len(positions)}종목의 "
+                "손절·익절·청산이 전부 멈춰 있습니다"
+            )
+            self._notify(
+                f"🛑 매도 꺼짐 — 보유 {len(positions)}종목에 손절이 안 걸립니다\n"
+                f"종목: {', '.join(sorted(positions))}\n"
+                "대시보드에서 매도를 켜면 다음 실행부터 다시 걸립니다."
+            )
+
+        for symbol, position in list(positions.items()) if 매도켬 else []:
             if symbol not in latest_prices:
                 continue
             price = latest_prices[symbol]

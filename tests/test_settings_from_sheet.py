@@ -109,10 +109,16 @@ def test_설명에_출처와_경고가_보인다():
     assert "아무 효과가 없습니다" in 글
 
 
-def test_설명은_시트가_없어도_돈다():
+def test_시트를_못_읽으면_매수는_끄고_매도는_켠다():
+    """방향이 반대다. 매수를 못 하면 기회를 놓칠 뿐이지만 **매도를 못 하면
+    손실이 그대로 자란다** — 모를 때 기울 쪽이 서로 반대다."""
     정책, 출처 = apply(RiskPolicy(), None)
+
+    assert 정책.trading_enabled is False
+    assert 정책.sell_enabled is True
     글 = describe(정책, 출처, None)
-    assert "매매를 껐습니다" in 글
+    assert "매수를 껐습니다" in 글
+    assert "매도는 살려" in 글
 
 
 def test_최소거래대금이_음수면_거부한다():
@@ -239,3 +245,58 @@ def test_시트에_킬스위치_줄이_아예_없으면_꺼진다():
     정책, 출처 = apply(RiskPolicy(trading_enabled=True), parse_settings(없음))
     assert 정책.trading_enabled is False
     assert 출처["trading_enabled"] == "시트에 없어 꺼짐"
+
+
+# ── 매도 스위치 (2026-08-25) ──────────────────────────────────
+#
+# 매수와 **안전한 방향이 정반대다.** 매수는 둘 다 켜야 켜지고(AND),
+# 매도는 둘 다 꺼야 꺼진다(OR). 매수를 못 하면 기회를 놓칠 뿐이지만
+# 매도를 못 하면 손실이 그대로 자란다.
+
+
+def test_매도는_한쪽만_켜도_켜진다():
+    """매수와 반대다. 시트를 잊고 안 적어도 손절은 살아 있어야 한다."""
+    정책, _ = apply(RiskPolicy(sell_enabled=True), parse_settings(기본설정(sell_enabled="false")))
+
+    assert 정책.sell_enabled is True
+
+
+def test_매도는_둘_다_꺼야_꺼진다():
+    정책, 출처 = apply(
+        RiskPolicy(sell_enabled=False), parse_settings(기본설정(sell_enabled="false"))
+    )
+
+    assert 정책.sell_enabled is False
+    assert "둘 다 꺼서" in 출처["sell_enabled"]
+
+
+def test_시트에_매도_항목이_없으면_켠_것으로_본다():
+    """예전 시트에는 이 칸이 없다. 없다고 손절이 멈추면 안 된다."""
+    설정 = parse_settings(기본설정())
+    설정.값.pop("sell_enabled", None)
+    설정.덮개.pop("sell_enabled", None)
+
+    정책, 출처 = apply(RiskPolicy(sell_enabled=True), 설정)
+
+    assert 정책.sell_enabled is True
+    assert 출처["sell_enabled"] == "시트에 없어 켜짐"
+
+
+def test_매수는_반대로_한쪽만_꺼도_꺼진다():
+    """두 스위치의 규칙이 반대라는 것을 나란히 못 박는다."""
+    정책, _ = apply(
+        RiskPolicy(trading_enabled=True), parse_settings(기본설정(trading_enabled="false"))
+    )
+
+    assert 정책.trading_enabled is False
+
+
+def test_매도가_꺼져_있으면_설명이_크게_말한다():
+    """조용히 꺼져 있으면 안 된다 — 손절이 안 걸리는 상태다."""
+    정책, 출처 = apply(
+        RiskPolicy(sell_enabled=False), parse_settings(기본설정(sell_enabled="false"))
+    )
+
+    글 = describe(정책, 출처, None)
+    assert "매도가 꺼져 있습니다" in 글
+    assert "손절" in 글

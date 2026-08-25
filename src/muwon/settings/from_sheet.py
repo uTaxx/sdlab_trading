@@ -74,6 +74,14 @@ class 기준:
         정책필드="trading_enabled", 텔레그램가능=False,
     ),
     기준(
+        "sell_enabled", "매도 스위치", "참거짓", "true",
+        "false면 손절·익절·청산이 전부 멈춥니다",
+        "**끄면 손절이 안 걸린다.** 값이 반토막 나도 아무 일도 안 일어난다. "
+        "매수 스위치와 안전한 방향이 반대라, 이것만은 **어느 쪽에서 켜도 "
+        "켜진다** — 시트와 대시보드가 둘 다 꺼야 꺼진다",
+        정책필드="sell_enabled", 텔레그램가능=False,
+    ),
+    기준(
         "require_approval", "매수 전 승인", "참거짓", "true",
         "true면 매수 전에 사람이 승인한 것만 삽니다",
         "완전 자동이 무서우면 이걸 켠다. 켠 채로 며칠 돌려 보고 제안이 "
@@ -297,7 +305,11 @@ def apply(기본: RiskPolicy, 시트: 시트설정 | None) -> tuple[RiskPolicy, 
     언제나 "안 사는 쪽"이다.
     """
     if 시트 is None:
-        return replace(기본, trading_enabled=False), {"trading_enabled": "시트를 못 읽어 끔"}
+        # 매수는 끄고 **매도는 켠다.** 방향이 반대인 이유는 아래 참조.
+        return replace(기본, trading_enabled=False, sell_enabled=True), {
+            "trading_enabled": "시트를 못 읽어 끔",
+            "sell_enabled": "시트를 못 읽어 켬(손절은 살려 둔다)",
+        }
 
     덮개 = dict(시트.덮개)
     출처 = {필드: "DB" for 필드 in vars(기본)}
@@ -314,6 +326,27 @@ def apply(기본: RiskPolicy, 시트: 시트설정 | None) -> tuple[RiskPolicy, 
         출처["trading_enabled"] = "시트에서 끔"
     else:
         출처["trading_enabled"] = "DB에서 끔"
+
+    # ── 매도는 규칙이 정반대다 ──────────────────────────────────
+    #
+    # 매수는 **둘 다 켜야 켜진다**(AND) — 어느 쪽에서 꺼도 꺼지므로, 틀리는
+    # 방향이 언제나 "안 사는 쪽"이다.
+    #
+    # 매도는 **둘 다 꺼야 꺼진다**(OR) — 어느 쪽에서 켜도 켜지므로, 틀리는
+    # 방향이 언제나 "파는 쪽"이다. 매수를 못 하면 기회를 놓칠 뿐이지만
+    # **매도를 못 하면 손실이 그대로 자란다.** 안전한 쪽이 반대다.
+    #
+    # 그래서 시트에 항목이 없으면(예전 시트) 끄지 않고 켠 것으로 본다.
+    시트매도 = 덮개.pop("sell_enabled", None)
+    덮개["sell_enabled"] = 팔까 = 기본.sell_enabled or (시트매도 is None) or bool(시트매도)
+    if 시트매도 is None:
+        출처["sell_enabled"] = "시트에 없어 켜짐"
+    elif 팔까 and 기본.sell_enabled and 시트매도:
+        출처["sell_enabled"] = "시트+DB 둘 다 켬"
+    elif 팔까:
+        출처["sell_enabled"] = "한쪽만 켰지만 켬(손절 우선)"
+    else:
+        출처["sell_enabled"] = "**시트+DB 둘 다 꺼서 꺼짐**"
 
     return replace(기본, **덮개), 출처
 
@@ -352,7 +385,8 @@ def 값글자(b: 기준, 것) -> str:
 def describe(정책: RiskPolicy, 출처: dict[str, str], 시트: 시트설정 | None) -> str:
     """사람이 읽을 한 덩어리. 로그·텔레그램·화면이 같은 말을 쓰게 한 군데에 둔다."""
     켬 = "켜짐" if 정책.trading_enabled else "**꺼짐**"
-    줄 = [f"■ 지금 걸려 있는 기준 (킬스위치 {켬})", ""]
+    팜 = "켜짐" if 정책.sell_enabled else "**꺼짐**"
+    줄 = [f"■ 지금 걸려 있는 기준 (매수 {켬} · 매도 {팜})", ""]
     for b in 기준들:
         어디 = 출처.get(b.정책필드 or b.이름)
         if 어디 is None:
@@ -360,8 +394,14 @@ def describe(정책: RiskPolicy, 출처: dict[str, str], 시트: 시트설정 | 
         줄.append(
             f"  {_채움(b.표시, 22)}{_채움(값글자(b, 지금값(정책, 시트, b)), 8, True)}   [{어디}]"
         )
+    if not 정책.sell_enabled:
+        줄 += [
+            "",
+            "  🛑 **매도가 꺼져 있습니다 — 손절·익절·청산이 전부 안 걸립니다.**",
+            "     들고 있는 종목의 값이 얼마나 빠지든 아무 일도 일어나지 않습니다.",
+        ]
     if 시트 is None:
-        줄 += ["", "  ⚠️ **시트를 못 읽어 매매를 껐습니다.**"]
+        줄 += ["", "  ⚠️ **시트를 못 읽어 매수를 껐습니다(매도는 살려 뒀습니다).**"]
     elif 시트.모르는이름:
         줄 += [
             "",

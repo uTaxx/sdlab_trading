@@ -30,9 +30,20 @@ class FakeNotifier:
         self.messages.append(message)
 
 
-def make_engine(data_source, policy: RiskPolicy | None = None, notifier=None, order_executor=None):
+def make_engine(
+    data_source,
+    policy: RiskPolicy | None = None,
+    notifier=None,
+    order_executor=None,
+    session_factory=None,
+):
+    """session_factory를 넘기면 **같은 DB로 이어서** 돈다.
+
+    "어제 산 것을 들고 있는데 오늘 기준이 바뀌었다"를 재려면 상태가 이어져야
+    한다. 새 엔진을 만들면서 DB까지 새로 잡으면 보유가 사라져서, 정작
+    재려던 것(들고 있는 종목에 무슨 일이 일어나나)을 못 잰다."""
     policy = policy or RiskPolicy()
-    session_factory = make_session_factory("sqlite:///:memory:")
+    session_factory = session_factory or make_session_factory("sqlite:///:memory:")
     notifier = notifier or FakeNotifier()
     engine = TradingEngine(
         strategy=MovingAverageRsiStrategy(),
@@ -394,3 +405,71 @@ def test_a_blocked_signal_records_the_reason():
     assert row.buy_signals == 1
     assert row.orders == 0
     assert row.rejections, "막은 이유가 비어 있으면 안 된다"
+
+
+# ── 매도 스위치 (2026-08-25) ──────────────────────────────────
+#
+# 대시보드에서 매수와 매도를 따로 끌 수 있게 됐다. 매도를 끄면 손절도
+# 익절도 보유일수 청산도 전부 멈춘다 — **값이 반토막 나도 아무 일도
+# 안 일어난다.** 이 저장소가 최악으로 꼽는 모양이라 시험으로 못 박는다.
+
+
+def test_매도가_꺼지면_데드크로스_청산도_안_한다():
+    entry_df = flat_then_breakout(tail_days=0)
+    data_source = FakeDataSource({TEST_TICKER.symbol: entry_df})
+    policy = RiskPolicy()
+    engine, session_factory, notifier = make_engine(data_source, policy=policy)
+    engine.run_once()  # 진입
+
+    # 여기서 사람이 대시보드에서 매도를 끈다
+    policy = RiskPolicy(sell_enabled=False)
+    data_source.frames[TEST_TICKER.symbol] = breakout_entry_then_dead_cross_exit(tail_days=0)
+    engine, _, _ = make_engine(
+        data_source, policy=policy, session_factory=session_factory
+    )
+    summary = engine.run_once()
+
+    assert not any(a.side == OrderSide.SELL for a in summary.actions)
+    with session_factory() as session:
+        assert session.query(PositionRow).count() == 1, "청산되면 안 된다"
+
+
+def test_매도가_꺼지면_보유가_있을_때_크게_알린다():
+    """조용히 멈추면 안 된다. 손절이 안 걸리는 상태라는 걸 사람이 알아야 한다."""
+    entry_df = flat_then_breakout(tail_days=0)
+    data_source = FakeDataSource({TEST_TICKER.symbol: entry_df})
+    engine, session_factory, _ = make_engine(data_source)
+    engine.run_once()
+
+    policy = RiskPolicy(sell_enabled=False)
+    engine, _, notifier = make_engine(
+        data_source, policy=policy, session_factory=session_factory
+    )
+    summary = engine.run_once()
+
+    assert any("매도" in r and "멈춰" in r for r in summary.rejections)
+    assert any("손절이 안 걸립니다" in m for m in notifier.messages)
+
+
+def test_매도가_꺼져도_보유가_없으면_안_시끄럽다():
+    """들고 있는 것이 없으면 손절이 멈춰도 잃을 것이 없다 — 알림을 아낀다."""
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    policy = RiskPolicy(sell_enabled=False)
+    engine, _, notifier = make_engine(data_source, policy=policy)
+
+    engine.run_once()
+
+    assert not any("손절이 안 걸립니다" in m for m in notifier.messages)
+
+
+def test_매도가_꺼져도_매수는_그대로_돈다():
+    """두 스위치는 서로 독립이다."""
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    policy = RiskPolicy(sell_enabled=False, trading_enabled=True)
+    engine, session_factory, _ = make_engine(data_source, policy=policy)
+
+    summary = engine.run_once()
+
+    assert any(a.side == OrderSide.BUY for a in summary.actions)
+    with session_factory() as session:
+        assert session.query(PositionRow).count() == 1

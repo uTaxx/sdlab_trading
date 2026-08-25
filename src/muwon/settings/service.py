@@ -50,6 +50,11 @@ class SettingsService:
                 "risk.trading_enabled", str(d.trading_enabled)
             )
             == "True",
+            # 매도는 **없으면 켠 것으로 본다.** 매수와 반대 방향이다 —
+            # 값이 비어 있는 이유가 무엇이든(첫 실행, 저장 실패, 열쇠 오타)
+            # 그 사이 손절이 멈춰 있으면 안 된다.
+            sell_enabled=self._store.get("risk.sell_enabled", str(d.sell_enabled))
+            != "False",
             atr_stop_enabled=self._store.get("risk.atr_stop_enabled", str(d.atr_stop_enabled))
             == "True",
             atr_stop_multiple=float(
@@ -73,6 +78,7 @@ class SettingsService:
             "risk.max_concurrent_positions", str(policy.max_concurrent_positions)
         )
         self._store.set("risk.trading_enabled", str(policy.trading_enabled))
+        self._store.set("risk.sell_enabled", str(policy.sell_enabled))
         self._store.set("risk.atr_stop_enabled", str(policy.atr_stop_enabled))
         self._store.set("risk.atr_stop_multiple", str(policy.atr_stop_multiple))
         self._store.set("risk.trailing_stop_enabled", str(policy.trailing_stop_enabled))
