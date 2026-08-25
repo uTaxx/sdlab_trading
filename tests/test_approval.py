@@ -102,7 +102,12 @@ def test_알림글은_아무것도_안하면_안산다고_말한다():
 
 
 def test_후보가_없으면_그렇게_말한다():
-    assert "후보 없음" in 알림글([], 오늘, "https://example.com")
+    글 = 알림글([], 오늘, "https://example.com")
+
+    assert "오늘 살 만한 종목이 없습니다" in 글
+    # 조용한 날이 고장처럼 읽히면 안 된다. 처음 쓰는 사람은 며칠 조용하면
+    # "이거 돌고 있는 건가"부터 의심한다.
+    assert "조건에 맞는 종목이 없는 날이 훨씬 많습니다" in 글
 
 
 def test_섹터가_시트에_적힌다():
@@ -220,11 +225,50 @@ def test_살펴본것이_0개면_그건_고장이라고_말한다():
     """45종목을 봐서 0개인 것과 0종목을 봐서 0개인 것은 전혀 다른 얘기다."""
     글 = 알림글([], 오늘, "https://example.com", 살펴본수=0)
     assert "살펴본 종목이 0개입니다" in 글
-    assert "시세나 목록에 문제" in 글
+    assert "시세나 목록을 못 읽은 것입니다" in 글
+    assert "고쳐야 하는 상태" in 글, "무엇을 해야 하는지까지 있어야 한다"
 
 
-def test_후보가_있으면_예전처럼_목록을_준다():
+def test_후보가_있으면_목록을_준다():
     글 = 알림글(후보들, 오늘, "https://example.com", 살펴본수=45)
+
     assert "삼성전자(005930)" in 글
     assert "살펴본 종목 45개" in 글
     assert "아무것도 안 삽니다" in 글
+
+
+def test_얼마를_쓰게_되는지_알려준다():
+    """'12주 @ 121,600원'만 보고 얼마가 나가는지 암산하게 두면 안 된다.
+    처음 쓰는 사람에게는 이게 제일 궁금한 숫자다."""
+    글 = 알림글(후보들, 오늘, "https://example.com")
+
+    assert "원어치" in 글
+    assert "전부 승인하면" in 글
+
+
+def test_승인하면_무슨_일이_일어나는지_적는다():
+    """승인 버튼을 처음 누르는 사람은 '언제 얼마에 사는지'를 모른다."""
+    글 = 알림글(후보들, 오늘, "https://example.com")
+
+    assert "오전 9시 5분" in 글
+    assert "위 가격은 어제 종가입니다" in 글
+
+
+def test_전략을_코드_이름으로_부르지_않는다():
+    """`volume_surge_5d`는 처음 보는 사람에게 아무 뜻도 없다."""
+    글 = 알림글(후보들, 오늘, "https://example.com", 전략="volume_surge_5d")
+
+    assert "volume_surge_5d" not in 글
+    assert "거래량 급증" in 글
+
+
+def test_모르는_전략_이름이어도_안_터진다():
+    글 = 알림글(후보들, 오늘, "https://example.com", 전략="없는전략")
+
+    assert "없는전략" in 글
+
+
+def test_텔레그램에_안_먹는_기호를_안_쓴다():
+    """send_message에 parse_mode를 안 준다 — `**굵게**`가 그대로 도착한다."""
+    assert "**" not in 알림글(후보들, 오늘, "https://example.com")
+    assert "**" not in 알림글([], 오늘, "https://example.com", 살펴본수=0)

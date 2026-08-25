@@ -16,6 +16,7 @@ KISOrderExecutor로 실제 주문을 넣더라도 리스크 계산(종목당 비
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -45,6 +46,109 @@ KST = ZoneInfo("Asia/Seoul")  # 실행 서버가 UTC라도 '오늘'은 한국 �
 
 def today_kst() -> date:
     return datetime.now(KST).date()
+
+
+def _돈(값: float) -> str:
+    return f"{값:,.0f}원"
+
+
+def _손절설명(사유: str) -> str:
+    """청산 사유를 처음 보는 사람도 알 수 있게 풀어 준다.
+
+    "손절" 한 마디로는 무슨 일이 일어난 것인지 알 수 없다. 이 시스템을
+    처음 쓰는 사람에게는 **왜 내 주식이 저절로 팔렸나**가 제일 큰 질문이다."""
+    풀이 = {
+        "손절": "미리 정해 둔 한계보다 더 떨어져서 자동으로 팔았습니다",
+        "보유기간 만료": "전략이 정한 보유 기간이 끝나 팔았습니다",
+        "매도 신호": "전략이 팔 때가 됐다고 판단했습니다",
+        "청산": "보유를 정리했습니다",
+    }
+    for 열쇠, 말 in 풀이.items():
+        if 사유.startswith(열쇠):
+            return f"{사유} — {말}"
+    if 사유.startswith("ATR 손절"):
+        return f"{사유} — 그 종목이 하루에 보통 움직이는 폭보다 더 떨어져서 자동으로 팔았습니다"
+    if 사유.startswith("익절"):
+        return f"{사유} — 목표한 만큼 올라서 이익을 확정했습니다"
+    if 사유.startswith("트레일링"):
+        return f"{사유} — 고점에서 밀려나 이익을 지키려고 팔았습니다"
+    return 사유
+
+
+def 매수알림(이름: str, symbol: str, order, 사유: str, 손절비율: float | None = None,
+          atr손절: bool = False) -> str:
+    """산 뒤에 보내는 글.
+
+    예전에는 `가격: 118,300원`만 있었다. 1주 값인지 전부 합친 값인지,
+    그래서 얼마를 쓴 것인지, 앞으로 언제 팔리는지가 하나도 없었다."""
+    줄 = ["🟢 매수했습니다", f"{이름}({symbol})", ""]
+
+    남은것 = getattr(order, "잔여", 0)
+    if 남은것:
+        줄 += [
+            (
+                f"주문한 {order.ordered_quantity}주 중 {order.quantity}주를 샀습니다 "
+                f"(나머지 {남은것}주는 아직)"
+            ),
+            "  오늘 안에 마저 사지거나 장 마감에 자동 취소됩니다. 손댈 것 없습니다.",
+        ]
+    else:
+        줄.append(f"{order.quantity}주를 샀습니다")
+
+    줄 += [
+        f"1주당 {_돈(order.price)} · 모두 {_돈(order.quantity * order.price)}",
+        f"산 이유: {사유}",
+    ]
+
+    if 손절비율 and not atr손절:
+        손절가 = order.price * (1 + 손절비율)
+        줄 += [
+            "",
+            f"이 종목이 {_돈(손절가)}까지 떨어지면 자동으로 팝니다",
+            f"  (산 값에서 {abs(손절비율):.0%} 손해 보는 자리입니다)",
+        ]
+    elif atr손절:
+        줄 += ["", "그 종목이 하루에 보통 움직이는 폭(ATR)을 넘어 떨어지면 자동으로 팝니다"]
+    return "\n".join(줄)
+
+
+def 매도알림(이름: str, symbol: str, order, 사유: str, 진입가: float = 0.0,
+          진입일=None, 판날=None) -> str:
+    """판 뒤에 보내는 글.
+
+    예전 글에는 **손익이 아예 없었다.** 팔았다는 사실만 있고 벌었는지
+    잃었는지가 없으면, 받아 보는 사람이 제일 먼저 묻는 것에 답을 못 한다."""
+    줄 = ["🔴 팔았습니다", f"{이름}({symbol})", ""]
+
+    남은것 = getattr(order, "잔여", 0)
+    if 남은것:
+        줄.append(
+            f"주문한 {order.ordered_quantity}주 중 {order.quantity}주를 팔았습니다 "
+            f"(나머지 {남은것}주는 아직 남아 있습니다)"
+        )
+    else:
+        줄.append(f"{order.quantity}주를 팔았습니다")
+
+    줄 += [
+        f"1주당 {_돈(order.price)} · 모두 {_돈(order.quantity * order.price)}",
+        f"판 이유: {_손절설명(사유)}",
+    ]
+
+    if 진입가 > 0:
+        손익 = (order.price - 진입가) * order.quantity
+        비율 = order.price / 진입가 - 1
+        벌었나 = "벌었습니다" if 손익 >= 0 else "잃었습니다"
+        줄 += [
+            "",
+            "이 거래의 결과",
+            f"  산 값 {_돈(진입가)} → 판 값 {_돈(order.price)}",
+            f"  {손익:+,.0f}원 ({비율:+.1%}) {벌었나}",
+        ]
+        if 진입일 is not None and 판날 is not None:
+            with suppress(TypeError, AttributeError):
+                줄.append(f"  {(판날 - 진입일).days}일 들고 있었습니다")
+        줄.append("  (수수료·세금은 빼기 전 값입니다)")
+    return "\n".join(줄)
 
 
 def _수량글(order) -> str:
@@ -185,10 +289,24 @@ class TradingEngine:
                 f"🛑 매도 스위치가 꺼져 있어 보유 {len(positions)}종목의 "
                 "손절·익절·청산이 전부 멈춰 있습니다"
             )
+            들고있는것 = [
+                f"  · {_find_ticker(self._universe, ㅅ).name}({ㅅ})" for ㅅ in sorted(positions)
+            ]
             self._notify(
-                f"🛑 매도 꺼짐 — 보유 {len(positions)}종목에 손절이 안 걸립니다\n"
-                f"종목: {', '.join(sorted(positions))}\n"
-                "대시보드에서 매도를 켜면 다음 실행부터 다시 걸립니다."
+                "\n".join(
+                    [
+                        "🛑 지금 들고 있는 종목이 아무 보호도 못 받고 있습니다",
+                        "",
+                        "매도 스위치가 꺼져 있어서, 값이 얼마나 떨어져도 자동으로",
+                        f"팔리지 않습니다. 지금 {len(positions)}종목을 들고 있습니다.",
+                        "",
+                        *들고있는것,
+                        "",
+                        "일부러 끄신 것이면 그대로 두셔도 됩니다.",
+                        "다시 켜려면 대시보드 맨 위의 '자동 매도' 스위치를 켜세요.",
+                        "다음 실행부터 손절이 다시 걸립니다.",
+                    ]
+                )
             )
 
         for symbol, position in list(positions.items()) if 매도켬 else []:
@@ -236,8 +354,12 @@ class TradingEngine:
                 ExecutedAction(symbol, ticker.name, OrderSide.SELL, order.quantity, order.price, exit_reason)
             )
             self._notify(
-                f"🔴 매도 체결\n종목: {ticker.name}({symbol})\n{_수량글(order)}\n"
-                f"가격: {order.price:,.0f}원\n사유: {exit_reason}"
+                매도알림(
+                    ticker.name, symbol, order, exit_reason,
+                    진입가=position.entry_price,
+                    진입일=position.entry_date,
+                    판날=trade_date,
+                )
             )
 
         equity_after_exits = cash + sum(
@@ -322,9 +444,13 @@ class TradingEngine:
             summary.actions.append(
                 ExecutedAction(symbol, ticker.name, OrderSide.BUY, order.quantity, order.price, buy_signal.reason)
             )
+            정책 = self._risk_manager.get_policy()
             self._notify(
-                f"🟢 매수 체결\n종목: {ticker.name}({symbol})\n{_수량글(order)}\n"
-                f"가격: {order.price:,.0f}원\n사유: {buy_signal.reason}"
+                매수알림(
+                    ticker.name, symbol, order, buy_signal.reason,
+                    손절비율=정책.stop_loss_pct,
+                    atr손절=getattr(정책, "atr_stop_enabled", False),
+                )
             )
 
         final_equity = cash + sum(

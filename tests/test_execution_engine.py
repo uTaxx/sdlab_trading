@@ -81,8 +81,12 @@ def test_buy_signal_executes_order_persists_position_and_notifies():
     assert orders[0].side == "buy"
 
     assert len(notifier.messages) == 1
-    assert "매수 체결" in notifier.messages[0]
-    assert TEST_TICKER.name in notifier.messages[0]
+    글 = notifier.messages[0]
+    assert "매수했습니다" in 글
+    assert TEST_TICKER.name in 글
+    # 처음 쓰는 사람이 제일 먼저 묻는 둘 — 얼마를 썼고, 언제 팔리나.
+    assert "모두" in 글, "총액이 없으면 얼마 나갔는지 암산해야 한다"
+    assert "자동으로 팝니다" in 글, "손절선을 알려 주지 않으면 언제 팔리는지 모른다"
 
 
 def test_dead_cross_sells_existing_position_and_notifies():
@@ -112,7 +116,10 @@ def test_dead_cross_sells_existing_position_and_notifies():
     assert trades[0].exit_reason == "단기선 하향이탈"
     assert trades[0].pnl_pct < 0  # 진입가보다 낮은 가격에 청산됐으므로 손실
 
-    assert any("매도 체결" in m for m in notifier.messages)
+    (매도글,) = [m for m in notifier.messages if "팔았습니다" in m]
+    # 판 뒤에 제일 먼저 묻는 것은 "벌었나 잃었나"다. 예전 글에는 그게 없었다.
+    assert "이 거래의 결과" in 매도글
+    assert "산 값" in 매도글 and "판 값" in 매도글
 
 
 def test_trading_disabled_blocks_entry_and_sends_no_notification():
@@ -450,7 +457,10 @@ def test_매도가_꺼지면_보유가_있을_때_크게_알린다():
     summary = engine.run_once()
 
     assert any("매도" in r and "멈춰" in r for r in summary.rejections)
-    assert any("손절이 안 걸립니다" in m for m in notifier.messages)
+    (경고,) = [m for m in notifier.messages if "🛑" in m]
+    assert "자동으로" in 경고 and "팔리지 않습니다" in 경고
+    assert TEST_TICKER.name in 경고, "종목코드만 있으면 무슨 주식인지 모른다"
+    assert "'자동 매도' 스위치를 켜세요" in 경고, "어디를 눌러야 하는지까지 있어야 한다"
 
 
 def test_매도가_꺼져도_보유가_없으면_안_시끄럽다():
