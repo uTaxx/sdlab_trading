@@ -32,7 +32,7 @@ from muwon.market import forecast_log
 from muwon.market import series as 시계열
 from muwon.market.analog import forecast, format_forecast
 from muwon.market.sector_index import build_index, coverage_report, relative_strength
-from muwon.market.state import build_state, describe_today
+from muwon.market.state import build_state, describe_today, raw_indicators
 from muwon.sector.catalog import CATALOG, 국제시세
 
 KST = ZoneInfo("Asia/Seoul")
@@ -95,10 +95,14 @@ def main() -> int:
         print(f"  {시계열.SERIES[키].이름}: {len(df)}일 ({df['trade_date'].min()} ~)", file=sys.stderr)
 
     상태 = build_state(바깥)
+    # z점수는 '흔한 일인가'를 판단하는 데만 쓰고, 사람에게 보여 줄 때는 원래
+    # 단위(고점에서 몇 % 빠졌나)를 그대로 쓴다. z점수를 퍼센트로 읽은 사고가
+    # 있었고, 그렇다고 숫자를 다 지웠더니 이번엔 "얼마나 깊이?"에 답을 못 했다.
+    원시 = raw_indicators(바깥)
     emit(f"■ 장 상태를 잰 날 {len(상태)}일 ({상태.index[0]} ~ {상태.index[-1]})")
     emit(f"  렌즈: {args.lens} — {시계열.LENSES[args.lens][2]}")
     emit()
-    emit(describe_today(상태 if 기준일 is None else 상태.loc[:기준일]))
+    emit(describe_today(상태 if 기준일 is None else 상태.loc[:기준일], 원시))
     emit()
 
     # ── 시장 전체 전망 ────────────────────────────────────────────
@@ -217,6 +221,7 @@ def main() -> int:
             낸전망,
             기준일 or (상태.index[-1] if len(상태) else 오늘),
             렌즈=args.lens,
+            원시=원시 if 기준일 is None else 원시.loc[:기준일],
         )
         try:
             TelegramNotifier(build_settings_service()).send(요약)

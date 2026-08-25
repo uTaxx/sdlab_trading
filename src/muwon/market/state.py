@@ -134,14 +134,45 @@ def build_state(series: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return z.dropna(how="any")
 
 
+#: 원래 단위가 비율(%)인 지표들. 나머지(금리·금구리비 등)는 그대로 쓴다.
+_퍼센트지표 = ("추세20", "추세120", "고점대비", "변동성", "추세60")
+
+
 def describe_today(state: pd.DataFrame, raw: pd.DataFrame | None = None) -> str:
-    """가장 최근 날의 상태를 사람 말로."""
+    """가장 최근 날의 상태를 사람 말로.
+
+    **z점수만 찍으면 읽을 수가 없다.** z점수는 '평소에 견줘 얼마나 벗어났나'
+    이지 값 자체가 아니라서, `고점대비 -2.80`을 보고 "고점에서 2.8% 빠졌다"로
+    읽는 일이 실제로 있었다. 원래 값(고점에서 12.3% 아래)을 나란히 둔다.
+
+    `raw`는 예전부터 받기만 하고 안 쓰던 자리다 — 이제 쓴다."""
     if len(state) == 0:
         return "상태를 잴 수 있는 날이 없습니다 — 표준화에 필요한 과거(3년)가 아직 안 쌓였습니다."
     오늘 = state.iloc[-1]
     날짜 = state.index[-1]
-    lines = [f"■ {날짜} 장 상태 (z점수 — 0이 평소, +2면 평소보다 한참 위)", ""]
+
+    원시오늘 = None
+    if raw is not None and len(raw):
+        같은날 = raw.loc[:날짜]
+        if len(같은날):
+            원시오늘 = 같은날.iloc[-1]
+
+    lines = [
+        f"■ {날짜} 장 상태",
+        "  왼쪽이 실제 값, 오른쪽 z는 '평소에 견줘 얼마나 벗어났나'입니다.",
+        "  z는 0이 평소, ±1이 흔한 범위, ±2면 몇 해에 한 번 볼까 말까 한 자리입니다.",
+        "",
+    ]
     for 이름, 값 in 오늘.items():
         표시 = "▁▂▃▄▅▆▇"[min(int((값 + 4) / 8 * 7), 6)]
-        lines.append(f"  {표시} {이름:<22}{값:>+7.2f}")
+        실제 = ""
+        if 원시오늘 is not None and 이름 in 원시오늘.index:
+            몫 = float(원시오늘[이름])
+            if 몫 == 몫:  # noqa: PLR0124 — NaN이면 비운다
+                실제 = (
+                    f"{몫:>+8.2%}"
+                    if any(이름.endswith(ㄲ) for ㄲ in _퍼센트지표)
+                    else f"{몫:>+8.2f}"
+                )
+        lines.append(f"  {표시} {이름:<22}{실제:>10}   z {값:>+6.2f}")
     return "\n".join(lines)
