@@ -60,6 +60,7 @@ from muwon.config import bootstrap_settings
 from muwon.data.kis_client import KISClient
 from muwon.db.models import OrderRow
 from muwon.db.session import ensure_schema, make_session_factory
+from muwon.execution import state_repository
 from muwon.execution.order_audit import 대조하기, 우리주문, 파싱
 from muwon.settings.service import build_settings_service
 
@@ -143,7 +144,10 @@ def main() -> int:
 
     증권사것 = 파싱(행들)
     우리것 = 우리기록(session_factory, 시작, 끝)
-    결과 = 대조하기(우리것, 증권사것)
+    # 보유를 같이 봐야 "놓친 체결"이 위험한지 아닌지를 가를 수 있다.
+    # 손절은 보유를 보고 걸리지 주문 기록을 보고 걸리지 않는다.
+    보유 = frozenset(state_repository.load_positions(session_factory))
+    결과 = 대조하기(우리것, 증권사것, 보유)
 
     print(f"우리 기록 {len(우리것)}건 · 증권사 체결 {sum(1 for o in 증권사것 if o.체결됐나)}건")
     print(f"(증권사 주문 {len(증권사것)}건 중 {결과.체결없음}건은 체결 0 — 취소·미체결이라 대조 대상이 아닙니다)")
@@ -172,10 +176,17 @@ def main() -> int:
         print()
 
     if 결과.증권사만:
-        print(f"🕳️ 증권사에만 있음 {len(결과.증권사만)}건 — **이 주식에는 손절이 안 걸립니다**")
-        for o in 결과.증권사만:
-            print(f"   {o.한줄} [주문 {o.order_id}]")
-        print("   → `adopt_holdings.py`로 들입니다. 진입일과 사유를 사람이 줘야 해서 여기서 안 합니다.")
+        print(f"🕳️ 증권사엔 체결이 있는데 우리 주문 기록엔 없음 {len(결과.증권사만)}건")
+        for ㄴ in 결과.증권사만:
+            표 = "🔴" if ㄴ.위험한가 else "·"
+            print(f"   {표} {ㄴ.주문.한줄} [주문 {ㄴ.주문.order_id}]")
+            print(f"      {ㄴ.뜻}")
+        if 결과.위험한것:
+            print()
+            print(f"   → 위험한 것 {len(결과.위험한것)}건은 `adopt_holdings.py`로 들이세요.")
+            print("     진입일과 사유를 사람이 줘야 해서 여기서 안 합니다.")
+        print("   → 나머지는 성적표에서만 빠집니다. 주문 기록을 되살리는 길은 아직 없습니다")
+        print("     (증권사 값만으로는 '무슨 근거로 샀나'를 복원할 수 없습니다).")
         print()
 
     if not 결과.문제있나:

@@ -73,6 +73,38 @@ class 증권사주문:
 
 
 @dataclass(frozen=True)
+class 놓친체결:
+    """증권사엔 체결이 있는데 우리 주문 기록엔 없는 한 건.
+
+    **"손절이 안 걸린다"고 뭉뚱그리면 안 된다.** 손절은 보유(positions)를
+    보고 걸리지 주문 기록을 보고 걸리지 않는다. 주문 기록에만 없고 보유로는
+    알고 있는 종목이라면 위험은 없고 **성적표에서만 빠진다.**
+
+    2026-08-25 첫 대조에서 실제로 그랬다. HPSP 2주가 주문 기록에 없었지만
+    보유로는 알고 있어서 손절은 걸려 있었다. 세 갈래를 안 가르면 멀쩡한 것을
+    보고 놀라고, 정작 위험한 것과 구별을 못 한다."""
+
+    주문: 증권사주문
+    #: 우리가 이 종목을 보유로는 알고 있나.
+    보유중: bool
+    #: 이 기간 안에서 같은 종목의 매수·매도가 상쇄되나(사고 판 흔적).
+    닫힘: bool
+
+    @property
+    def 위험한가(self) -> bool:
+        """보유로도 모르고 닫히지도 않았다 — 아무도 안 지키는 주식이다."""
+        return not self.보유중 and not self.닫힘
+
+    @property
+    def 뜻(self) -> str:
+        if self.위험한가:
+            return "보유로도 모릅니다 — **이 주식에는 손절이 안 걸립니다**"
+        if self.닫힘:
+            return "이 기간에 사고 판 흔적입니다 — 지금 보유는 아니고 성적표에서만 빠집니다"
+        return "보유로는 알고 있어 손절은 걸립니다 — 성적표(승률·손익비·슬리피지)에서만 빠집니다"
+
+
+@dataclass(frozen=True)
 class 우리주문:
     """우리 `orders` 표의 한 줄."""
 
@@ -128,8 +160,9 @@ class 대조:
     어긋남: list[어긋난짝] = field(default_factory=list)
     #: 우리 기록에만 있는 것. 유령이다 — 그 주식은 실제로 없다.
     우리만: list[우리주문] = field(default_factory=list)
-    #: 증권사에만 있는 체결. 우리가 놓쳤다 — 그 주식에는 손절이 안 걸린다.
-    증권사만: list[증권사주문] = field(default_factory=list)
+    #: 증권사에만 있는 체결. 우리 주문 기록이 놓친 것들.
+    #: 손절이 걸리는지는 보유를 봐야 알 수 있어서 놓친체결이 따로 가른다.
+    증권사만: list[놓친체결] = field(default_factory=list)
     #: 주문번호가 없어 짝을 못 찾은 우리 기록(흉내 실행 등).
     대조불가: list[우리주문] = field(default_factory=list)
     #: 체결이 0이라 대조 대상이 아니었던 증권사 주문 수(취소·미체결).
@@ -138,6 +171,11 @@ class 대조:
     @property
     def 문제있나(self) -> bool:
         return bool(self.어긋남 or self.우리만 or self.증권사만)
+
+    @property
+    def 위험한것(self) -> list[놓친체결]:
+        """보유로도 모르는 체결 — 아무도 안 지키는 주식이다."""
+        return [ㄴ for ㄴ in self.증권사만 if ㄴ.위험한가]
 
     @property
     def 대조한건수(self) -> int:
@@ -171,11 +209,19 @@ def 파싱(rows) -> list[증권사주문]:
     return 나온것
 
 
-def 대조하기(우리것: list[우리주문], 증권사것: list[증권사주문]) -> 대조:
+def 대조하기(
+    우리것: list[우리주문],
+    증권사것: list[증권사주문],
+    보유종목: frozenset[str] | set[str] = frozenset(),
+) -> 대조:
     """주문번호로 짝을 지어 어디가 어긋났는지 가른다.
 
     **증권사가 사실이다.** 우리 기록이 다르면 우리 것이 틀린 것이지, 증권사에
-    따질 일이 아니다. 그래서 '어긋남'의 방향은 언제나 우리 → 증권사다."""
+    따질 일이 아니다. 그래서 '어긋남'의 방향은 언제나 우리 → 증권사다.
+
+    `보유종목`을 주면 "우리 주문 기록엔 없는 체결"을 세 갈래로 가른다 —
+    보유로는 아는 것 / 이 기간에 사고 판 것 / 아무도 모르는 것. 안 가르면
+    멀쩡한 것을 보고 놀라고, 정작 위험한 것과 구별을 못 한다."""
     체결된것 = {_번호(o.order_id): o for o in 증권사것 if o.체결됐나}
     체결없음 = sum(1 for o in 증권사것 if not o.체결됐나)
 
@@ -198,13 +244,32 @@ def 대조하기(우리것: list[우리주문], 증권사것: list[증권사주�
         짝 = 어긋난짝(우리=우리, 증권사=상대)
         (어긋남 if 짝.바뀌나 else 맞음).append(짝)
 
-    증권사만 = [o for 번호, o in 체결된것.items() if 번호 not in 짝지은번호]
+    놓친것 = sorted(
+        (o for 번호, o in 체결된것.items() if 번호 not in 짝지은번호),
+        key=lambda o: (o.ord_dt, o.symbol),
+    )
+
+    # 놓친 것들 안에서 같은 종목의 매수·매도가 상쇄되면 사고 판 흔적이다.
+    # (verify_kis_order가 주문 경로를 확인하려고 1주 샀다 파는 것이 그 예다.)
+    순수량: dict[str, int] = {}
+    for o in 놓친것:
+        부호 = 1 if o.side == OrderSide.BUY else -1
+        순수량[o.symbol] = 순수량.get(o.symbol, 0) + 부호 * o.filled_quantity
+
+    증권사만 = [
+        놓친체결(
+            주문=o,
+            보유중=o.symbol in 보유종목,
+            닫힘=순수량.get(o.symbol, 0) == 0,
+        )
+        for o in 놓친것
+    ]
 
     return 대조(
         맞음=맞음,
         어긋남=어긋남,
         우리만=우리만,
-        증권사만=sorted(증권사만, key=lambda o: (o.ord_dt, o.symbol)),
+        증권사만=증권사만,
         대조불가=대조불가,
         체결없음=체결없음,
     )
