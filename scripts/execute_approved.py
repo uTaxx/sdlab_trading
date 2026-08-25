@@ -182,6 +182,10 @@ def main() -> int:
     selection = service.get_strategy_selection()
     strategy = build_strategies(selection.active_keys, selection.combine)
 
+    # 흉내 실행에는 물어볼 증권사가 없다. None이면 엔진이 예전처럼 우리
+    # 현금 계산만으로 간다.
+    살수있는수량 = None
+
     if args.dry_run:
         from muwon.data.yahoo_client import YahooFinanceDataSource
         from muwon.execution.simulated_executor import SimulatedOrderExecutor
@@ -195,6 +199,11 @@ def main() -> int:
         data_source = client
         executor = KISOrderExecutor(client)
         source_symbol = lambda t: t.symbol
+        # 우리 기준은 "얼마나 사고 싶은가"를, 증권사는 "얼마나 살 수 있는가"를
+        # 정한다. 우리가 스스로 센 현금은 부분 체결·거부·손매매로 조용히
+        # 어긋난다 — 2026-08-25에 294만원이 벌어진 채로 돌았다.
+        살수있는수량 = client.get_orderable
+        print("■ 매수 수량은 증권사의 매수가능수량과 견줘 작은 쪽으로 갑니다.")
 
     engine = TradingEngine(
         strategy=strategy,
@@ -205,6 +214,7 @@ def main() -> int:
         session_factory=session_factory,
         universe=universe,
         source_symbol=source_symbol,
+        orderable_provider=살수있는수량,
     )
     summary = engine.run_once()
 

@@ -36,6 +36,7 @@ def make_engine(
     notifier=None,
     order_executor=None,
     session_factory=None,
+    orderable_provider=None,
 ):
     """session_factory를 넘기면 **같은 DB로 이어서** 돈다.
 
@@ -54,6 +55,7 @@ def make_engine(
         session_factory=session_factory,
         universe=[TEST_TICKER],
         source_symbol=lambda ticker: ticker.symbol,
+        orderable_provider=orderable_provider,
     )
     return engine, session_factory, notifier
 
@@ -473,3 +475,77 @@ def test_매도가_꺼져도_매수는_그대로_돈다():
     assert any(a.side == OrderSide.BUY for a in summary.actions)
     with session_factory() as session:
         assert session.query(PositionRow).count() == 1
+
+
+# ── 증권사 매수가능수량 (2026-08-25) ──────────────────────────
+#
+# 우리 기준은 "얼마나 사고 싶은가"(비중 상한)를, 증권사는 "얼마나 살 수
+# 있는가"(증거금율 반영)를 정한다. 둘 중 작은 쪽을 산다.
+#
+# 이걸 안 물어보면 우리가 스스로 센 현금 위에서만 판단하는데, 그 값은
+# 부분 체결·거부·손매매로 조용히 어긋난다.
+
+
+def test_증권사가_적게_준다고_하면_그만큼만_산다():
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    engine, session_factory, _ = make_engine(
+        data_source, orderable_provider=lambda symbol, price: 3
+    )
+
+    summary = engine.run_once()
+
+    assert summary.actions[0].quantity == 3
+    assert any("매수가능수량이 3주" in r for r in summary.rejections)
+    with session_factory() as session:
+        assert session.query(PositionRow).one().quantity == 3
+
+
+def test_증권사가_0이라고_하면_안_산다():
+    """현금이나 증거금이 모자란 것이다. 주문을 내 봐야 거부당한다."""
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    engine, session_factory, _ = make_engine(
+        data_source, orderable_provider=lambda symbol, price: 0
+    )
+
+    summary = engine.run_once()
+
+    assert summary.actions == []
+    assert any("매수가능수량 0" in r for r in summary.rejections)
+    with session_factory() as session:
+        assert session.query(PositionRow).count() == 0
+
+
+def test_증권사가_넉넉하다고_하면_우리_기준대로_산다():
+    """증권사 값은 **상한**이지 목표가 아니다. 살 수 있다고 다 사면
+    비중 상한이 무의미해진다."""
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    없이, _, _ = make_engine(data_source)
+    기대수량 = 없이.run_once().actions[0].quantity
+
+    engine, _, _ = make_engine(
+        FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)}),
+        orderable_provider=lambda symbol, price: 999_999,
+    )
+
+    assert engine.run_once().actions[0].quantity == 기대수량
+
+
+def test_못_물어보면_예전처럼_우리_현금으로_간다():
+    """조회 한 번 실패한 것이 그날 매수를 통째로 막으면 안 된다.
+    -1은 '살 수 없다'가 아니라 '못 물어봤다'다."""
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    engine, _, _ = make_engine(
+        data_source, orderable_provider=lambda symbol, price: -1
+    )
+
+    assert engine.run_once().actions[0].quantity > 0
+
+
+def test_조회가_터져도_매매가_안_멈춘다():
+    data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
+    def 터짐(symbol, price):
+        raise RuntimeError("증권사가 안 받음")
+
+    engine, _, _ = make_engine(data_source, orderable_provider=터짐)
+
+    assert engine.run_once().actions[0].quantity > 0

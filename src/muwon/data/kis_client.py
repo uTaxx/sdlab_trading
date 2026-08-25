@@ -58,6 +58,11 @@ _DAILY_CCLD_TR_ID = {"paper": "VTTC0081R", "real": "TTTC0081R"}
 # 주식잔고조회 TR_ID (같은 저장소에서 확인).
 _BALANCE_TR_ID = {"paper": "VTTC8434R", "real": "TTTC8434R"}
 
+#: 매수가능조회. 우리가 스스로 세던 현금 대신 **증권사가 계산한** 살 수
+#: 있는 수량을 받는다. 2026-08-25에 우리 현금이 계좌와 294만원 어긋난
+#: 채로 그 위에서 비중 상한이 돌았다.
+_PSBL_ORDER_TR_ID = {"paper": "VTTC8908R", "real": "TTTC8908R"}
+
 # KIS는 초당 호출 횟수를 제한한다 — 모의투자가 실전투자보다 훨씬 빡빡하다
 # (문서상 모의투자 초당 2건, 실전투자 초당 20건). 요청 간 최소 간격을 둬서
 # 이를 피한다.
@@ -436,6 +441,46 @@ class KISClient(MarketDataSource):
                 avg_fill_price=avg_price,
             )
         return None
+
+    def get_orderable(self, symbol: str, price: float) -> int:
+        """이 종목을 **미수 없이** 몇 주까지 살 수 있나. 못 물어보면 -1.
+
+        우리 엔진은 현금을 스스로 계산해 왔다 — 사면 빼고 팔면 더한다.
+        부분 체결·거부·손매매가 있으면 그 값이 조용히 어긋나고, 비중 상한과
+        일일 손실한도가 전부 그 어긋난 값 위에서 돈다. 2026-08-25에 실제로
+        294만원이 벌어진 채로 돌았다.
+
+        증권사는 증거금율까지 반영해 정확히 알려 준다. 그걸 쓴다.
+
+        **주문구분을 반드시 01(시장가)로 준다.** 00(지정가)로 물어보면
+        종목증거금율이 반영되지 않은 수량이 나온다 — 한투 문서가 "반드시"라고
+        적어 둔 자리다. 우리는 시장가로만 주문하므로 짝도 맞는다.
+
+        못 물어봤을 때 0이 아니라 **-1**을 돌려준다. 0은 "살 수 없다"는
+        답이고 -1은 "못 물어봤다"인데, 둘을 같게 두면 조회 한 번 실패한 것이
+        그날 매수를 통째로 막는다.
+        """
+        env = "paper" if self.is_paper else "real"
+        try:
+            response = self._get_with_retry(
+                f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-psbl-order",
+                headers=self._auth_headers(_PSBL_ORDER_TR_ID[env]),
+                params={
+                    "CANO": self.account_no,
+                    "ACNT_PRDT_CD": self.account_product_cd,
+                    "PDNO": symbol,
+                    "ORD_UNPR": str(int(price)),
+                    "ORD_DVSN": "01",          # 시장가 — 증거금율이 반영된다
+                    "CMA_EVLU_AMT_ICLD_YN": "N",
+                    "OVRS_ICLD_YN": "N",
+                },
+                timeout=10,
+            )
+            output = response.json().get("output") or {}
+            return int(float(output.get("nrcvb_buy_qty") or 0))
+        except Exception as e:  # noqa: BLE001 — 조회 실패가 매매를 멈춰선 안 된다
+            logger.warning(f"매수가능조회 실패({symbol}): {e} — 우리 현금 계산으로 갑니다.")
+            return -1
 
     def get_balance(self) -> AccountBalance:
         """증권사 계좌의 실제 잔고(현금·보유종목)를 조회한다.

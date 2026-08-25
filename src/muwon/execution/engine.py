@@ -101,6 +101,7 @@ class TradingEngine:
         source_symbol: Callable[[Ticker], str],
         costs: TransactionCosts | None = None,
         initial_cash: float = 10_000_000.0,
+        orderable_provider: Callable[[str, float], int] | None = None,
     ):
         self._strategy = as_portfolio_strategy(strategy)
         self._risk_manager = risk_manager
@@ -112,6 +113,10 @@ class TradingEngine:
         self._source_symbol = source_symbol
         self._costs = costs or TransactionCosts()
         self._initial_cash = initial_cash
+        #: (종목, 값) → 미수 없이 살 수 있는 수량. 못 물어보면 -1.
+        #: 없으면 예전처럼 우리 현금 계산만으로 간다 — 백테스트와 흉내 실행은
+        #: 증권사가 없으니 물어볼 곳도 없다.
+        self._orderable_provider = orderable_provider
 
     def run_once(self, as_of: date | None = None) -> RunSummary:
         """as_of: '오늘'로 볼 날짜(기본은 한국시간 오늘). 테스트용 주입구다."""
@@ -269,6 +274,34 @@ class TradingEngine:
 
             target_value = equity_after_exits * policy.max_position_weight
             quantity = int(target_value / (price * (1 + self._costs.buy_fee_pct)))
+
+            # ── 증권사가 "살 수 있는 수량"을 정한다 ──────────────────
+            #
+            # 우리 기준은 **얼마나 사고 싶은가**(비중 상한)를 정하고,
+            # 증권사는 **얼마나 살 수 있는가**(증거금율까지 반영)를 정한다.
+            # 둘 중 작은 쪽을 산다.
+            #
+            # 이걸 안 물어보면 우리가 스스로 센 현금 위에서만 판단하게 되는데,
+            # 그 값은 부분 체결·거부·손매매로 조용히 어긋난다. 2026-08-25에
+            # 294만원이 벌어진 채로 돌았다.
+            #
+            # 못 물어봤을 때(-1)는 예전처럼 우리 현금으로 간다 — 조회 한 번
+            # 실패한 것이 그날 매수를 통째로 막으면 안 된다.
+            살수있는수량 = self._orderable(symbol, price)
+            if 살수있는수량 == 0:
+                summary.rejections.append(
+                    f"{_find_ticker(self._universe, symbol).name}({symbol}): "
+                    "증권사가 매수가능수량 0으로 답했습니다 — 현금이나 증거금이 모자랍니다"
+                )
+                continue
+            if 0 < 살수있는수량 < quantity:
+                summary.rejections.append(
+                    f"{_find_ticker(self._universe, symbol).name}({symbol}): "
+                    f"{quantity}주를 사려 했지만 증권사 매수가능수량이 {살수있는수량}주라 "
+                    "그만큼만 삽니다"
+                )
+                quantity = 살수있는수량
+
             cost = quantity * price * (1 + self._costs.buy_fee_pct)
             if quantity <= 0 or cost > cash:
                 continue
@@ -325,6 +358,15 @@ class TradingEngine:
             cash=cash,
             equity=equity,
         )
+
+    def _orderable(self, symbol: str, price: float) -> int:
+        """증권사가 말하는 매수가능수량. 물어볼 곳이 없으면 -1(=모름)."""
+        if self._orderable_provider is None:
+            return -1
+        try:
+            return self._orderable_provider(symbol, price)
+        except Exception:  # noqa: BLE001 — 조회 실패가 매매를 멈춰선 안 된다
+            return -1
 
     def _notify(self, message: str) -> None:
         self._notifier.send(message)
