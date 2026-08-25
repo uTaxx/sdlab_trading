@@ -76,7 +76,7 @@ jobs:
             --app-key "${{ secrets.KIS_APP_KEY }}" --app-secret "${{ secrets.KIS_APP_SECRET }}" \
             --account-no "${{ secrets.KIS_ACCOUNT_NO }}" --account-product-cd "01"
           python scripts/configure.py telegram \
-            --token "${{ secrets.TELEGRAM_BOT_TOKEN }}" --chat-id "${{ secrets.TELEGRAM_CHAT_ID }}"
+            --bot-token "${{ secrets.TELEGRAM_BOT_TOKEN }}" --chat-id "${{ secrets.TELEGRAM_CHAT_ID }}"
 
       - name: 취소
         run: |
