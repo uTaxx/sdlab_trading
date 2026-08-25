@@ -114,3 +114,13 @@ class OrderResult:
     #: price가 실제 체결가인지, 조회 실패로 기준가를 그대로 쓴 것인지.
     #: 이 구분이 없으면 슬리피지 통계에 '차이 0'인 가짜 표본이 섞인다.
     fill_confirmed: bool = False
+    #: 우리가 **주문한** 수량. quantity는 그중 체결된 것이다.
+    #: 부분 체결은 흔한 일이라 사고가 아니다 — 다만 알림에 "12주 중 4주,
+    #: 잔여 8주"처럼 그대로 적어야 사람이 무슨 일이 있었는지 안다.
+    #: 0이면 조회를 안 했거나 못 한 것이라 quantity와 같다고 본다.
+    ordered_quantity: int = 0
+
+    @property
+    def 잔여(self) -> int:
+        """주문했는데 아직 안 채워진 수량. 모르면 0."""
+        return max(0, self.ordered_quantity - self.quantity) if self.ordered_quantity else 0

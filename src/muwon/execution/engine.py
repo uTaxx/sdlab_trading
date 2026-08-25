@@ -47,6 +47,29 @@ def today_kst() -> date:
     return datetime.now(KST).date()
 
 
+def _수량글(order) -> str:
+    """체결 알림의 수량 줄.
+
+    **부분 체결은 사고가 아니라 흔한 일이다.** 그래서 경보를 걸지 않고
+    사실만 적는다 — 다 채워졌으면 예전처럼 한 줄이고, 남았으면 주문·체결·
+    잔여를 나란히 보여 준다.
+
+        수량: 51주
+        수량: 12주 중 4주 체결 · 잔여 8주
+
+    잔여는 대개 그날 안에 마저 채워지거나 장 마감에 취소된다. 어느 쪽이든
+    다음 실행이 계좌를 다시 읽으므로 사람이 손댈 것은 없다. 그 사실까지
+    알림에 적어야 "뭘 해야 하나" 하고 멈추지 않는다.
+    """
+    남은것 = getattr(order, "잔여", 0)
+    if not 남은것:
+        return f"수량: {order.quantity}주"
+    return (
+        f"수량: {order.ordered_quantity}주 중 {order.quantity}주 체결 · 잔여 {남은것}주\n"
+        "      (잔여는 마저 체결되거나 장 마감에 취소됩니다 — 손댈 것 없습니다)"
+    )
+
+
 @dataclass
 class ExecutedAction:
     symbol: str
@@ -208,7 +231,7 @@ class TradingEngine:
                 ExecutedAction(symbol, ticker.name, OrderSide.SELL, order.quantity, order.price, exit_reason)
             )
             self._notify(
-                f"🔴 매도 체결\n종목: {ticker.name}({symbol})\n수량: {order.quantity}주\n"
+                f"🔴 매도 체결\n종목: {ticker.name}({symbol})\n{_수량글(order)}\n"
                 f"가격: {order.price:,.0f}원\n사유: {exit_reason}"
             )
 
@@ -267,7 +290,7 @@ class TradingEngine:
                 ExecutedAction(symbol, ticker.name, OrderSide.BUY, order.quantity, order.price, buy_signal.reason)
             )
             self._notify(
-                f"🟢 매수 체결\n종목: {ticker.name}({symbol})\n수량: {order.quantity}주\n"
+                f"🟢 매수 체결\n종목: {ticker.name}({symbol})\n{_수량글(order)}\n"
                 f"가격: {order.price:,.0f}원\n사유: {buy_signal.reason}"
             )
 

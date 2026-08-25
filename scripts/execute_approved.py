@@ -192,19 +192,8 @@ def main() -> int:
     else:
         from muwon.execution.kis_order_executor import KISOrderExecutor
 
-        def 체결이_주문과_다르면(symbol: str, 주문: int, 체결: int) -> None:
-            # 로그만 남기면 아무도 안 본다. 2026-08-25에 12주 주문이 4주로
-            # 기록됐고 DB에 없는 8주에는 손절이 안 걸린 상태로 남았다.
-            notifier.send(
-                f"⚠️ 체결 수량이 주문과 다릅니다\n"
-                f"종목: {symbol}\n주문: {주문}주\n체결: {체결}주\n\n"
-                "진짜 부분 체결일 수도, 조회가 이른 것일 수도 있습니다. "
-                "자동으로 고치지 않습니다 — 계좌를 확인하고 맞으면\n"
-                "adopt-holdings 워크플로에 fix_quantity로 종목코드를 주세요."
-            )
-
         data_source = client
-        executor = KISOrderExecutor(client, on_mismatch=체결이_주문과_다르면)
+        executor = KISOrderExecutor(client)
         source_symbol = lambda t: t.symbol
 
     engine = TradingEngine(

@@ -32,20 +32,10 @@ class KISOrderExecutor(OrderExecutor):
         client: KISClient,
         confirm_fills: bool = True,
         sleep_fn: Callable[[float], None] = time.sleep,
-        on_mismatch: Callable[[str, int, int], None] | None = None,
     ):
         self._client = client
         self._confirm_fills = confirm_fills
         self._sleep = sleep_fn
-        #: 조회한 체결 수량이 주문 수량과 다를 때 부른다(종목, 주문, 체결).
-        #: **로그만 남기면 아무도 안 본다.** 2026-08-25에 12주 주문이 4주로
-        #: 기록됐고, 그 사실은 로그에 warning으로 남아 있었지만 며칠 뒤에나
-        #: 드러날 뻔했다 — DB에 없는 8주에는 손절이 안 걸린다.
-        #:
-        #: 고치지는 않는다. 진짜 부분 체결일 수도 있고, 조회가 이른 것일
-        #: 수도 있어서 자동으로 덮으면 그것대로 사고다. 알리고 사람이 정한다
-        #: (`adopt_holdings.py --fix-quantity`).
-        self._on_mismatch = on_mismatch
 
     def submit_order(
         self, symbol: str, side: OrderSide, quantity: int, reference_price: float
@@ -71,18 +61,14 @@ class KISOrderExecutor(OrderExecutor):
 
             if fill is not None and not fill.is_unfilled:
                 if fill.filled_quantity != order.quantity:
-                    logger.warning(
-                        f"체결 수량이 주문과 다름: {order.symbol} 주문 "
-                        f"{order.quantity}주 → 체결 {fill.filled_quantity}주"
+                    # **사고가 아니다.** 부분 체결은 흔한 일이라 경보를 걸면
+                    # 경보가 죽는다. 사실만 남기고, 사람에게는 체결 알림에
+                    # "12주 중 4주, 잔여 8주"로 그대로 적어 보낸다.
+                    logger.info(
+                        f"부분 체결: {order.symbol} 주문 {order.quantity}주 중 "
+                        f"{fill.filled_quantity}주 체결, 잔여 "
+                        f"{order.quantity - fill.filled_quantity}주"
                     )
-                    if self._on_mismatch is not None:
-                        try:
-                            self._on_mismatch(
-                                order.symbol, order.quantity, fill.filled_quantity
-                            )
-                        except Exception as e:  # noqa: BLE001
-                            # 알림이 안 가는 것보다 매매가 멈추는 것이 나쁘다.
-                            logger.warning(f"체결 불일치 알림 실패: {e}")
                 logger.info(
                     f"체결 확인: {order.symbol} {fill.filled_quantity}주 @ "
                     f"{fill.avg_fill_price:,.0f}원 (기준가 {order.price:,.0f}원)"
@@ -98,6 +84,7 @@ class KISOrderExecutor(OrderExecutor):
                     # 실제로 산 가격이 얼마나 벌어졌나"를 영영 잴 수 없다.
                     reference_price=order.reference_price or order.price,
                     fill_confirmed=True,
+                    ordered_quantity=fill.ordered_quantity or order.quantity,
                 )
 
             if attempt < _FILL_LOOKUP_ATTEMPTS - 1:
