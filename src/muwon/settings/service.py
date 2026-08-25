@@ -123,6 +123,33 @@ class SettingsService:
     def set_telegram_offset(self, offset: int) -> None:
         self._store.set("telegram.update_offset", str(int(offset)))
 
+    # ── KIS 접근토큰 보관 ──────────────────────────────────────
+    #
+    # KIS는 **토큰 발급을 자주 하면 403으로 막는다.** 그런데 토큰을 메모리에만
+    # 두면 워크플로가 돌 때마다 새 프로세스라 매번 새로 발급받게 된다.
+    #
+    # 2026-08-25에 이것 때문에 세 번 막혔다. 그중 하나는 **승인 매수**였고,
+    # 주문이 한 건도 안 나간 채 끝났다. 평소처럼 하루 두세 번이면 안 걸리지만
+    # 손볼 일이 생겨 연달아 돌리면 그날 매매가 통째로 막힌다.
+    #
+    # 발급받은 토큰은 보통 24시간 쓸 수 있다. DB에 두면 그동안 재사용된다 —
+    # n8n 쪽은 이미 그렇게 하고 있었고(20시간 캐시) 파이썬 쪽만 안 했다.
+    #
+    # 토큰은 비밀값이다. app_secret과 같은 자리에 같은 방식으로 넣는다.
+
+    def get_kis_token(self) -> tuple[str, float]:
+        """(토큰, 만료시각 epoch)를 돌려준다. 없으면 ("", 0.0)."""
+        토큰 = self._store.get("kis.access_token", "") or ""
+        try:
+            만료 = float(self._store.get("kis.token_expires_at", "0") or 0)
+        except ValueError:
+            만료 = 0.0
+        return 토큰, 만료
+
+    def set_kis_token(self, token: str, expires_at: float) -> None:
+        self._store.set("kis.access_token", token, secret=True)
+        self._store.set("kis.token_expires_at", str(expires_at))
+
     def get_strategy_selection(self) -> StrategySelection:
         """전략 여러 개를 걸 수 있게 바뀌었지만 옛 키(strategy.active_key)도
         읽는다 — 운영 DB에는 그게 이미 들어 있고, 컬럼 하나 바꾸느라 지금

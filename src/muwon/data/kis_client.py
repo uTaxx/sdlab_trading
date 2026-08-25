@@ -153,7 +153,12 @@ class KISClient(MarketDataSource):
         account_product_cd: str = "01",
         is_paper: bool = True,
         sleep_fn: Callable[[float], None] = time.sleep,
+        token_store=None,
     ):
+        #: 발급받은 토큰을 프로세스 밖에 남겨 두는 곳(SettingsService).
+        #: 없으면 예전처럼 메모리에만 두고 매번 새로 발급받는다 —
+        #: 테스트와 일회성 스크립트는 그 편이 간단하다.
+        self._token_store = token_store
         self.app_key = app_key
         self.app_secret = app_secret
         self.account_no = account_no
@@ -162,6 +167,10 @@ class KISClient(MarketDataSource):
         self.base_url = PAPER_BASE_URL if is_paper else REAL_BASE_URL
         self._access_token: str | None = None
         self._token_expires_at: float = 0.0
+        if token_store is not None:
+            보관된것, 만료 = token_store.get_kis_token()
+            if 보관된것:
+                self._access_token, self._token_expires_at = 보관된것, 만료
         self._sleep = sleep_fn
         self._min_request_interval = _MIN_REQUEST_INTERVAL_PAPER if is_paper else _MIN_REQUEST_INTERVAL_REAL
         self._last_request_at: float = 0.0
@@ -224,6 +233,7 @@ class KISClient(MarketDataSource):
         쓰지 말고, 필요할 때마다(예: 스케줄 작업 시작 시) 새로 생성할 것."""
         creds = settings_service.get_kis_credentials()
         return cls(
+            token_store=settings_service,
             app_key=creds.app_key,
             app_secret=creds.app_secret,
             account_no=creds.account_no,
@@ -248,6 +258,8 @@ class KISClient(MarketDataSource):
         payload = response.json()
         self._access_token = payload["access_token"]
         self._token_expires_at = time.time() + int(payload["expires_in"]) - 60
+        if self._token_store is not None:
+            self._token_store.set_kis_token(self._access_token, self._token_expires_at)
         return self._access_token
 
     def _auth_headers(self, tr_id: str) -> dict:
