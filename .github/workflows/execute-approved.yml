@@ -83,8 +83,13 @@ jobs:
             | tee execute.txt
 
       # 보유·현금 상태가 바뀌었을 수 있다. 안 올리면 다음 실행이 옛 상태로 돈다.
+      #
+      # **흉내만 낸 회차는 안 올린다.** 스크립트가 이미 사본에 쓰도록 고쳤지만
+      # (muwon/db/scratch.py), 그게 뚫렸을 때 구글드라이브까지 번지지 않도록
+      # 여기서 한 번 더 막는다. 2026-08-25에 dry-run이 운영 DB에 유령 보유를
+      # 남기고 그걸 올려서, 계좌엔 없는 12주·51주를 DB가 들고 있게 됐다.
       - name: 상태 DB 올리기
-        if: always()
+        if: always() && github.event.inputs.dry_run == 'false'
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
         run: |

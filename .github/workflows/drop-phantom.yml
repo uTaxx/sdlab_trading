@@ -1,0 +1,95 @@
+name: 유령 보유 지우기
+
+# 기록에만 있고 계좌엔 없는 보유를 지운다. `adopt-holdings`의 반대다.
+#
+# ## 왜 워크플로로 두나
+#
+# 상태 DB는 구글드라이브에 있고 KIS 열쇠는 GitHub 비밀값에 있다. 둘 다
+# 여기서만 닿는다. 손으로 고칠 방법이 없어서 도구가 있어야 한다.
+#
+# ## 언제 쓰나
+#
+# `state-check`가 "DB엔 N주인데 계좌엔 없음"이라고 할 때. 그대로 두면
+# 엔진이 그 종목을 이미 보유로 보고 안 사거나, 유령에 손절이 걸려 없는
+# 주식에 매도 주문을 낸다.
+#
+# ## 기본은 미리보기다
+#
+# `apply`를 켜지 않으면 아무것도 안 쓴다. 스크립트도 워크플로도 그렇다 —
+# 지우는 도구라 실수로 도는 쪽이 아니라 실수로 안 도는 쪽으로 기울여 뒀다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "지울 종목코드 (쉼표로 여럿 — 예: 066970,411060)"
+        required: true
+      apply:
+        description: "실제로 지운다 (끄면 미리보기만)"
+        type: boolean
+        default: false
+      with_orders:
+        description: "그 종목의 최근 24시간 주문 기록도 지운다 (흉내 낸 체결이 슬리피지 통계를 오염시킨다)"
+        type: boolean
+        default: false
+
+concurrency:
+  # 상태 DB를 고치는 일이라 겹치면 나중 것이 앞 것을 덮는다.
+  group: state-write
+  cancel-in-progress: false
+
+jobs:
+  drop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: KIS 설정 갱신
+        run: |
+          python scripts/configure.py kis --env paper \
+            --app-key "${{ secrets.KIS_APP_KEY }}" --app-secret "${{ secrets.KIS_APP_SECRET }}" \
+            --account-no "${{ secrets.KIS_ACCOUNT_NO }}" --account-product-cd "01"
+
+      - name: 지우기
+        run: |
+          args=""
+          for s in $(echo "${{ github.event.inputs.symbols }}" | tr ',' ' '); do
+            args="$args --symbol $s"
+          done
+          python scripts/drop_phantom_holdings.py $args \
+            ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
+            ${{ github.event.inputs.with_orders == 'true' && '--with-orders' || '' }} \
+            | tee drop.txt
+
+      # 미리보기였으면 DB가 안 바뀌었으므로 올릴 것도 없다. 그래도 올리면
+      # 그 사이 다른 실행이 쓴 것을 옛 것으로 덮을 수 있다.
+      - name: 상태 DB 올리기
+        if: github.event.inputs.apply == 'true'
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py upload \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --path ./muwon.db
+
+      - name: 결과 아티팩트로 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop-phantom-${{ github.run_number }}
+          path: drop.txt

@@ -44,10 +44,12 @@ from muwon.cloud.approval import read_today
 from muwon.cloud.sector_sheet import DEFAULT_TITLE, find_or_create, read
 from muwon.config import bootstrap_settings
 from muwon.db.models import PositionRow
+from muwon.db.scratch import 사본으로
 from muwon.db.session import ensure_schema, make_session_factory
 from muwon.execution.approved_universe import build_universe
 from muwon.execution.engine import TradingEngine
 from muwon.execution.reconciliation import check_account_consistency
+from muwon.notify.dry_run import 모의알림
 from muwon.notify.telegram import TelegramNotifier
 from muwon.risk.manager import RiskManager
 from muwon.settings.from_sheet import build_policy_provider, parse_settings
@@ -77,7 +79,17 @@ def main() -> int:
 
     ensure_schema(bootstrap_settings.database_url)
     service = build_settings_service()
-    session_factory = make_session_factory(bootstrap_settings.database_url)
+
+    # ── 흉내만 낼 때는 사본에 쓴다 ───────────────────────────────
+    #
+    # 엔진은 dry-run인지 모른다. 주문을 흉내로 내든 진짜로 내든 결과를
+    # 똑같이 저장한다. 그래서 **쓸 곳 자체를 바꾼다** — 사본을 보게 하면
+    # 무엇을 쓰든 운영 DB에는 닿지 않는다(muwon/db/scratch.py에 경위).
+    쓸곳 = bootstrap_settings.database_url
+    if args.dry_run:
+        쓸곳 = 사본으로(쓸곳)
+        print(f"■ --dry-run — 운영 DB 사본에 씁니다. 원본은 안 건드립니다.\n  {쓸곳}")
+    session_factory = make_session_factory(쓸곳)
 
     # ── 킬스위치가 먼저다 ────────────────────────────────────────
     #
@@ -108,6 +120,10 @@ def main() -> int:
         보유 = {p.symbol for p in session.scalars(select(PositionRow))}
 
     notifier = TelegramNotifier(service)
+    if args.dry_run:
+        # 흉내 낸 체결이 진짜와 똑같이 생긴 알림으로 나가면 받는 사람이
+        # 산 줄 안다. 2026-08-25에 실제로 그랬다(muwon/notify/dry_run.py).
+        notifier = 모의알림(notifier)
 
     # ── 사기 전에 실제 계좌와 대조한다 ───────────────────────────
     #
@@ -191,7 +207,11 @@ def main() -> int:
     )
     summary = engine.run_once()
 
-    print(f"\n=== 승인 매매 결과 ({summary.run_date}) ===")
+    # 날짜가 둘 나온다. 위의 "승인 현황"은 **오늘**이고 여기는 **판단의 근거가
+    # 된 날**이다 — 엔진은 마지막으로 완성된 일봉만 쓴다(오늘 봉은 장이 안
+    # 끝나 종가도 거래량도 확정이 아니다). 이름표가 없으면 같은 것의 오타로
+    # 읽힌다.
+    print(f"\n=== 승인 매매 결과 (판단 근거: {summary.run_date} 종가) ===")
     print(f"점검 종목 수: {summary.checked_symbols}")
     if not summary.actions:
         print("체결 없음")
