@@ -29,6 +29,24 @@ class SettingsService:
     """
 
     def __init__(self, store: SettingsStore):
+        # **session_factory를 바로 주는 실수를 여기서 잡는다.**
+        #
+        # 사이에 SettingsStore가 있어야 하고, 그게 비밀값을 푸는 열쇠를 들고
+        # 있다. 안 잡으면 생성은 조용히 지나가고 한참 뒤 첫 읽기에서
+        # `'sessionmaker' object has no attribute 'get'`으로 터진다 — 무엇을
+        # 잘못 넘겼는지가 안 보이는 자리에서.
+        #
+        # 2026-08-20~25에 이걸로 두 가지가 망가져 있었다. 30분봉 수집은 일곱
+        # 번 내리 실패했고(그날치 분봉은 다시 못 받는다), 시장 리포트는 여덟
+        # 번 내리 텔레그램을 못 보냈는데 try/except 안이라 **워크플로는 여덟
+        # 번 다 초록불이었다.**
+        if not hasattr(store, "get") or not hasattr(store, "set"):
+            raise TypeError(
+                f"SettingsService에는 SettingsStore를 줘야 합니다 — 받은 것: "
+                f"{type(store).__name__}.\n"
+                "session_factory를 바로 넘기셨다면 build_settings_service()를 쓰세요 "
+                "(사이에 있는 SettingsStore가 비밀값을 푸는 열쇠를 들고 있습니다)."
+            )
         self._store = store
 
     def get_risk_policy(self) -> RiskPolicy:

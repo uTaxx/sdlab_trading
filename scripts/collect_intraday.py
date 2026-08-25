@@ -39,7 +39,7 @@ from muwon.data.kis_client import KISClient
 from muwon.data.universe import UNIVERSE
 from muwon.data.universe_builder import active_universe
 from muwon.db.session import make_session_factory
-from muwon.settings.service import SettingsService
+from muwon.settings.service import build_settings_service
 
 KST = timezone(timedelta(hours=9))
 
@@ -84,7 +84,10 @@ def main() -> int:
     today = date.fromisoformat(args.date) if args.date else datetime.now(KST).date()
 
     session_factory = make_session_factory(bootstrap_settings.database_url)
-    service = SettingsService(session_factory)
+    # SettingsService에 session_factory를 바로 주면 안 된다 — 사이에
+    # SettingsStore가 있어야 하고, 그게 비밀값을 푸는 열쇠를 들고 있다.
+    # 2026-08-20~25에 이걸 틀려서 30분봉이 일곱 번 내리 실패했다.
+    service = build_settings_service()
     # 기본값은 시가총액 상위(실거래 대상)다. 실험용 거래대금 스냅샷이
     # 수집 대상을 바꾸면, 나중에 "그때 무엇을 모았나"를 되짚을 수 없다.
     symbols = [t.symbol for t in active_universe(session_factory, list(UNIVERSE))]

@@ -82,5 +82,15 @@ jobs:
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
         run: |
+          # 수집이 시작도 못 했으면 올릴 파일이 없다. 그때 그냥 올리려 들면
+          # FileNotFoundError로 죽으면서 **진짜 원인을 로그 맨 아래에서
+          # 밀어낸다.** 2026-08-25에 실제로 그랬다 — 메일에 찍힌 것은
+          # 업로드 실패였고, 진짜 원인(설정 객체를 잘못 만든 것)은 그 위에
+          # 묻혀 있었다.
+          if [ ! -f ./intraday.db ]; then
+            echo "::warning::intraday.db가 없습니다 — 수집이 시작도 못 한 것입니다."
+            echo "올릴 것이 없어 건너뜁니다. 위쪽 '30분봉 수집' 단계의 오류를 보세요."
+            exit 0
+          fi
           python scripts/gdrive_sync.py upload \
             --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename intraday.db --path ./intraday.db

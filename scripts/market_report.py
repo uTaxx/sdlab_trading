@@ -26,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import pandas as pd
 import requests
 
-from muwon.config import bootstrap_settings
 from muwon.data.price_cache import PriceCache
 from muwon.data.yahoo_client import YahooFinanceDataSource
 from muwon.market import forecast_log
@@ -207,11 +206,11 @@ def main() -> int:
     #
     # 전문은 200줄이 넘는다. 그대로 보내면 아무도 안 읽고, 안 읽는 알림은
     # 진짜 중요한 알림을 묻는다. 그래서 한 통짜리로 줄여 보낸다.
+    못보냄 = ""
     if args.telegram:
-        from muwon.db.session import make_session_factory
         from muwon.market.digest import summarize
         from muwon.notify.telegram import TelegramNotifier
-        from muwon.settings.service import SettingsService
+        from muwon.settings.service import build_settings_service
 
         요약 = summarize(
             상태 if 기준일 is None else 상태.loc[:기준일],
@@ -220,11 +219,15 @@ def main() -> int:
             렌즈=args.lens,
         )
         try:
-            서비스 = SettingsService(make_session_factory(bootstrap_settings.database_url))
-            TelegramNotifier(서비스).send(요약)
+            TelegramNotifier(build_settings_service()).send(요약)
             print("\n텔레그램으로 요약을 보냈습니다.", file=sys.stderr)
         except Exception as e:  # noqa: BLE001 — 알림 실패가 리포트를 죽이면 안 된다
-            print(f"\n텔레그램 전송 실패: {type(e).__name__}: {e}", file=sys.stderr)
+            # 리포트 자체는 끝까지 만든다. 다만 **조용히 넘어가지는 않는다** —
+            # 2026-08-19~24에 여기서 여덟 번 내리 실패했는데 워크플로는 여덟 번
+            # 다 초록불이었고, 그동안 리포트가 폰에 한 번도 안 왔다.
+            # 조용히 성공한 척하는 실패가 이 저장소에서 제일 비싼 종류다.
+            못보냄 = f"{type(e).__name__}: {e}"
+            print(f"\n텔레그램 전송 실패: {못보냄}", file=sys.stderr)
 
     # ── 전망을 시트에도 남긴다 ────────────────────────────────────
     #
@@ -249,6 +252,12 @@ def main() -> int:
     if args.out:
         Path(args.out).write_text("\n".join(쓴것) + "\n", encoding="utf-8")
         print(f"\n결과를 {args.out}에 남겼습니다.", file=sys.stderr)
+
+    if 못보냄:
+        # 리포트는 다 만들었고 파일·아티팩트로도 남겼다. 그래도 실패로
+        # 끝낸다 — 보내라고 했는데 못 보냈으면 그건 실패다.
+        print(f"\n❌ 요약을 텔레그램으로 보내지 못했습니다: {못보냄}", file=sys.stderr)
+        return 1
     return 0
 
 
