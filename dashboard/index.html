@@ -62,20 +62,28 @@
   <!-- ── 열쇠 넣기 ───────────────────────────────────── -->
   <section id="설정" class="숨김" style="margin-top:18px">
     <div class="알림 순한">
-      <strong>열쇠를 한 번만 넣어 주세요.</strong><br>
-      이 화면은 <b>계좌 자료를 담고 있지 않습니다</b> — 주소를 아는 사람은
-      화면을 열 수 있으니, 숫자는 열쇠가 있어야만 나옵니다.
-      열쇠는 <b>이 브라우저에만</b> 저장됩니다.
+      <strong>처음이신가요? 열쇠를 한 번만 넣으면 됩니다.</strong><br>
+      이 화면에는 <b>계좌 숫자가 들어 있지 않습니다.</b> 볼 때마다 증권사에서
+      받아 오는데, 그 문을 여는 것이 열쇠입니다. 주소만 알면 화면은 누구나
+      열 수 있으니 숫자는 열쇠로 막아 둔 것입니다.
+      <br><br>
+      한 번 넣으면 <b>이 브라우저가 기억합니다.</b> 다음부터는 안 물어봅니다.
+      열쇠는 이 브라우저 밖으로 나가지 않습니다.
     </div>
     <label for="열쇠">열쇠</label>
-    <input id="열쇠" type="password" placeholder="열쇠를 붙여 넣으세요" autocomplete="off">
+    <input id="열쇠" type="password" placeholder="열쇠를 붙여 넣고 엔터" autocomplete="off">
+    <div class="곁말" style="margin-top:6px">
+      열쇠를 모르시면 이 시스템을 설치한 분에게 물어보세요.
+      직접 설치하셨다면 n8n의 <b>「열쇠가 맞나」</b> 노드에 적어 둔 값입니다.
+    </div>
     <details>
       <summary>자료를 다른 곳에서 받아야 한다면</summary>
       <label for="주소">n8n 주소 (비우면 기본값을 씁니다)</label>
       <input id="주소" type="url" placeholder="https://....app.n8n.cloud" autocomplete="off">
     </details>
+    <div id="열쇠알림"></div>
     <div class="줄">
-      <button id="저장" class="주된">저장하고 불러오기</button>
+      <button id="저장" class="주된">열쇠 넣고 시작하기</button>
     </div>
   </section>
 
@@ -84,6 +92,11 @@
     숫자는 지금 그대로 나옵니다. 다만 <b>창을 닫았다 다시 열면 열쇠를 한 번 더
     넣어야 합니다.</b>
   </div>
+
+  <!-- 예시 자료로 돌고 있을 때 **맨 위에 한 번만** 알린다.
+       예전에는 구역마다 같은 경고를 띄워서 한 화면에 여섯 번 나왔다.
+       같은 말이 여섯 번 나오면 사람은 여섯 번 다 안 읽는다. -->
+  <div id="예시배너" class="숨김"></div>
 
   <!-- ── 본문 ────────────────────────────────────────── -->
   <main id="본문" class="숨김">
@@ -113,7 +126,7 @@
         <div class="칸">
           <div class="이름표">주문 가능 현금</div>
           <div class="값" id="현금">—</div>
-          <div class="곁말">결제(T+2) 반영</div>
+          <div class="곁말">지금 바로 살 수 있는 돈. 판 돈은 이틀 뒤에 들어옵니다</div>
         </div>
       </div>
 
