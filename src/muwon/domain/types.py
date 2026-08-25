@@ -52,6 +52,9 @@ class FillInfo:
     ordered_quantity: int
     filled_quantity: int
     avg_fill_price: float
+    #: 증권사가 준 종목명. 알림에 종목코드만 찍으면 사람은 무슨 주식인지
+    #: 모른다 — '066970'을 보고 엘앤에프를 떠올릴 수 있는 사람은 없다.
+    name: str = ""
 
     @property
     def is_fully_filled(self) -> bool:

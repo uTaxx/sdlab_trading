@@ -501,6 +501,7 @@ class KISClient(MarketDataSource):
                 ordered_quantity=int(float(row.get("ord_qty") or 0)),
                 filled_quantity=filled,
                 avg_fill_price=avg_price,
+                name=str(row.get("prdt_name", "")).strip(),
             )
         return None
 

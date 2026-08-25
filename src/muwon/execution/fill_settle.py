@@ -51,17 +51,56 @@ class 주문고침:
     옛체결가: float
     새체결가: float
     판단가: float
+    #: 증권사가 준 종목명. 알림에 코드만 찍으면 무슨 주식인지 알 수 없다.
+    종목명: str = ""
+    #: "BUY" / "SELL". 산 것인지 판 것인지 안 적으면 수량 변화를 읽을 수 없다.
+    방향: str = "BUY"
 
     @property
     def 바뀌나(self) -> bool:
         return self.옛수량 != self.새수량 or abs(self.옛체결가 - self.새체결가) > 0.5
 
     @property
+    def 부른이름(self) -> str:
+        return f"{self.종목명}({self.symbol})" if self.종목명 else self.symbol
+
+    @property
+    def 산건가(self) -> bool:
+        return self.방향.upper() != "SELL"
+
+    @property
     def 슬리피지(self) -> float:
-        """판단가 대비 체결가가 몇 %나 벌어졌나. 판단가를 모르면 0."""
+        """판단가 대비 체결가가 몇 %나 벌어졌나. 판단가를 모르면 0.
+
+        **부호가 유리·불리를 뜻하지 않는다.** 살 때 음수는 싸게 산 것이라
+        유리하고, 팔 때 음수는 싸게 판 것이라 불리하다. 그래서 화면에
+        이 값을 그대로 찍으면 안 된다 — `유리한가`와 같이 써야 한다."""
         if self.판단가 <= 0:
             return 0.0
         return (self.새체결가 - self.판단가) / self.판단가
+
+    @property
+    def 유리한가(self) -> bool | None:
+        """판단한 값보다 좋은 자리에서 체결됐나. 판단가를 모르면 None.
+
+        사는 쪽은 싸게 살수록 좋고, 파는 쪽은 비싸게 팔수록 좋다."""
+        if self.판단가 <= 0 or abs(self.슬리피지) < 0.0001:
+            return None
+        return self.슬리피지 < 0 if self.산건가 else self.슬리피지 > 0
+
+    @property
+    def 슬리피지글(self) -> str:
+        """사람이 읽을 한 줄. 부호 대신 '싸게/비싸게'와 '유리/불리'로 적는다."""
+        if self.판단가 <= 0:
+            return "판단가를 몰라 잴 수 없습니다"
+        폭 = abs(self.슬리피지)
+        if 폭 < 0.0001:
+            return "판단했던 값 그대로 체결됐습니다"
+        싸게 = self.새체결가 < self.판단가
+        어떻게 = "싸게" if 싸게 else "비싸게"
+        무엇 = "샀습니다" if self.산건가 else "팔았습니다"
+        판정 = "유리" if self.유리한가 else "불리"
+        return f"판단했던 값보다 {폭:.2%} {어떻게} {무엇} ({판정})"
 
 
 @dataclass(frozen=True)
@@ -99,7 +138,10 @@ def 주문맞추기(주문들, 체결조회) -> list[주문고침]:
       빠졌다고 수량을 0으로 만들면 보유가 통째로 사라진다.
     """
     나온것 = []
-    for order_id, symbol, 수량, 체결가, 판단가 in 주문들:
+    for 줄 in 주문들:
+        # 방향은 나중에 붙인 칸이라 없이 오는 호출도 받는다.
+        order_id, symbol, 수량, 체결가, 판단가 = 줄[:5]
+        방향 = 줄[5] if len(줄) > 5 else "BUY"
         fill = 체결조회(order_id)
         if fill is None or fill.filled_quantity <= 0:
             continue
@@ -112,6 +154,8 @@ def 주문맞추기(주문들, 체결조회) -> list[주문고침]:
                 옛체결가=체결가,
                 새체결가=fill.avg_fill_price or 체결가,
                 판단가=판단가 or 0.0,
+                종목명=getattr(fill, "name", "") or "",
+                방향=방향,
             )
         )
     return 나온것
