@@ -96,3 +96,62 @@ def test_기준평가금은_현금과_보유평가액을_더한다():
 
 def test_보유가_없으면_기준평가금은_현금_그대로():
     assert 맞출평가금(10_000_000.0, []) == 10_000_000.0
+
+
+# ── 수량 맞추기 (2026-08-25) ──────────────────────────────────
+#
+# 12주 매수가 전부 체결됐는데 DB엔 4주만 적혔다. 체결 조회가 1초 간격
+# 3번만 보고 끝나서, 그 시점의 부분 체결을 최종값으로 기록한 것이다.
+# DB에 없는 8주에는 손절이 안 걸린다.
+
+from muwon.execution.adopt import 수량맞추기
+
+
+def _보유행(symbol="066970", quantity=4, entry_price=118300.0):
+    from datetime import date as _date
+    return PositionRow(
+        symbol=symbol, quantity=quantity, entry_price=entry_price,
+        entry_date=_date(2026, 8, 25), entry_reason="거래량 2배 급증",
+        strategy_key="volume_surge_5d",
+    )
+
+
+def _계좌행(symbol="066970", quantity=12, avg=118300.0, cur=119000.0):
+    return Holding(symbol=symbol, name=f"이름{symbol}", quantity=quantity,
+                   avg_buy_price=avg, current_price=cur,
+                   eval_amount=quantity * cur, pnl_amount=quantity * (cur - avg))
+
+
+def test_이름을_주면_계좌_수량으로_맞춘다():
+    나온것 = 수량맞추기(["066970"], [_계좌행()], {"066970": _보유행()})
+
+    assert [(p.symbol, p.quantity) for p in 나온것] == [("066970", 12)]
+
+
+def test_이름을_안_주면_안_건드린다():
+    """수량이 달라도 사람이 이름을 줘야 한다 — 원인이 여럿이고 겉이 같다."""
+    assert 수량맞추기([], [_계좌행()], {"066970": _보유행()}) == []
+
+
+def test_진입가와_진입일은_DB_것을_지킨다():
+    """계좌 평균매입가로 덮으면 예전 매수가 섞여 이번 회차의
+    슬리피지(판단가 대비 체결가)를 되짚을 근거가 사라진다."""
+    나온것 = 수량맞추기(["066970"], [_계좌행(avg=99999.0)], {"066970": _보유행()})
+
+    assert 나온것[0].entry_price == 118300.0
+    assert 나온것[0].entry_reason == "거래량 2배 급증"
+    assert 나온것[0].strategy_key == "volume_surge_5d"
+
+
+def test_수량이_같으면_할_일이_없다():
+    assert 수량맞추기(["066970"], [_계좌행(quantity=4)], {"066970": _보유행(quantity=4)}) == []
+
+
+def test_계좌에_없는_종목은_건너뛴다():
+    """지우는 판단은 여기 것이 아니다 — drop_phantom_holdings가 한다."""
+    assert 수량맞추기(["066970"], [], {"066970": _보유행()}) == []
+
+
+def test_DB에_없는_종목은_건너뛴다():
+    """들이는 판단은 plan()이 한다."""
+    assert 수량맞추기(["066970"], [_계좌행()], {}) == []

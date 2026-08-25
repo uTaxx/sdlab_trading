@@ -17,6 +17,9 @@ on:
       entry_date:
         description: "매수일 YYYY-MM-DD (비우면 오늘). 보유일수 청산이 이 날부터 센다"
         default: ""
+      fix_quantity:
+        description: "수량을 계좌 값으로 덮을 종목 (쉼표로 여럿). 원인을 확인한 뒤에만 — 부분 체결·손매매·버그가 겉이 같다"
+        default: ""
 
 jobs:
   adopt:
@@ -46,7 +49,14 @@ jobs:
 
       - name: 들이기
         run: |
-          python scripts/adopt_holdings.py \
+          # `| tee` 없이도 습관으로 켠다 — 나중에 누가 파이프를 붙여도
+          # 파이썬이 죽은 것을 초록불이 덮지 않게.
+          set -o pipefail
+          fixargs=""
+          for s in $(echo "${{ github.event.inputs.fix_quantity }}" | tr ',' ' '); do
+            fixargs="$fixargs --fix-quantity $s"
+          done
+          python scripts/adopt_holdings.py $fixargs \
             ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
             ${{ github.event.inputs.entry_date != '' && format('--entry-date {0}', github.event.inputs.entry_date) || '' }}
 

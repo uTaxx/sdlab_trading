@@ -10,6 +10,9 @@
    값을 그대로 쓴다. 우리 쪽에 주문 기록이 없으니 증권사가 유일한 사실이다.
 2. **양쪽에 다 있는데 수량이 다른 것** → 건드리지 않고 알리기만 한다.
    부분 체결일 수도, 우리 버그일 수도 있어서 자동으로 덮으면 그것대로 사고다.
+   **사람이 원인을 확인하고 이름을 주면** 그때만 계좌 값으로 맞춘다
+   (`수량맞추기`). 2026-08-25에 체결 조회가 12주 중 4주만 보고 끝나서
+   실제로 필요해졌다.
 3. **우리에겐 있는데 증권사엔 없는 것** → 여기서 다루지 않는다. 그건 이미
    팔린 것을 우리가 못 지운 경우라 지우는 판단이고, 들이는 것과 반대다.
    계좌 대조가 잡아서 알린다.
@@ -17,7 +20,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from muwon.db.models import PositionRow
@@ -44,10 +47,59 @@ class 들이기계획:
     수량다른것: list[수량다름]
     #: 들일 종목의 표시용 이름 — PositionRow에는 이름 자리가 없다.
     이름표: dict[str, str]
+    #: 사람이 이름을 줘서 수량을 계좌 값으로 맞출 종목. 기본은 비어 있다.
+    맞출것: list[PositionRow] = field(default_factory=list)
 
     @property
     def 할일있나(self) -> bool:
-        return bool(self.들일것)
+        return bool(self.들일것) or bool(self.맞출것)
+
+
+def 수량맞추기(
+    고칠심볼: list[str],
+    holdings: list[Holding],
+    db_positions: dict[str, PositionRow],
+) -> list[PositionRow]:
+    """이름으로 받은 종목의 수량을 **계좌 값으로 덮는다.**
+
+    ## 왜 이름을 받나
+
+    수량이 다른 이유가 여럿이고 겉모습이 같다 — 부분 체결, 손매매, 우리 버그.
+    자동으로 덮으면 그중 하나를 조용히 지운다. 그래서 `plan()`은 알리기만
+    하고, 덮는 것은 사람이 원인을 확인한 뒤 이름을 줄 때만 한다.
+
+    ## 2026-08-25에 이게 필요해진 경위
+
+    12주 매수가 전부 체결됐는데 DB엔 4주만 적혔다. `_with_actual_fill`이
+    주문 직후 1초 간격 3번만 체결을 조회하는데, 그 시점에 4주만 채워져
+    있었고 나머지 8주는 조회가 끝난 뒤 체결됐다. 그 4주가 최종값으로
+    기록됐다.
+
+    **DB에 없는 8주에는 손절이 안 걸린다.** 값이 반토막 나도 아무 일도
+    안 일어나고, 화면에는 "체결 없음"으로만 보인다.
+
+    진입가는 **DB 것을 그대로 둔다.** 계좌의 평균매입가는 예전 매수까지
+    섞인 값이라, 이번 회차의 판단가 대비 슬리피지를 되짚을 근거가 사라진다.
+    """
+    계좌 = {h.symbol: h for h in holdings}
+    나온것 = []
+
+    for symbol in dict.fromkeys(고칠심볼):
+        h, db = 계좌.get(symbol), db_positions.get(symbol)
+        if h is None or db is None or db.quantity == h.quantity:
+            continue
+        나온것.append(
+            PositionRow(
+                symbol=symbol,
+                quantity=h.quantity,
+                entry_price=db.entry_price,
+                entry_date=db.entry_date,
+                entered_at=db.entered_at,
+                entry_reason=db.entry_reason,
+                strategy_key=db.strategy_key,
+            )
+        )
+    return 나온것
 
 
 def plan(
