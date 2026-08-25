@@ -418,7 +418,7 @@ def test_매도가_꺼지면_데드크로스_청산도_안_한다():
     entry_df = flat_then_breakout(tail_days=0)
     data_source = FakeDataSource({TEST_TICKER.symbol: entry_df})
     policy = RiskPolicy()
-    engine, session_factory, notifier = make_engine(data_source, policy=policy)
+    engine, session_factory, _ = make_engine(data_source, policy=policy)
     engine.run_once()  # 진입
 
     # 여기서 사람이 대시보드에서 매도를 끈다

@@ -1,0 +1,103 @@
+name: 장 마감 정산
+
+# 그날 낸 주문의 **최종** 체결로 기록을 바로잡는다.
+#
+#     09:05  주문 → 그 순간의 스냅샷으로 기록 (부분 체결이면 틀린다)
+#     17:30  여기 — 확정된 총체결수량·평균체결가로 고쳐 쓴다
+#
+# ## 왜 필요한가
+#
+# 주문 직후 체결 조회는 그 순간의 사진이다. 체결은 그 뒤에도 계속된다.
+# 2026-08-25에 12주가 다 체결됐는데 기록에는 4주로 남았고, **그 8주에는
+# 손절이 안 걸린 상태**였다. 부분 체결과 잔여 체결은 비일비재하므로
+# 사람이 매번 고치는 것이 아니라 매일 저절로 맞아야 한다.
+#
+# ## 시각을 17:30으로 둔 이유
+#
+# 장이 15:30에 끝나고, 17:40에 `기록을 시트로`가 돈다. 그 사이에 넣어야
+# 시트에 **고쳐진 값**이 올라간다. 순서가 뒤집히면 시트에 첫 조각 값이
+# 박히고, 나중에 DB만 고쳐도 시트는 틀린 채로 남는다.
+#
+# ## 부르는 곳은 n8n이다
+#
+# 아래 schedule은 주석으로 둔다. GitHub cron은 몇십 분씩 늦는데, 늦어서
+# 17:40을 넘기면 위의 순서가 깨진다. n8n의 "평일 17:30" 노드가 부른다.
+#
+# ## 기본은 미리보기다
+#
+# 기록을 고치는 도구라, 실수로 도는 쪽이 아니라 실수로 안 도는 쪽으로
+# 기울여 뒀다. n8n은 apply=true로 부른다.
+
+on:
+  # schedule:
+  #   - cron: "30 8 * * 1-5"   # 평일 17:30 KST
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "실제로 기록을 고친다 (끄면 미리보기만)"
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      date:
+        description: "맞출 날짜 YYYY-MM-DD (비우면 오늘)"
+        default: ""
+
+concurrency:
+  # 상태 DB를 고치는 일이라 겹치면 나중 것이 앞 것을 덮는다.
+  group: state-write
+  cancel-in-progress: false
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: KIS·텔레그램 설정 갱신
+        run: |
+          python scripts/configure.py kis --env paper \
+            --app-key "${{ secrets.KIS_APP_KEY }}" --app-secret "${{ secrets.KIS_APP_SECRET }}" \
+            --account-no "${{ secrets.KIS_ACCOUNT_NO }}" --account-product-cd "01"
+          python scripts/configure.py telegram \
+            --bot-token "${{ secrets.TELEGRAM_BOT_TOKEN }}" --chat-id "${{ secrets.TELEGRAM_CHAT_ID }}"
+
+      - name: 정산
+        run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다 — 2026-08-25에 매수가
+          # 통째로 터졌는데 워크플로는 초록불로 끝났다.
+          set -o pipefail
+          python scripts/settle_fills.py \
+            ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
+            ${{ github.event.inputs.date != '' && format('--date {0}', github.event.inputs.date) || '' }} \
+            | tee settle.txt
+
+      - name: 상태 DB 올리기
+        if: github.event.inputs.apply == 'true'
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py upload \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --path ./muwon.db
+
+      - name: 결과 아티팩트로 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: settle-fills-${{ github.run_number }}
+          path: settle.txt
