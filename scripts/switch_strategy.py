@@ -136,7 +136,9 @@ def main() -> int:
         print("미리보기라 아무것도 안 바꿨습니다. --apply 를 주면 바꿉니다.")
         return 0
 
-    service.set_strategy_selection(StrategySelection(active_key=키))
+    # active_key는 읽기 전용 속성이고 생성자는 active_keys(튜플)를 받는다.
+    # 미리보기에서는 이 줄까지 안 가서, 처음 돌렸을 때 실제 적용에서만 터졌다.
+    service.set_strategy_selection(StrategySelection(active_keys=(키,)))
     뒤 = service.get_strategy_selection().active_key
     if 뒤 != 키:
         # 조용히 실패하면 화면은 바뀐 줄 알고 매매는 옛 규칙으로 돈다.
