@@ -63,6 +63,46 @@ def _섹터시세(source, cache, start: date, end: date) -> dict[str, dict[str, 
     return 결과
 
 
+def _오늘한일(그날: date) -> dict:
+    """오늘 낸 주문, 오늘 청산한 매매, 지금 들고 있는 종목을 DB에서 읽는다.
+
+    **못 읽어도 리포트를 죽이지 않는다.** 다만 조용히 빈 값으로 넘기지도
+    않는다 — 안 산 날과 DB를 못 읽은 날이 화면에서 같아 보이면, 매수가
+    통째로 막힌 날을 평범한 날로 읽게 된다. 못 읽으면 그렇게 적는다.
+
+    시세를 다시 부르지 않는다. 이 스크립트는 장 마감 뒤에 돌고, 지금 평가액을
+    알려면 증권사에 또 물어야 한다. 보유 종목은 이름과 산 값까지만 적고,
+    지금 얼마인지는 대시보드에서 보게 한다."""
+    try:
+        from sqlalchemy import select
+
+        from muwon.config import bootstrap_settings
+        from muwon.db.models import OrderRow, PositionRow, TradeRow
+        from muwon.db.session import make_session_factory
+
+        만들기 = make_session_factory(bootstrap_settings.database_url)
+        with 만들기() as 세션:
+            주문 = 세션.execute(select(OrderRow)).scalars().all()
+            매매 = 세션.execute(select(TradeRow)).scalars().all()
+            보유 = 세션.execute(select(PositionRow)).scalars().all()
+    except Exception as e:  # noqa: BLE001 — DB가 없어도 리포트는 나가야 한다
+        print(f"오늘 한 일을 못 읽었습니다: {type(e).__name__}: {e}", file=sys.stderr)
+        return {"못읽음": f"{type(e).__name__}"}
+
+    산것 = [
+        (o.symbol, int(o.quantity), float(o.price))
+        for o in 주문
+        if o.created_at and o.created_at.date() == 그날 and str(o.side).upper() == "BUY"
+    ]
+    판것 = [
+        (t.symbol, int(t.quantity), float(t.pnl_amount), float(t.pnl_pct))
+        for t in 매매
+        if t.exited_at and t.exited_at.date() == 그날
+    ]
+    가진것 = [(p.symbol, int(p.quantity), float(p.entry_price)) for p in 보유]
+    return {"산것": 산것, "판것": 판것, "보유": 가진것}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lens", default=시계열.DEFAULT_LENS, choices=list(시계열.LENSES))
@@ -223,6 +263,7 @@ def main() -> int:
             렌즈=args.lens,
             원시=원시 if 기준일 is None else 원시.loc[:기준일],
             지수=코스피 if 기준일 is None else 코스피.loc[:기준일],
+            한일=_오늘한일(기준일 or 오늘),
         )
         try:
             TelegramNotifier(build_settings_service()).send(요약)
