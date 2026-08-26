@@ -185,14 +185,22 @@ class SettingsService:
         else:
             keys = (self._store.get("strategy.active_key", d.active_key),)
         combine = self._store.get("strategy.combine", d.combine).upper()
+        # 파는 쪽은 안 걸려 있는 것이 기본이다. 빈 값이면 사는 쪽이 양쪽을
+        # 다 맡는다 — 지금까지의 동작이 그것이다.
+        판것 = self._store.get("strategy.sell_keys", "")
+        sell_keys = tuple(k.strip() for k in 판것.split(",") if k.strip())
         return StrategySelection(
             active_keys=keys or d.active_keys,
             combine=combine if combine in ("OR", "AND") else d.combine,
+            sell_keys=sell_keys,
         )
 
     def set_strategy_selection(self, selection: StrategySelection) -> None:
         self._store.set("strategy.active_keys", ",".join(selection.active_keys))
         self._store.set("strategy.combine", selection.combine)
+        # 빈 문자열로 지운다. 안 지우면 매도만 따로 걸었다가 되돌릴 때
+        # 옛 값이 남아 계속 따로 돈다.
+        self._store.set("strategy.sell_keys", ",".join(selection.sell_keys))
         # 옛 키도 같이 갱신한다. 아직 이 값을 읽는 자리(리포트의 '대표 전략')가
         # 남아 있어서, 안 맞춰 두면 화면과 리포트가 서로 다른 말을 한다.
         self._store.set("strategy.active_key", selection.active_key)

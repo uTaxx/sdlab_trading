@@ -76,6 +76,21 @@ class StrategySelection:
     #: 여러 개일 때 묶는 방식 — "OR"(하나라도 사라고 하면) / "AND"(전부 사라고 해야).
     #: 파는 쪽은 이 값과 무관하게 언제나 OR다(strategy/combined.py 참고).
     combine: str = "OR"
+    #: 파는 쪽을 따로 굴릴 때 쓸 전략 키들. **비어 있으면 active_keys가 양쪽을
+    #: 다 맡는다** — 지금까지의 동작이 그것이고, 기본값을 바꾸면 이미 돌고 있는
+    #: 설정의 뜻이 달라진다.
+    sell_keys: tuple[str, ...] = ()
+
+    @property
+    def 매도따로(self) -> bool:
+        return bool(self.sell_keys) and tuple(self.sell_keys) != tuple(self.active_keys)
+
+    @property
+    def sell_key(self) -> str:
+        """파는 쪽 대표 하나. 따로 안 걸었으면 사는 쪽과 같다."""
+        if self.sell_keys:
+            return self.sell_keys[0]
+        return self.active_key
 
     @property
     def active_key(self) -> str:
@@ -89,6 +104,12 @@ class StrategySelection:
     def describe(self) -> str:
         """사람이 읽을 한 줄. 로그·화면이 같은 말을 쓰게 한 군데에 둔다."""
         if len(self.active_keys) <= 1:
-            return self.active_key or "(없음)"
-        묶음 = "모두 동의해야" if self.combine == "AND" else "하나라도 신호나면"
-        return f"{len(self.active_keys)}개 · {묶음} · {', '.join(self.active_keys)}"
+            산다 = self.active_key or "(없음)"
+        else:
+            묶음 = "모두 동의해야" if self.combine == "AND" else "하나라도 신호나면"
+            산다 = f"{len(self.active_keys)}개 · {묶음} · {', '.join(self.active_keys)}"
+        if not self.매도따로:
+            return 산다
+        # 매도를 따로 걸었으면 반드시 같이 적는다. 사는 쪽만 보이면
+        # "왜 저 규칙으로 팔렸지"를 설명할 수 없다.
+        return f"매수 {산다} / 매도 {', '.join(self.sell_keys)}"

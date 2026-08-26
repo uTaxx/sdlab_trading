@@ -79,7 +79,7 @@ def main() -> None:
         notifier.send("🔍 계좌 대조 결과\n" + "\n".join(report.summary_lines()))
 
     engine = TradingEngine(
-        strategy=build_strategies(selection.active_keys, selection.combine),
+        strategy=build_strategies(selection.active_keys, selection.combine, selection.sell_keys),
         risk_manager=RiskManager(policy_provider=policy_provider),
         data_source=client,
         order_executor=KISOrderExecutor(client),

@@ -180,7 +180,7 @@ def main() -> int:
         return 0
 
     selection = service.get_strategy_selection()
-    strategy = build_strategies(selection.active_keys, selection.combine)
+    strategy = build_strategies(selection.active_keys, selection.combine, selection.sell_keys)
 
     # 흉내 실행에는 물어볼 증권사가 없다. None이면 엔진이 예전처럼 우리
     # 현금 계산만으로 간다.

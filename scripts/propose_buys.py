@@ -104,7 +104,7 @@ def main() -> int:
     ensure_schema(bootstrap_settings.database_url)
     service = build_settings_service()
     selection = service.get_strategy_selection()
-    strategy = build_strategies(selection.active_keys, selection.combine)
+    strategy = build_strategies(selection.active_keys, selection.combine, selection.sell_keys)
     print(f"■ 전략: {selection.describe()}", file=sys.stderr)
 
     with make_session_factory(bootstrap_settings.database_url)() as session:

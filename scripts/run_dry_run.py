@@ -38,7 +38,7 @@ def main() -> None:
     print(f"활성 전략: {selection.describe()}", file=sys.stderr)
 
     engine = TradingEngine(
-        strategy=build_strategies(selection.active_keys, selection.combine),
+        strategy=build_strategies(selection.active_keys, selection.combine, selection.sell_keys),
         risk_manager=RiskManager(policy_provider=settings_service.get_risk_policy),
         data_source=YahooFinanceDataSource(),
         order_executor=SimulatedOrderExecutor(),

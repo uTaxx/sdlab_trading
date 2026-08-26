@@ -373,19 +373,35 @@ def build_strategy(key: str) -> Strategy:
     return get_definition(key).factory()
 
 
-def build_strategies(keys, combine: str = "OR"):
+def build_strategies(keys, combine: str = "OR", sell_keys=()):
     """전략 키 여러 개를 하나로 묶어 돌려준다.
 
     하나뿐이면 그대로 돌려준다 — 굳이 감싸면 기록에 남는 전략 이름이
-    바뀌어서, 지금까지 쌓인 매매 기록과 이어지지 않는다."""
-    from muwon.strategy.combined import CombinedStrategy
+    바뀌어서, 지금까지 쌓인 매매 기록과 이어지지 않는다.
 
-    keys = [k for k in keys if k]
-    if not keys:
-        raise ValueError("전략을 하나 이상 지정하세요")
-    if len(keys) == 1:
-        return build_strategy(keys[0])
-    return CombinedStrategy([build_strategy(k) for k in keys], mode=combine)
+    `sell_keys`를 주면 **파는 쪽을 따로 굴린다.** 매수 신호는 `keys`에서만,
+    매도 신호는 `sell_keys`에서만 나온다. 안 주면 지금까지와 똑같이 한 묶음이
+    양쪽을 다 맡는다 — 기본값을 바꾸면 지금 돌고 있는 설정의 뜻이 달라진다."""
+    from muwon.strategy.combined import CombinedStrategy
+    from muwon.strategy.split import SplitStrategy
+
+    def 묶기(것들):
+        것들 = [k for k in 것들 if k]
+        if not 것들:
+            raise ValueError("전략을 하나 이상 지정하세요")
+        if len(것들) == 1:
+            return build_strategy(것들[0])
+        return CombinedStrategy([build_strategy(k) for k in 것들], mode=combine)
+
+    사는쪽 = 묶기(keys)
+    파는키 = [k for k in (sell_keys or ()) if k]
+    if not 파는키:
+        return 사는쪽
+    # 파는 쪽이 사는 쪽과 같으면 굳이 감싸지 않는다. 감싸면 기록에 남는
+    # 전략 이름이 바뀌어서 지금까지 쌓인 매매와 이어지지 않는다.
+    if list(파는키) == [k for k in keys if k]:
+        return 사는쪽
+    return SplitStrategy(사는쪽, 묶기(파는키))
 
 
 def list_definitions(category: str | None = None) -> list[StrategyDefinition]:

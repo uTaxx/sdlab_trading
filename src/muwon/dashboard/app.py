@@ -917,7 +917,7 @@ def render_active_rules(service: SettingsService) -> None:
     선택 = service.get_strategy_selection()
     policy = service.get_risk_policy()
     try:
-        strategy = build_strategies(선택.active_keys, 선택.combine)
+        strategy = build_strategies(선택.active_keys, 선택.combine, 선택.sell_keys)
         rules = describe(strategy)
     except (KeyError, ValueError, RuntimeError) as e:
         st.error(f"전략 기준을 읽지 못했습니다: {e}")

@@ -53,7 +53,7 @@ async def main() -> None:
     logger.info(f"활성 전략: {selection.describe()}")
 
     engine = RealtimeTradingEngine(
-        strategy=build_strategies(selection.active_keys, selection.combine),
+        strategy=build_strategies(selection.active_keys, selection.combine, selection.sell_keys),
         risk_manager=RiskManager(policy_provider=settings_service.get_risk_policy),
         order_executor=KISOrderExecutor(client),
         notifier=TelegramNotifier(settings_service),

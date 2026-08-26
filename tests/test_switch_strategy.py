@@ -65,3 +65,65 @@ def test_옛_키로_저장된_값도_읽는다():
     창고.set("strategy.active_key", "volume_surge_5d")
 
     assert SettingsService(창고).get_strategy_selection().active_key == "volume_surge_5d"
+
+
+# ── 매수와 매도를 따로 거는 것 ──────────────────────────────────────────
+
+
+def test_매도를_따로_걸고_다시_읽으면_남아_있다():
+    s = SettingsService(곳간())
+    s.set_strategy_selection(
+        StrategySelection(active_keys=("volume_surge_5d",), sell_keys=("ma_rsi_v1",))
+    )
+
+    뒤 = s.get_strategy_selection()
+    assert 뒤.active_key == "volume_surge_5d"
+    assert 뒤.sell_keys == ("ma_rsi_v1",)
+    assert 뒤.매도따로
+
+
+def test_매도를_지우면_지워진다():
+    """빈 값으로 덮어쓰지 않으면 옛 값이 남아 계속 따로 돈다.
+    되돌렸다고 생각하는데 안 되돌아간 상태가 제일 나쁘다."""
+    창고 = 곳간()
+    s = SettingsService(창고)
+    s.set_strategy_selection(
+        StrategySelection(active_keys=("volume_surge_5d",), sell_keys=("ma_rsi_v1",))
+    )
+    s.set_strategy_selection(StrategySelection(active_keys=("volume_surge_5d",)))
+
+    뒤 = s.get_strategy_selection()
+    assert 뒤.sell_keys == ()
+    assert not 뒤.매도따로
+
+
+def test_안_걸었으면_따로가_아니다():
+    assert not StrategySelection(active_keys=("가",)).매도따로
+
+
+def test_매수와_매도가_같으면_따로가_아니다():
+    """같은 것을 양쪽에 적어 둔 것은 안 나눈 것과 같다."""
+    assert not StrategySelection(active_keys=("가",), sell_keys=("가",)).매도따로
+
+
+def test_설명에_양쪽이_다_보인다():
+    """사는 쪽만 보이면 '왜 저 규칙으로 팔렸지'를 설명할 수 없다."""
+    말 = StrategySelection(active_keys=("volume_surge_5d",), sell_keys=("ma_rsi_v1",)).describe()
+
+    assert "volume_surge_5d" in 말 and "ma_rsi_v1" in 말
+    assert "매수" in 말 and "매도" in 말
+
+
+def test_따로_안_걸었으면_설명이_예전과_같다():
+    assert StrategySelection(active_keys=("volume_surge_5d",)).describe() == "volume_surge_5d"
+
+
+def test_옛_DB에는_매도_키가_아예_없다():
+    """운영 DB에는 이 칸이 없던 시절의 값이 들어 있다. 없으면 빈 것으로
+    읽혀야 하고, 그러면 지금까지와 똑같이 돈다."""
+    창고 = 곳간()
+    창고.set("strategy.active_keys", "volume_surge_5d")
+
+    뒤 = SettingsService(창고).get_strategy_selection()
+    assert 뒤.sell_keys == ()
+    assert not 뒤.매도따로

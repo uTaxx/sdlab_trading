@@ -8,6 +8,16 @@ name: 쓰는 전략 바꾸기
 # 있다. 여기서만 닿는다. 대시보드에서 고를 수는 있어도 저장은 안 되게 해
 # 뒀다 — 화면에서 조용히 바뀌면 안 되는 값이라 그렇다.
 #
+# ## 매수와 매도를 따로 걸 수 있다
+#
+# `key`만 주면 그 전략이 사는 것과 파는 것을 다 맡는다(지금까지의 동작).
+# `sell_key`를 같이 주면 **파는 신호는 그쪽에서만** 나온다. 보유 기간 상한도
+# 파는 쪽 것을 쓴다 — 그것도 청산 규칙이라 파는 자리를 두 군데로 나누면
+# 왜 팔렸는지 설명할 수 없게 된다.
+#
+# 섞은 조합은 이름이 없으므로 **성적표에도 없다.** 미리보기가 그 사실을
+# 말한다. 안 재 본 조합을 숫자 없이 내놓으면 재 본 것처럼 읽힌다.
+#
 # ## 바꾸면 지금 들고 있는 종목은 어떻게 되나
 #
 # **바로 새 규칙으로 팔린다.** 엔진의 청산 판단은 보유 종목이 어떤 전략으로
@@ -31,7 +41,10 @@ on:
   workflow_dispatch:
     inputs:
       key:
-        description: "바꿀 전략 키 (비우면 지금 무엇이 걸려 있는지와 고를 수 있는 목록만 보여 준다)"
+        description: "사는 쪽 전략 키 (비우면 지금 무엇이 걸려 있는지와 고를 수 있는 목록만 보여 준다)"
+        default: ""
+      sell_key:
+        description: "파는 쪽 전략 키. 비우면 사는 쪽이 양쪽을 다 맡는다. '같게'라고 적으면 따로 걸어 둔 것을 지운다"
         default: ""
       apply:
         description: "true면 실제로 바꾼다 (그 밖의 값은 전부 미리보기)"
@@ -71,6 +84,7 @@ jobs:
           set -o pipefail
           python scripts/switch_strategy.py \
             --key "${{ github.event.inputs.key }}" \
+            --sell-key "${{ github.event.inputs.sell_key }}" \
             ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
             | tee switch.txt
 
