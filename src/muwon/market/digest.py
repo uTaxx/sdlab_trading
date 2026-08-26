@@ -72,7 +72,7 @@ def _센말(z: float, 위: str, 아래: str, 보통: str) -> str:
     return f"{위 if z > 0 else 아래} {_얼마나드문가(z)}"
 
 
-def state_line(state, 원시=None) -> str:
+def state_line(state, 원시=None, 지수=None) -> str:
     """오늘 장 상태를 여러 줄로 풀어 쓴다.
 
     ## 숫자를 두 번 고쳤다
@@ -89,9 +89,13 @@ def state_line(state, 원시=None) -> str:
       - **원시값**은 그대로 쓴다 — "최고점보다 12.3% 아래입니다"
       - **z점수**는 "그게 흔한 일인가"를 판단하는 데만 쓰고 숫자로는 안 낸다
 
-    `원시`를 못 받으면 말만으로 적는다(숫자를 지어내지 않는다)."""
+    `원시`를 못 받으면 말만으로 적는다(숫자를 지어내지 않는다).
+
+    `지수`(코스피 종가)를 주면 맨 위에 지수 값을 적는다. "20일 평균보다
+    1.8% 위"만으로는 무엇과 무엇을 견준 것인지 알 수 없다는 지적을 받았다.
+    기준이 되는 숫자가 있어야 나머지 줄이 읽힌다."""
     if len(state) == 0:
-        return "  아직 잴 수 없습니다 — 견줄 과거(3년)가 안 쌓였습니다."
+        return "  아직 잴 수 없습니다. 견줄 과거(3년)가 안 쌓였습니다."
     오늘 = state.iloc[-1]
     원시오늘 = None
     if 원시 is not None and len(원시):
@@ -109,17 +113,38 @@ def state_line(state, 원시=None) -> str:
         return None if math.isnan(값) else 값  # 값이 비어 있으면 지어내지 않는다
 
     줄 = []
+    지금값 = None
+    if 지수 is not None and len(지수):
+        쓸것 = 지수.loc[:state.index[-1]]
+        if len(쓸것):
+            지금값 = float(쓸것.iloc[-1])
+            어제대비 = ""
+            if len(쓸것) >= 2 and float(쓸것.iloc[-2]) > 0:
+                오름 = 지금값 / float(쓸것.iloc[-2]) - 1
+                어제대비 = f" (하루 전보다 {오름:+.1%})"
+            줄.append(f"  코스피 {지금값:,.0f}{어제대비}")
+            줄.append("")
 
     if (추세 := _z("kospi_추세20")) is not None:
         몫 = _raw("kospi_추세20")
         if 몫 is not None:
-            어디 = f"20일 평균보다 {abs(몫):.1%} {'위' if 몫 >= 0 else '아래'}에 있습니다"
-            줄.append(f"  · 최근 흐름: {어디}")
+            # 평균값도 같이 적는다. 비율만으로는 무엇과 견줬는지 안 보인다.
+            평균 = 지금값 / (1 + 몫) if 지금값 and 몫 != -1 else None
+            기준 = f"평균 {평균:,.0f}보다" if 평균 else "평균보다"
+            높낮이 = "높은" if 몫 >= 0 else "낮은"
+            줄.append(
+                f"  · 최근 한 달 흐름: 최근 20거래일 {기준} {abs(몫):.1%} {높낮이} 자리입니다"
+            )
             줄.append(f"      {_얼마나드문가(추세)}")
         else:
             줄.append(
-                "  · 최근 흐름: "
-                + _센말(추세, "20일 평균 위입니다.", "20일 평균 아래입니다.", "20일 평균 근처입니다.")
+                "  · 최근 한 달 흐름: "
+                + _센말(
+                    추세,
+                    "최근 20거래일 평균보다 높은 자리입니다.",
+                    "최근 20거래일 평균보다 낮은 자리입니다.",
+                    "최근 20거래일 평균 근처입니다.",
+                )
             )
 
     if (낙폭 := _z("kospi_고점대비")) is not None:
@@ -164,7 +189,7 @@ def _섹터줄(f) -> str:
 
 
 def summarize(state, forecasts, 기준일, 렌즈: str = "", 지평: int = _지평_거래일,
-              원시=None) -> str:
+              원시=None, 지수=None) -> str:
     """텔레그램 한 통짜리 요약."""
     낸것 = [f for f in forecasts if f.낼수있나]
     못낸것 = [f for f in forecasts if not f.낼수있나]
@@ -176,7 +201,7 @@ def summarize(state, forecasts, 기준일, 렌즈: str = "", 지평: int = _지�
         "",
         "─────────────",
         "오늘 코스피",
-        state_line(state, 원시),
+        state_line(state, 원시, 지수),
         "",
         "─────────────",
         "아래는 실험 기록입니다. 매매에 쓰지 마세요.",

@@ -222,6 +222,7 @@ def main() -> int:
             기준일 or (상태.index[-1] if len(상태) else 오늘),
             렌즈=args.lens,
             원시=원시 if 기준일 is None else 원시.loc[:기준일],
+            지수=코스피 if 기준일 is None else 코스피.loc[:기준일],
         )
         try:
             TelegramNotifier(build_settings_service()).send(요약)
