@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from datetime import date
 from typing import ClassVar
 
@@ -97,6 +98,16 @@ _MIN_REQUEST_INTERVAL_REAL = 0.05
 # 않았다"는 뜻이므로 주문이라도 재시도해도 중복 체결 위험이 없다.
 _RATE_LIMIT_MSG_CD = "EGW00201"
 
+# 토큰이 죽었을 때 KIS가 알리는 코드. **시간이 남았어도 죽을 수 있다** —
+# 같은 앱키로 토큰을 새로 발급하면 앞의 토큰이 무효가 된다. 우리는 파이썬과
+# n8n 둘이 같은 앱키를 쓰므로, n8n이 새로 받으면 우리가 캐시해 둔 것이
+# 만료 시각과 무관하게 죽는다.
+#
+# 2026-08-26 아침에 그 일이 실제로 났다. 저장해 둔 토큰이 죽은 채로 계좌를
+# 부르니 KIS가 거부했고, 그 거부가 매수가능조회에서 "0주"로 둔갑해
+# 승인한 두 종목이 통째로 안 팔렸다(사고 기록 참고).
+_TOKEN_EXPIRED_MSG_CD = "EGW00123"
+
 
 class KISOrderRejected(RuntimeError):
     """KIS가 요청 자체는 정상적으로 받아들였지만 업무 규칙상 거부한 경우
@@ -132,6 +143,19 @@ def _kis_payload(response: requests.Response) -> dict | None:
     except ValueError:
         return None
     return payload if isinstance(payload, dict) and "rt_cd" in payload else None
+
+
+def _토큰이_죽었나(payload: dict | None) -> bool:
+    """KIS가 '이 토큰 못 쓴다'고 답했나.
+
+    만료 시각만 믿으면 안 된다 — 같은 앱키로 새 토큰을 발급하면 앞의 것이
+    바로 죽는다. 우리 시계에는 아직 몇 시간 남아 있어도 그렇다."""
+    if not payload:
+        return False
+    if str(payload.get("msg_cd", "")) == _TOKEN_EXPIRED_MSG_CD:
+        return True
+    말 = str(payload.get("msg1", ""))
+    return "만료된 token" in 말 or "유효하지 않은 token" in 말
 
 
 def parse_minute_bars(payload: dict) -> list[MinuteBar]:
@@ -213,6 +237,24 @@ class KISClient(MarketDataSource):
         self._throttle()
         return requests.get(url, **kwargs)
 
+    def _토큰_갈아끼우기(self, kwargs: dict) -> bool:
+        """죽은 토큰을 버리고 새로 받아 헤더에 끼워 넣는다.
+
+        `_ensure_token`이 새 토큰을 보관소에도 다시 써 주므로, 다음 프로세스는
+        살아 있는 것을 물려받는다."""
+        headers = kwargs.get("headers")
+        if not isinstance(headers, dict):
+            return False
+        self._access_token = None
+        self._token_expires_at = 0.0
+        if self._token_store is not None:
+            # 보관소에 죽은 것을 남겨 두면 다음 프로세스가 또 그걸 집는다.
+            with suppress(Exception):
+                self._token_store.set_kis_token("", 0.0)
+        headers["authorization"] = f"Bearer {self._ensure_token()}"
+        logger.info("KIS 토큰이 죽어 있어 새로 발급받았습니다 — 그 요청을 한 번 다시 보냅니다.")
+        return True
+
     def _post_with_rate_limit_retry(self, url: str, **kwargs) -> requests.Response:
         """초당 호출 제한(EGW00201)으로 거부된 경우에만 재시도한다.
 
@@ -220,8 +262,15 @@ class KISClient(MarketDataSource):
         "요청이 아예 접수되지 않았다"는 뜻이라 재시도해도 안전하다. 그 외의
         거부(잔고 부족·장 시간 아님 등)는 재시도하지 않고 그대로 올린다."""
         response = self._post(url, **kwargs)
+        토큰다시 = True
         for attempt in range(1, _MAX_RETRIES):
             payload = _kis_payload(response)
+            # 토큰이 죽은 것은 재시도할 값어치가 있다. 주문이 접수되지 않은
+            # 것이 확실하므로 중복 체결 위험도 없다.
+            if 토큰다시 and _토큰이_죽었나(payload) and self._토큰_갈아끼우기(kwargs):
+                토큰다시 = False
+                response = self._post(url, **kwargs)
+                continue
             if payload is None or payload.get("msg_cd") != _RATE_LIMIT_MSG_CD:
                 return response
             logger.warning(
@@ -234,6 +283,9 @@ class KISClient(MarketDataSource):
 
     def _get_with_retry(self, url: str, **kwargs) -> requests.Response:
         response = self._get(url, **kwargs)
+        # 토큰이 죽어 있으면 HTTP 200으로 오기도 한다. 상태 코드만 보면 못 잡는다.
+        if _토큰이_죽었나(_kis_payload(response)) and self._토큰_갈아끼우기(kwargs):
+            response = self._get(url, **kwargs)
         attempt = 1
         while response.status_code >= 500 and attempt < _MAX_RETRIES:
             # 예전엔 "원인 모를 500"으로 뭉뚱그려 재시도했는데, 주문 검증 과정에서

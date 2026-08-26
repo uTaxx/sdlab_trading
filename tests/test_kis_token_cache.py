@@ -80,3 +80,77 @@ def test_새로_발급받으면_보관한다(monkeypatch):
     assert 보관소.저장횟수 == 1
     # 만료 60초 앞당겨 잡는다 — 쓰는 도중에 만료되면 그 회차가 통째로 죽는다.
     assert 보관소.만료 <= time.time() + 86400 - 60
+
+
+# ── 만료 시각이 남아 있어도 토큰이 죽을 수 있다 ────────────────────────
+
+
+class _응답:
+    def __init__(self, payload, status=200):
+        self._payload = payload
+        self.status_code = status
+        self.headers = {}
+        self.text = "{}"
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        """토큰 발급 경로가 부른다. 여기서는 늘 정상이다."""
+        return
+
+
+_죽음 = {"rt_cd": "1", "msg_cd": "EGW00123", "msg1": "기간이 만료된 token 입니다."}
+_살아있음 = {"rt_cd": "0", "output": {"nrcvb_buy_qty": "42"}}
+
+
+def _토큰발급되는_client(보관소, 응답들):
+    """토큰 발급은 성공하고, 업무 요청은 주어진 순서대로 답하는 클라이언트."""
+    c = KISClient(app_key="k", app_secret="s", account_no="1", token_store=보관소)
+    남은것 = list(응답들)
+    보낸헤더 = []
+
+    def 발급(url, **kwargs):
+        return _응답({"access_token": "새토큰", "expires_in": 86400})
+
+    def 업무(url, **kwargs):
+        보낸헤더.append(kwargs["headers"]["authorization"])
+        return 남은것.pop(0)
+
+    c._post = 발급  # type: ignore[method-assign]
+    c._get = 업무  # type: ignore[method-assign]
+    return c, 보낸헤더
+
+
+def test_KIS가_토큰이_죽었다고_하면_새로_받아_다시_보낸다():
+    """**2026-08-26 아침을 막는 시험이다.**
+
+    같은 앱키로 토큰을 새로 발급하면 앞의 것이 바로 죽는다. n8n과 파이썬이
+    같은 앱키를 쓰므로, 우리 시계에 몇 시간 남아 있어도 죽어 있을 수 있다.
+
+    그날 죽은 토큰으로 매수가능조회를 불렀고, KIS의 거부가 '0주'로 둔갑해
+    승인한 두 종목이 통째로 안 팔렸다."""
+    보관소 = _보관소("죽은토큰", time.time() + 3600)   # 시계로는 아직 한 시간 남았다
+    c, 헤더들 = _토큰발급되는_client(보관소, [_응답(_죽음), _응답(_살아있음)])
+
+    assert c.get_orderable("103140", 150000) == 42
+    assert 헤더들 == ["Bearer 죽은토큰", "Bearer 새토큰"], "죽은 토큰으로 한 번, 새 토큰으로 다시"
+    assert 보관소.토큰 == "새토큰", "다음 프로세스가 죽은 것을 또 집으면 안 된다"
+
+
+def test_한_번만_다시_보낸다():
+    """새 토큰으로도 죽었다고 하면 그건 다른 문제다. 무한히 돌면 안 된다."""
+    보관소 = _보관소("죽은토큰", time.time() + 3600)
+    c, 헤더들 = _토큰발급되는_client(보관소, [_응답(_죽음), _응답(_죽음)])
+
+    assert c.get_orderable("103140", 150000) == -1, "모르는 것은 모른다고 해야 한다"
+    assert len(헤더들) == 2
+
+
+def test_멀쩡한_토큰이면_다시_안_받는다():
+    보관소 = _보관소("멀쩡한토큰", time.time() + 3600)
+    c, 헤더들 = _토큰발급되는_client(보관소, [_응답(_살아있음)])
+
+    assert c.get_orderable("103140", 150000) == 42
+    assert 헤더들 == ["Bearer 멀쩡한토큰"]
+    assert 보관소.저장횟수 == 0
