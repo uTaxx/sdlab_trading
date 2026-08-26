@@ -316,3 +316,34 @@ def test_네_탭도_두_번_돌려도_두_줄이_되지_않는다():
     ):
         줄들 = 만들기([것])
         assert only_new([줄[0] for 줄 in 줄들], 줄들) == []
+
+
+def test_안_바뀐_줄은_변경_이력이_아니다():
+    """워크플로가 돌 때마다 같은 자격증명을 다시 써 넣는다. 실제 시트에서
+    106줄 중 100줄이 그것이었다. 거르지 않으면 진짜 변경 한 줄이 그 사이에
+    묻힌다."""
+    from muwon.cloud.sheet_log import history_rows
+
+    줄들 = history_rows([
+        가짜변경(id=1, key="kis.app_key", old_value="같음", new_value="같음",
+                 is_secret=True),
+        가짜변경(id=2, key="stop_loss_pct", old_value="-5", new_value="-7"),
+    ])
+
+    assert [줄[0] for 줄 in 줄들] == ["H2"]
+
+
+def test_기계가_매번_다시_적는_값은_안_넣는다():
+    """토큰 만료 시각은 사람이 바꾼 것이 아니다."""
+    from muwon.cloud.sheet_log import history_rows
+
+    줄들 = history_rows([
+        가짜변경(id=1, key="kis.token_expires_at", old_value="1", new_value="2"),
+        가짜변경(id=2, key="kis.access_token", old_value="a", new_value="b",
+                 is_secret=True),
+        가짜변경(id=3, key="telegram.update_offset", old_value="1", new_value="2"),
+        가짜변경(id=4, key="risk.trading_enabled", old_value="False",
+                 new_value="True"),
+    ])
+
+    assert [줄[0] for 줄 in 줄들] == ["H4"]

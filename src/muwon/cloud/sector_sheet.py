@@ -285,7 +285,7 @@ def append_settings(sheet_id: str, 줄들, svc=None) -> int:
     return len(줄들)
 
 
-def update_setting(sheet_id: str, 이름: str, 글자: str, svc=None) -> str:
+def update_setting(sheet_id: str, 이름: str, 글자: str, svc=None, 설명: str = "") -> str:
     """`설정` 탭의 한 줄을 고친다. 옛 값을 돌려준다.
 
     **텔레그램에서 온 변경도 여기로 들어온다.** 시트가 원본이라는 규칙을
@@ -308,9 +308,11 @@ def update_setting(sheet_id: str, 이름: str, 글자: str, svc=None) -> str:
             ).execute(num_retries=3)
             return 옛것
 
+    # 줄을 새로 만들 때 설명 칸을 채운다. 시트는 사람이 열어 보는 곳이라
+    # "텔레그램에서 추가됨"만 적혀 있으면 그 값이 무엇인지 알 수 없다.
     svc.values().append(
         spreadsheetId=sheet_id, range="설정!A1",
         valueInputOption="RAW", insertDataOption="INSERT_ROWS",
-        body={"values": [[이름, 글자, "텔레그램에서 추가됨"]]},
+        body={"values": [[이름, 글자, 설명 or "텔레그램에서 추가됨"]]},
     ).execute(num_retries=3)
     return ""

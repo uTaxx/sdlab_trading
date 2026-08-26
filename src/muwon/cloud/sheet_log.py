@@ -152,20 +152,39 @@ def runlog_rows(runs: Iterable) -> list[list[str]]:
     return 줄들
 
 
+#: 사람이 바꾼 것이 아니라 코드가 매번 다시 적는 값들. 표에 넣으면 진짜
+#: 변경이 그 사이에 묻힌다. 실제로 106줄 중 100줄이 이것이었다.
+_기계가쓰는키 = (
+    "kis.access_token", "kis.token_expires_at", "telegram.update_offset",
+)
+
+
 def history_rows(변경들: Iterable) -> list[list[str]]:
     """설정 변경 기록(AppSettingHistoryRow) → 시트 줄.
 
     **비밀값은 값을 안 적는다.** 토큰과 API 키가 같은 표에 들어 있고,
-    시트는 사람이 열어 보는 곳이다. 무엇이 언제 바뀌었다는 사실만 남긴다."""
+    시트는 사람이 열어 보는 곳이다. 무엇이 언제 바뀌었다는 사실만 남긴다.
+
+    **안 바뀐 줄은 빼고, 기계가 매번 다시 적는 값도 뺀다.** 이 표는 "성적이
+    달라졌을 때 무엇을 바꿨는지"를 보는 곳이다. 워크플로가 돌 때마다 같은
+    자격증명을 다시 써 넣으므로, 거르지 않으면 그 줄이 표를 다 채우고 진짜
+    변경 한 줄이 그 사이에 묻힌다."""
     줄들 = []
     for h in 변경들:
+        키 = str(h.key or "")
+        옛것 = h.old_value or ""
+        새것 = h.new_value or ""
+        if 키 in _기계가쓰는키:
+            continue
+        if 옛것 == 새것:
+            continue
         비밀 = bool(getattr(h, "is_secret", False))
         줄들.append([
             f"H{h.id}",
             _날짜(h.changed_at),
-            _자르기(h.key),
-            "(비밀값)" if 비밀 else _자르기(h.old_value or ""),
-            "(비밀값)" if 비밀 else _자르기(h.new_value or ""),
+            _자르기(키),
+            "(비밀값)" if 비밀 else _자르기(옛것),
+            "(비밀값)" if 비밀 else _자르기(새것),
         ])
     return 줄들
 

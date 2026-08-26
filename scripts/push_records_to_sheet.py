@@ -167,7 +167,10 @@ def main() -> int:
 
     if 전략키:
         try:
-            update_setting(sheet_id, "strategy", 전략키)
+            update_setting(
+                sheet_id, "strategy", 전략키,
+                설명="지금 걸려 있는 전략. 여기서 고쳐도 매매는 안 바뀝니다",
+            )
             올린것["설정!strategy"] = 1
         except Exception as e:  # noqa: BLE001
             못올린것["설정!strategy"] = f"{type(e).__name__}: {e}"
