@@ -37,6 +37,11 @@ from datetime import date, datetime
 
 매매머리 = ["열쇠", "청산일", "종목", "전략", "수량", "산값", "판값",
             "손익금액", "손익%", "산이유", "판이유", "모의"]
+주문머리 = ["열쇠", "때", "종목", "사고팜", "수량", "값", "상태", "주문번호", "모의"]
+회차머리 = ["열쇠", "때", "전략", "유니버스", "살펴본종목", "매수신호", "매도신호",
+            "주문수", "막힌이유", "현금", "평가액"]
+알림머리 = ["열쇠", "때", "종류", "글"]
+이력머리 = ["열쇠", "때", "무엇", "이전", "이후"]
 전망머리 = ["열쇠", "낸날", "대상", "지평", "중앙값%", "상승확률%",
             "아주나빴을때%", "구간수", "우연넘음", "실제%"]
 요약머리 = ["열쇠", "날짜", "매수", "매도", "거부", "평가액", "현금", "메모"]
@@ -77,6 +82,139 @@ def trade_rows(trades: Iterable) -> list[list[str]]:
             _자르기(t.exit_reason),
             "모의" if t.is_paper else "실거래",
         ])
+    return 줄들
+
+
+def _사고팜(side: object) -> str:
+    """`buy`/`sell`을 화면에 쓸 말로. 모르는 값은 지어내지 않고 그대로 둔다."""
+    글 = str(side or "").strip().lower()
+    return {"buy": "매수", "sell": "매도"}.get(글, 글 or "?")
+
+
+def _체결상태(o) -> str:
+    """`price`가 진짜 체결가인지, 조회에 실패해 기준가를 쓴 것인지.
+
+    이 둘을 같은 말로 적으면 슬리피지 통계에 '차이 0'인 가짜 표본이 섞인다.
+    화면에서도 마찬가지다. '체결'이라고 적힌 줄의 값은 실제로 그 값에
+    사고판 것이어야 한다."""
+    확인 = getattr(o, "fill_confirmed", None)
+    if 확인 is True:
+        return "체결"
+    if 확인 is False:
+        return "값 미확인"
+    return "기록 전"
+
+
+def order_rows(orders: Iterable) -> list[list[str]]:
+    """낸 주문(OrderRow) → 시트 줄.
+
+    완결된 매매(`trade_rows`)와 다르다. 저건 사고판 것이 짝지어진 뒤에야
+    생기므로, **산 날에는 아무것도 안 남아** 화면이 "오늘 아무 일도 없었다"로
+    보인다. 주문은 낸 즉시 남는다."""
+    줄들 = []
+    for o in orders:
+        줄들.append([
+            f"O{o.id}",
+            _날짜(o.created_at),
+            _자르기(o.symbol),
+            _사고팜(o.side),
+            str(o.quantity),
+            f"{o.price:.0f}",
+            _체결상태(o),
+            _자르기(getattr(o, "kis_order_id", "")),
+            "모의" if o.is_paper else "실거래",
+        ])
+    return 줄들
+
+
+def runlog_rows(runs: Iterable) -> list[list[str]]:
+    """엔진 회차(RunLogRow) → 시트 줄.
+
+    **체결이 없어도 한 줄이 남는다.** 빈 화면이 "오늘은 살 게 없었다"인지
+    "오늘은 아예 안 돌았다"인지 여기서만 갈린다. 둘은 고치는 방법이
+    정반대다."""
+    줄들 = []
+    for r in runs:
+        막힌것 = str(getattr(r, "rejections", "") or "").strip()
+        줄들.append([
+            f"R{r.id}",
+            _날짜(r.created_at),
+            _자르기(r.strategy_key),
+            str(getattr(r, "universe_size", 0)),
+            str(getattr(r, "checked_symbols", 0)),
+            str(getattr(r, "buy_signals", 0)),
+            str(getattr(r, "sell_signals", 0)),
+            str(getattr(r, "orders", 0)),
+            _자르기(막힌것.replace("\n", " · ")),
+            f"{getattr(r, 'cash', 0.0):.0f}",
+            f"{getattr(r, 'equity', 0.0):.0f}",
+        ])
+    return 줄들
+
+
+def history_rows(변경들: Iterable) -> list[list[str]]:
+    """설정 변경 기록(AppSettingHistoryRow) → 시트 줄.
+
+    **비밀값은 값을 안 적는다.** 토큰과 API 키가 같은 표에 들어 있고,
+    시트는 사람이 열어 보는 곳이다. 무엇이 언제 바뀌었다는 사실만 남긴다."""
+    줄들 = []
+    for h in 변경들:
+        비밀 = bool(getattr(h, "is_secret", False))
+        줄들.append([
+            f"H{h.id}",
+            _날짜(h.changed_at),
+            _자르기(h.key),
+            "(비밀값)" if 비밀 else _자르기(h.old_value or ""),
+            "(비밀값)" if 비밀 else _자르기(h.new_value or ""),
+        ])
+    return 줄들
+
+
+def notice_rows(orders: Iterable = (), trades: Iterable = (),
+                runs: Iterable = ()) -> list[list[str]]:
+    """"오늘 무슨 일이 있었나"를 시간 순으로.
+
+    별도의 알림 표를 DB에 두지 않는다. 알림은 이미 일어난 일을 말로 옮긴
+    것이라, 원본이 둘이 되면 **어느 쪽이 맞는지 알 수 없는 날이 온다.**
+    그래서 주문·매매·회차 기록에서 그때그때 만든다.
+
+    회차는 주문이 하나도 없었을 때만 적는다. 주문이 있으면 주문 줄이
+    같은 말을 더 자세히 하고 있다."""
+    줄들 = []
+    for o in orders:
+        줄들.append([
+            f"NO{o.id}",
+            _날짜(o.created_at),
+            "체결" if getattr(o, "fill_confirmed", None) else "주문",
+            _자르기(
+                f"{o.symbol} {o.quantity:,}주를 {o.price:,.0f}원에 "
+                f"{'샀습니다' if _사고팜(o.side) == '매수' else '팔았습니다'}."
+            ),
+        ])
+    for t in trades:
+        줄들.append([
+            f"NT{t.id}",
+            _날짜(t.exited_at),
+            "청산",
+            _자르기(
+                f"{t.symbol}을 정리했습니다. {t.pnl_amount:+,.0f}원 ({t.pnl_pct:+.1f}%)."
+            ),
+        ])
+    for r in runs:
+        if getattr(r, "orders", 0):
+            continue
+        막힌것 = str(getattr(r, "rejections", "") or "").strip()
+        신호 = getattr(r, "buy_signals", 0) + getattr(r, "sell_signals", 0)
+        if 막힌것:
+            글 = f"신호 {신호}건이 났지만 주문은 없었습니다. {막힌것.splitlines()[0]}"
+        elif 신호:
+            글 = f"신호 {신호}건이 났지만 주문은 없었습니다. 막힌 이유는 안 남았습니다."
+        else:
+            글 = f"살 만한 신호가 없었습니다. 종목 {getattr(r, 'checked_symbols', 0)}개를 봤습니다."
+        줄들.append([f"NR{r.id}", _날짜(r.created_at), "회차", _자르기(글)])
+
+    # 시간 순으로 세운다. 화면은 이걸 뒤집어 최근 것부터 보여 준다.
+    줄들.sort(key=lambda 줄: 줄[1])
     return 줄들
 
 
