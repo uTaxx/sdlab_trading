@@ -1,0 +1,92 @@
+name: 쓰는 전략 바꾸기
+
+# 지금 걸린 전략을 다른 것으로 바꾼다.
+#
+# ## 왜 워크플로로 두나
+#
+# 활성 전략은 상태 DB(`strategy.active_keys`)에 있고, 그 DB는 구글드라이브에
+# 있다. 여기서만 닿는다. 대시보드에서 고를 수는 있어도 저장은 안 되게 해
+# 뒀다 — 화면에서 조용히 바뀌면 안 되는 값이라 그렇다.
+#
+# ## 바꾸면 지금 들고 있는 종목은 어떻게 되나
+#
+# **바로 새 규칙으로 팔린다.** 엔진의 청산 판단은 보유 종목이 어떤 전략으로
+# 들어왔는지가 아니라 **지금 걸린 전략**을 본다(engine.py의 청산 블록).
+# 그래서 바꾸는 순간 들고 있는 것에도 적용된다.
+#
+# volume_surge_5d → volume_surge_5d_ma20 은 이 점에서 안전한 방향이다.
+# 5거래일 상한이 그대로 남고 20일선 매도가 **더해질 뿐**이라, 더 일찍 팔지
+# 더 늦게 팔지는 않는다. 다른 계열로 바꿀 때는 이 성질이 없다.
+#
+# ## 기본은 미리보기다
+#
+# `apply`를 켜지 않으면 지금 무엇이 걸려 있고 무엇으로 바뀌는지만 보여 준다.
+# 매매 규칙을 바꾸는 도구라 실수로 도는 쪽이 아니라 실수로 안 도는 쪽으로
+# 기울여 뒀다.
+#
+# **`apply`는 문자열로 받는다.** `type: boolean`에 문자열 "false"를 넘기면
+# 참으로 읽혀서 조용히 반대로 도는 일이 실제로 있었다(2026-08-26).
+
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: "바꿀 전략 키 (비우면 지금 무엇이 걸려 있는지와 고를 수 있는 목록만 보여 준다)"
+        default: ""
+      apply:
+        description: "true면 실제로 바꾼다 (그 밖의 값은 전부 미리보기)"
+        default: "false"
+
+concurrency:
+  # 상태 DB를 고치는 일이라 겹치면 나중 것이 앞 것을 덮는다.
+  group: state-write
+  cancel-in-progress: false
+
+jobs:
+  switch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: 바꾸기
+        run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
+          # 실패가 이 저장소에서 제일 비싼 종류다.
+          set -o pipefail
+          python scripts/switch_strategy.py \
+            --key "${{ github.event.inputs.key }}" \
+            ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
+            | tee switch.txt
+
+      # 미리보기였으면 DB가 안 바뀌었으므로 올릴 것도 없다. 그래도 올리면
+      # 그 사이 다른 실행이 쓴 것을 옛 것으로 덮을 수 있다.
+      - name: 상태 DB 올리기
+        if: github.event.inputs.apply == 'true'
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py upload \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --path ./muwon.db
+
+      - name: 결과 아티팩트로 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-strategy-${{ github.run_number }}
+          path: switch.txt
