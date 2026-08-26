@@ -273,19 +273,22 @@ def main() -> int:
         # 읽을 수 있어야 하고, 형식을 고친 뒤에 실제로 어떻게 나가는지
         # 확인하려고 알림을 한 통 더 보낼 이유도 없다.
         print("\n─── 텔레그램으로 갈 요약 ───\n" + 요약 + "\n───\n", file=sys.stderr)
+        # 여기서 return 하지 않는다. 아래에 리포트 파일 쓰기와 시트 올리기가
+        # 남아 있어서, 일찍 끊으면 --no-send가 그 둘까지 조용히 건너뛴다.
+        # 실제로 그렇게 만들었다가 아티팩트가 안 올라갔다.
         if args.no_send:
             print("--no-send라 실제로 보내지는 않았습니다.", file=sys.stderr)
-            return 0 if not 못보냄 else 1
-        try:
-            TelegramNotifier(build_settings_service()).send(요약)
-            print("\n텔레그램으로 요약을 보냈습니다.", file=sys.stderr)
-        except Exception as e:  # noqa: BLE001 — 알림 실패가 리포트를 죽이면 안 된다
-            # 리포트 자체는 끝까지 만든다. 다만 **조용히 넘어가지는 않는다** —
-            # 2026-08-19~24에 여기서 여덟 번 내리 실패했는데 워크플로는 여덟 번
-            # 다 초록불이었고, 그동안 리포트가 폰에 한 번도 안 왔다.
-            # 조용히 성공한 척하는 실패가 이 저장소에서 제일 비싼 종류다.
-            못보냄 = f"{type(e).__name__}: {e}"
-            print(f"\n텔레그램 전송 실패: {못보냄}", file=sys.stderr)
+        else:
+            try:
+                TelegramNotifier(build_settings_service()).send(요약)
+                print("\n텔레그램으로 요약을 보냈습니다.", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001 — 알림 실패가 리포트를 죽이면 안 된다
+                # 리포트 자체는 끝까지 만든다. 다만 **조용히 넘어가지는 않는다** —
+                # 2026-08-19~24에 여기서 여덟 번 내리 실패했는데 워크플로는 여덟 번
+                # 다 초록불이었고, 그동안 리포트가 폰에 한 번도 안 왔다.
+                # 조용히 성공한 척하는 실패가 이 저장소에서 제일 비싼 종류다.
+                못보냄 = f"{type(e).__name__}: {e}"
+                print(f"\n텔레그램 전송 실패: {못보냄}", file=sys.stderr)
 
     # ── 전망을 시트에도 남긴다 ────────────────────────────────────
     #
