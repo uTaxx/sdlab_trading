@@ -65,13 +65,13 @@ def _손절설명(사유: str) -> str:
     }
     for 열쇠, 말 in 풀이.items():
         if 사유.startswith(열쇠):
-            return f"{사유} — {말}"
+            return f"{사유}. {말}"
     if 사유.startswith("ATR 손절"):
-        return f"{사유} — 그 종목이 하루에 보통 움직이는 폭보다 더 떨어져서 자동으로 팔았습니다"
+        return f"{사유}. 그 종목이 하루에 보통 움직이는 폭보다 더 떨어져서 자동으로 팔았습니다"
     if 사유.startswith("익절"):
-        return f"{사유} — 목표한 만큼 올라서 이익을 확정했습니다"
+        return f"{사유}. 목표한 만큼 올라서 이익을 확정했습니다"
     if 사유.startswith("트레일링"):
-        return f"{사유} — 고점에서 밀려나 이익을 지키려고 팔았습니다"
+        return f"{사유}. 고점에서 밀려나 이익을 지키려고 팔았습니다"
     return 사유
 
 
