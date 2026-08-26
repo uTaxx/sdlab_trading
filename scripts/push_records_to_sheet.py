@@ -60,6 +60,12 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="구글에 붙지 않고 올릴 것만 보여 준다")
     args = parser.parse_args()
 
+    # **어느 쪽으로 도는지를 맨 위에 찍는다.** workflow_dispatch의
+    # type: boolean 입력에 문자열 "false"를 넘기면 참으로 읽혀서, 진짜
+    # 올리려던 실행이 조용히 dry-run으로 끝난다. 실제로 그랬다. 그러면
+    # 초록불인데 시트에는 아무것도 안 올라간다.
+    print("■ 모드: " + ("올리지 않고 보기만 함(--dry-run)" if args.dry_run else "시트에 올림"))
+
     ensure_schema(bootstrap_settings.database_url)
     session_factory = make_session_factory(bootstrap_settings.database_url)
     오늘 = datetime.now(ZoneInfo("Asia/Seoul")).date()

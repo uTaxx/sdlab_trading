@@ -170,7 +170,7 @@ def _수량글(order) -> str:
         return f"수량: {order.quantity}주"
     return (
         f"수량: {order.ordered_quantity}주 중 {order.quantity}주 체결 · 잔여 {남은것}주\n"
-        "      (잔여는 마저 체결되거나 장 마감에 취소됩니다 — 손댈 것 없습니다)"
+        "      (잔여는 마저 체결되거나 장 마감에 취소됩니다. 손댈 것 없습니다)"
     )
 
 
@@ -417,7 +417,7 @@ class TradingEngine:
             # 실패한 것이 그날 매수를 통째로 막으면 안 된다.
             살수있는수량 = self._orderable(symbol, price)
             if 살수있는수량 == 0:
-                사유 = "증권사가 살 수 있는 수량을 0주로 알려 줬습니다 — 주문가능현금이 모자랍니다"
+                사유 = "증권사가 살 수 있는 수량을 0주로 알려 줬습니다. 주문가능현금이 모자랍니다"
                 summary.rejections.append(
                     f"{_find_ticker(self._universe, symbol).name}({symbol}): {사유}"
                 )
@@ -437,7 +437,7 @@ class TradingEngine:
                 사유 = (
                     "한 종목에 넣을 수 있는 금액 안에서 살 수 있는 수량이 0주였습니다"
                     if quantity <= 0
-                    else f"살 돈이 모자랍니다 — {cost:,.0f}원이 필요한데 {cash:,.0f}원이 남아 있습니다"
+                    else f"살 돈이 모자랍니다. {cost:,.0f}원이 필요한데 {cash:,.0f}원이 남아 있습니다"
                 )
                 summary.rejections.append(
                     f"{_find_ticker(self._universe, symbol).name}({symbol}): {사유}"

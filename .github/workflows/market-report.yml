@@ -37,6 +37,11 @@ on:
       as_of:
         description: "이 날짜 기준으로 본다 (비우면 최신). 예: 2022-06-15"
         default: ""
+      no_send:
+        # 문자열로 받는다. type: boolean에 문자열 "false"를 넘기면 참으로
+        # 읽혀서 조용히 반대로 도는 일이 실제로 있었다(2026-08-26).
+        description: "true면 요약을 로그에만 찍고 텔레그램으로 안 보낸다"
+        default: "false"
 
 concurrency:
   # 앞 실행이 느려 다음 정시를 넘기면 둘이 동시에 돈다. 시세 캐시를 둘 다
@@ -97,6 +102,7 @@ jobs:
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
           python scripts/market_report.py --telegram --sheet \
+            ${{ github.event.inputs.no_send == 'true' && '--no-send' || '' }} \
             --lens "${{ github.event.inputs.lens || '확장' }}" \
             --horizon "${{ github.event.inputs.horizon || '20' }}" \
             --as-of "${{ github.event.inputs.as_of }}" \

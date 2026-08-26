@@ -112,6 +112,10 @@ def main() -> int:
     parser.add_argument("--out", default="", help="결과를 남길 파일")
     parser.add_argument("--no-log", action="store_true", help="전망 기록을 쌓지 않는다")
     parser.add_argument("--telegram", action="store_true", help="요약을 텔레그램으로 보낸다")
+    parser.add_argument(
+        "--no-send", action="store_true",
+        help="요약을 만들어 로그에만 찍고 보내지는 않는다 (형식을 확인할 때)",
+    )
     parser.add_argument("--sheet", action="store_true", help="낸 전망을 구글 시트에 덧붙인다")
     args = parser.parse_args()
 
@@ -265,6 +269,13 @@ def main() -> int:
             지수=코스피 if 기준일 is None else 코스피.loc[:기준일],
             한일=_오늘한일(기준일 or 오늘),
         )
+        # **보내든 못 보내든 로그에 남긴다.** 폰으로 못 받은 날일수록 여기서
+        # 읽을 수 있어야 하고, 형식을 고친 뒤에 실제로 어떻게 나가는지
+        # 확인하려고 알림을 한 통 더 보낼 이유도 없다.
+        print("\n─── 텔레그램으로 갈 요약 ───\n" + 요약 + "\n───\n", file=sys.stderr)
+        if args.no_send:
+            print("--no-send라 실제로 보내지는 않았습니다.", file=sys.stderr)
+            return 0 if not 못보냄 else 1
         try:
             TelegramNotifier(build_settings_service()).send(요약)
             print("\n텔레그램으로 요약을 보냈습니다.", file=sys.stderr)
