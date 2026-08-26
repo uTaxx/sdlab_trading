@@ -89,17 +89,28 @@ def _오늘한일(그날: date) -> dict:
         print(f"오늘 한 일을 못 읽었습니다: {type(e).__name__}: {e}", file=sys.stderr)
         return {"못읽음": f"{type(e).__name__}"}
 
+    # 종목코드만 적으면 무엇을 들고 있는지 알 수 없다. 411060이 무엇인지
+    # 아는 사람은 이 시스템을 만든 사람뿐이다. 이름을 붙여 준다.
+    이름표 = {}
+    for 섹터 in CATALOG:
+        for m in 섹터.활성종목:
+            이름표[m.symbol] = m.name
+
+    def 부르기(코드: str) -> str:
+        이름 = 이름표.get(코드, "")
+        return f"{이름}({코드})" if 이름 else 코드
+
     산것 = [
-        (o.symbol, int(o.quantity), float(o.price))
+        (부르기(o.symbol), int(o.quantity), float(o.price))
         for o in 주문
         if o.created_at and o.created_at.date() == 그날 and str(o.side).upper() == "BUY"
     ]
     판것 = [
-        (t.symbol, int(t.quantity), float(t.pnl_amount), float(t.pnl_pct))
+        (부르기(t.symbol), int(t.quantity), float(t.pnl_amount), float(t.pnl_pct))
         for t in 매매
         if t.exited_at and t.exited_at.date() == 그날
     ]
-    가진것 = [(p.symbol, int(p.quantity), float(p.entry_price)) for p in 보유]
+    가진것 = [(부르기(p.symbol), int(p.quantity), float(p.entry_price)) for p in 보유]
     return {"산것": 산것, "판것": 판것, "보유": 가진것}
 
 
