@@ -251,6 +251,32 @@ REGISTRY: list[StrategyDefinition] = [
         category=CATEGORY_BREAKOUT,
     ),
     StrategyDefinition(
+        key="volume_surge_5d_ma20",
+        display_name="거래량 급증 + 20일선 매도 (최대 5일 보유)",
+        description=(
+            "사는 조건은 volume_surge_5d와 같고, 파는 조건만 다르다. "
+            "5거래일을 기다리지 않고 종가가 20일 평균선 아래로 내려온 날 판다. "
+            "'정해진 날짜가 아니라 추세가 깨질 때 판다'는 가설. "
+            "5일 보유는 상한으로 남는다."
+        ),
+        factory=lambda: VolumeSurgeStrategy(
+            VolumeSurgeParams(exit_sma=20), name="volume_surge_5d_ma20"
+        ),
+        category=CATEGORY_BREAKOUT,
+    ),
+    StrategyDefinition(
+        key="volume_surge_5d_ma10",
+        display_name="거래량 급증 + 10일선 매도 (최대 5일 보유)",
+        description=(
+            "위와 같은데 매도선이 10일 평균이라 더 빨리 판다. "
+            "20일선과 나란히 놓고 '얼마나 빨리 파는 것이 나은가'를 본다."
+        ),
+        factory=lambda: VolumeSurgeStrategy(
+            VolumeSurgeParams(exit_sma=10), name="volume_surge_5d_ma10"
+        ),
+        category=CATEGORY_BREAKOUT,
+    ),
+    StrategyDefinition(
         key="volume_surge_3d",
         display_name="거래량 급증 초단타 (3배, 3일 보유)",
         description="더 강한 급증(3배)만 잡고 3일 만에 청산 — 재료 소멸 전에 빠지는 걸 노린 가설.",

@@ -88,14 +88,24 @@ class VolumeSurgeParams:
     min_price_change_pct: float = 2.0  # 거래량만 늘고 가격은 그대로인 경우 제외
     sma_short: int = 20
     holding_days: int = 5  # 진입 후 이 일수가 지나면 청산(시간 기반 청산)
+    #: 종가가 이 이동평균 아래로 내려오면 매도 신호를 낸다. None이면 안 낸다.
+    #:
+    #: 기본값을 None으로 둔 이유는, 지금 쓰는 volume_surge_5d가 "시간이 되면
+    #: 판다"는 가설이고 그 성적이 이미 기록돼 있기 때문이다. 여기에 매도 신호를
+    #: 끼워 넣으면 같은 이름의 전략이 다른 것이 되어 과거 성적과 견줄 수 없다.
+    #: 매도 신호를 쓰는 쪽은 별도 이름으로 등록해 나란히 놓고 비교한다.
+    exit_sma: int | None = None
 
 
 class VolumeSurgeStrategy(Strategy):
     """거래량 급증 + 가격 상승 — 세력이 들어왔다고 보는 단타의 기본 패턴.
 
-    다른 전략들과 달리 청산이 지표가 아니라 시간 기준이다(holding_days).
-    "재료가 터진 날 들어가서 며칠 안에 나온다"는 단타 습성을 그대로 옮긴
-    것으로, 지표 기반 청산과 어느 쪽이 나은지 비교하려고 이렇게 뒀다."""
+    청산이 지표가 아니라 시간 기준이다(holding_days). "재료가 터진 날 들어가서
+    며칠 안에 나온다"는 단타 습성을 그대로 옮긴 것이다.
+
+    `exit_sma`를 주면 매도 신호도 낸다. 종가가 그 이동평균 아래로 내려온 날
+    파는 것으로, "정해진 날짜가 아니라 추세가 깨질 때 판다"는 가설이다.
+    둘 중 어느 쪽이 나은지는 백테스트로 비교한다."""
 
     def __init__(self, params: VolumeSurgeParams | None = None, name: str = "volume_surge"):
         self.params = params or VolumeSurgeParams()
@@ -109,8 +119,12 @@ class VolumeSurgeStrategy(Strategy):
 
     def generate_signals(self, symbol: str, price_history: pd.DataFrame) -> list[Signal]:
         p = self.params
+        # 매도선을 따로 주면 그 창으로 이동평균을 낸다. sma_short를 그대로
+        # 쓰면 exit_sma=10을 줘도 20일선을 보게 되어, 화면에는 10일선이라고
+        # 적히고 실제로는 20일선으로 파는 상태가 된다.
+        평균창 = p.exit_sma if p.exit_sma is not None else p.sma_short
         df = add_indicators(
-            price_history, sma_short=p.sma_short, volume_ma_window=p.volume_ma_window
+            price_history, sma_short=평균창, volume_ma_window=p.volume_ma_window
         )
         signals: list[Signal] = []
 
@@ -119,6 +133,26 @@ class VolumeSurgeStrategy(Strategy):
 
             if has_nan(cur, ["volume_ma"]):
                 continue
+
+            # 매도 신호를 먼저 본다. 같은 날 두 신호가 다 서면 파는 쪽이
+            # 먼저다 — 이 저장소는 언제나 위험을 줄이는 쪽을 앞에 둔다.
+            if p.exit_sma is not None and not has_nan(cur, ["sma_short"]):
+                # 어제는 위에 있었는데 오늘 아래로 내려온 날에만 낸다.
+                # 아래에 머무는 동안 매일 신호를 내면 이미 판 종목에 대고
+                # 같은 신호가 쌓이고, 기록에서 "왜 팔았나"가 흐려진다.
+                내려왔나 = (
+                    not has_nan(prev, ["sma_short"])
+                    and prev["close"] >= prev["sma_short"]
+                    and cur["close"] < cur["sma_short"]
+                )
+                if 내려왔나:
+                    signals.append(
+                        make_signal(
+                            symbol, cur, SignalType.SELL, self.name,
+                            f"{p.exit_sma}일 평균선 아래로 내려왔습니다",
+                        )
+                    )
+                    continue
 
             price_change_pct = (cur["close"] / prev["close"] - 1) * 100 if prev["close"] > 0 else 0.0
             volume_surged = cur["volume_ma"] > 0 and cur["volume"] >= cur["volume_ma"] * p.volume_surge_ratio
