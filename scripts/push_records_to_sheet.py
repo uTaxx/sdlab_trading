@@ -123,10 +123,19 @@ def main() -> int:
     # 없으면 대시보드가 "무엇이 걸려 있는지 알 수 없습니다"라고만 한다.
     # **바꾸는 것이 아니라 옮겨 적는 것이다** — 시트의 이 칸은 정책필드가
     # 비어 있어서 무엇으로 바뀌어도 주문에 영향이 없다.
+    #
+    # 파는 쪽을 따로 걸어 뒀으면 그것도 같이 옮겨 적는다. 안 그러면 화면에는
+    # 사는 쪽 전략만 뜨고, 실제로는 다른 규칙으로 팔고 있는데 그 사실이
+    # 어디에도 안 보인다.
+    전략키 = ""
+    매도키 = ""
+    읽었나 = False
     try:
-        전략키 = build_settings_service().get_strategy_selection().active_key
+        고름 = build_settings_service().get_strategy_selection()
+        전략키 = 고름.active_key
+        매도키 = 고름.sell_keys[0] if 고름.sell_keys else ""
+        읽었나 = True
     except Exception as e:  # noqa: BLE001 — 기록 올리기가 이것 때문에 죽으면 안 된다
-        전략키 = ""
         print(f"쓰는 전략을 못 읽었습니다: {type(e).__name__}: {e}", file=sys.stderr)
 
     print(
@@ -145,6 +154,7 @@ def main() -> int:
             for 줄 in 줄들[:5]:
                 print(f"  [{이름}] " + " | ".join(줄))
         print(f"  [설정] strategy = {전략키 or '(못 읽음)'}")
+        print(f"  [설정] sell_strategy = {매도키 or '(따로 안 걸림)'}")
         return 0
 
     sheet_id = args.sheet_id
@@ -180,6 +190,18 @@ def main() -> int:
             올린것["설정!strategy"] = 1
         except Exception as e:  # noqa: BLE001
             못올린것["설정!strategy"] = f"{type(e).__name__}: {e}"
+
+    # 매도키는 비어 있어도 올린다. 따로 걸었다가 푼 경우, 안 올리면 시트에
+    # 옛 값이 남아서 화면이 있지도 않은 매도 전략을 계속 보여 준다.
+    if 읽었나:
+        try:
+            update_setting(
+                sheet_id, "sell_strategy", 매도키,
+                설명="파는 쪽에만 따로 걸어 둔 전략. 비어 있으면 사는 쪽이 양쪽을 다 맡습니다",
+            )
+            올린것["설정!sell_strategy"] = 1
+        except Exception as e:  # noqa: BLE001
+            못올린것["설정!sell_strategy"] = f"{type(e).__name__}: {e}"
 
     print("\n올림 — " + " · ".join(f"{ㄱ} {ㄴ}줄" for ㄱ, ㄴ in 올린것.items()))
     if 매매줄 and not 올린것.get("매매기록"):
