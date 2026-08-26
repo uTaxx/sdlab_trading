@@ -520,7 +520,9 @@ def test_증권사가_0이라고_하면_안_산다():
     summary = engine.run_once()
 
     assert summary.actions == []
-    assert any("매수가능수량 0" in r for r in summary.rejections)
+    assert any("0주로 알려 줬습니다" in r for r in summary.rejections)
+    # 알림이 "왜 안 샀는지"에 답하려면 종목별로 짝이 지어져 있어야 한다.
+    assert summary.거부사유[TEST_TICKER.symbol].startswith("증권사가 살 수 있는 수량을 0주로")
     with session_factory() as session:
         assert session.query(PositionRow).count() == 0
 

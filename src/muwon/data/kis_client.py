@@ -627,6 +627,27 @@ class KISClient(MarketDataSource):
         못 물어봤을 때 0이 아니라 **-1**을 돌려준다. 0은 "살 수 없다"는
         답이고 -1은 "못 물어봤다"인데, 둘을 같게 두면 조회 한 번 실패한 것이
         그날 매수를 통째로 막는다.
+
+        ## 2026-08-26에 실제로 그렇게 막혔다
+
+        처음 쓴 코드는 예외만 -1로 돌렸고, **거부 응답과 빈 칸은 그대로 0**이
+        됐다. rt_cd를 안 봤고 `or 0`이 빈 값을 0으로 눌렀다.
+
+            output = response.json().get("output") or {}
+            return int(float(output.get("nrcvb_buy_qty") or 0))
+
+        그래서 승인된 두 종목이 "증권사가 매수가능수량 0으로 답했습니다"로
+        막혔다. 증권사가 그렇게 답한 것이 아니라, **우리가 못 알아들은 것을
+        0으로 적은 것**이다. -1을 둔 이유가 바로 이건데 구멍을 남겨 뒀다.
+
+        지금은 셋을 가른다.
+          - 통신·예외 → -1 (못 물어봤다)
+          - rt_cd가 0이 아님 → -1 (증권사가 조회를 거부했다)
+          - 칸이 비었음 → -1 (답에 그 값이 없다)
+          - 숫자 0 → 0 (증권사가 진짜로 못 산다고 답했다)
+
+        그리고 **왜 0인지 알 수 있게 주문가능현금을 같이 남긴다.** 안 남기면
+        다음에 또 막혔을 때 원인을 못 찾는다.
         """
         env = "paper" if self.is_paper else "real"
         try:
@@ -644,11 +665,40 @@ class KISClient(MarketDataSource):
                 },
                 timeout=10,
             )
-            output = response.json().get("output") or {}
-            return int(float(output.get("nrcvb_buy_qty") or 0))
+            payload = response.json()
         except Exception as e:  # noqa: BLE001 — 조회 실패가 매매를 멈춰선 안 된다
-            logger.warning(f"매수가능조회 실패({symbol}): {e} — 우리 현금 계산으로 갑니다.")
+            logger.warning(f"매수가능조회를 못 했습니다({symbol}): {e} — 우리 현금 계산으로 갑니다.")
             return -1
+
+        if str(payload.get("rt_cd", "")) != "0":
+            logger.warning(
+                f"매수가능조회를 증권사가 거부했습니다({symbol}): "
+                f"{payload.get('msg1')} (msg_cd={payload.get('msg_cd')}) "
+                "— 우리 현금 계산으로 갑니다."
+            )
+            return -1
+
+        output = payload.get("output") or {}
+        칸 = str(output.get("nrcvb_buy_qty", "")).strip()
+        if not 칸:
+            logger.warning(
+                f"매수가능조회 답에 미수없는매수수량이 없습니다({symbol}) — "
+                f"받은 칸: {sorted(output)[:12]}. 우리 현금 계산으로 갑니다."
+            )
+            return -1
+
+        try:
+            수량 = int(float(칸))
+        except ValueError:
+            logger.warning(f"매수가능수량을 숫자로 못 읽었습니다({symbol}): {칸!r}")
+            return -1
+
+        현금 = str(output.get("ord_psbl_cash", "")).strip()
+        logger.info(
+            f"매수가능조회({symbol} @ {price:,.0f}원): {수량}주"
+            + (f" · 주문가능현금 {float(현금):,.0f}원" if 현금 else "")
+        )
+        return 수량
 
     def get_balance(self) -> AccountBalance:
         """증권사 계좌의 실제 잔고(현금·보유종목)를 조회한다.

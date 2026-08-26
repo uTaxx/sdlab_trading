@@ -250,24 +250,88 @@ def main() -> int:
         print("   시트와 대시보드가 둘 다 켜져야 켜집니다.")
 
     try:
-        notifier.send(_알림글(오늘, 승인된것, 산것, 판것, 안산것, 정책.trading_enabled))
+        notifier.send(
+            _알림글(
+                오늘, 승인된것, 산것, 판것, 안산것, 정책.trading_enabled,
+                거부사유=summary.거부사유,
+            )
+        )
     except Exception as e:  # noqa: BLE001 — 알림 실패가 매매 결과를 지우면 안 된다
         print(f"\n텔레그램 전송 실패: {type(e).__name__}: {e}", file=sys.stderr)
     return 0
 
 
-def _알림글(날짜, 승인된것, 산것, 판것, 안산것, 켜짐) -> str:
-    줄 = [f"🧾 {날짜} 승인 매매 결과", ""]
+_요일 = ("월", "화", "수", "목", "금", "토", "일")
+
+
+def _날짜글(날짜) -> str:
+    try:
+        return f"{날짜.month}월 {날짜.day}일({_요일[날짜.weekday()]})"
+    except AttributeError:
+        return str(날짜)
+
+
+def _알림글(날짜, 승인된것, 산것, 판것, 안산것, 켜짐, 거부사유=None) -> str:
+    """09:05 매수 시도 결과를 사람 말로.
+
+    **예전 글은 제일 중요한 것에 답을 못 했다.**
+
+        승인 2종목 → 매수 0건 · 매도 0건
+        ⚠️ 승인했지만 안 산 것: 풍산, 두산에너빌리티
+
+    받아 보는 사람이 물었다. *"왜 안 샀는지? 아직 체결 전이라는 건지?"*
+    당연한 물음이다. 안 샀다는 사실만 있고 **이유가 없고**, 주문을 내고
+    기다리는 중인지 아예 안 낸 것인지도 없다.
+
+    이유는 바로 옆에 있었다 — 엔진이 `summary.거부사유`에 종목별로 적어
+    두는데 알림이 그걸 버리고 이름만 옮겨 적고 있었다."""
+    거부사유 = 거부사유 or {}
+    줄 = [f"🧾 {_날짜글(날짜)} 오전 9시 5분 매수 시도 결과", ""]
+
+    if 산것 or 판것:
+        줄.append(f"승인한 {len(승인된것)}종목 중 {len(산것)}종목을 샀습니다.")
+    else:
+        줄.append(f"승인한 {len(승인된것)}종목을 한 주도 사지 못했습니다.")
+    줄.append("")
+
     if not 켜짐:
-        줄.append("🛑 킬스위치가 꺼져 있어 신규 매수는 없었습니다.")
-        줄.append("")
-    줄.append(f"승인 {len(승인된것)}종목 → 매수 {len(산것)}건 · 매도 {len(판것)}건")
+        줄 += [
+            "🛑 매수 스위치가 꺼져 있습니다",
+            "   그래서 승인 여부와 상관없이 아무것도 안 샀습니다.",
+            "   대시보드 맨 위의 '자동 매수'를 켜면 내일부터 다시 삽니다.",
+            "",
+        ]
+
     for a in 산것:
-        줄.append(f"  🟢 {a.name} {a.quantity}주 @ {a.price:,.0f}원")
+        줄 += [
+            f"🟢 {a.name}({a.symbol}) {a.quantity}주 샀습니다",
+            f"   1주당 {a.price:,.0f}원 · 모두 {a.quantity * a.price:,.0f}원",
+        ]
     for a in 판것:
-        줄.append(f"  🔴 {a.name} {a.quantity}주 @ {a.price:,.0f}원 — {a.reason}")
+        줄 += [
+            f"🔴 {a.name}({a.symbol}) {a.quantity}주 팔았습니다",
+            f"   1주당 {a.price:,.0f}원 · 모두 {a.quantity * a.price:,.0f}원",
+            f"   판 이유: {a.reason}",
+        ]
+    if 산것 or 판것:
+        줄.append("")
+
     if 안산것:
-        줄 += ["", f"⚠️ 승인했지만 안 산 것: {', '.join(c.name for c in 안산것)}"]
+        줄.append(f"⚠️ 승인했는데 못 산 것 {len(안산것)}종목")
+        줄.append("")
+        for c in 안산것:
+            줄.append(f"  · {c.name}({c.symbol})")
+            사유 = 거부사유.get(c.symbol)
+            줄.append(f"    {사유}" if 사유 else "    이유를 기록하지 못했습니다 — 실행 기록을 보세요")
+        줄 += [
+            "",
+            "주문을 냈다가 안 된 것이 아니라, 주문 자체를 안 냈습니다.",
+            "기다린다고 나중에 사지지 않습니다. 오늘은 여기서 끝입니다.",
+        ]
+
+    if not 안산것 and not 산것 and not 판것:
+        줄.append("오늘은 조건에 맞는 것이 없었습니다. 아무것도 안 하셔도 됩니다.")
+
     return "\n".join(줄)
 
 

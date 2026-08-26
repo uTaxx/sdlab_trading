@@ -190,6 +190,11 @@ class RunSummary:
     checked_symbols: int
     actions: list[ExecutedAction] = field(default_factory=list)
     rejections: list[str] = field(default_factory=list)
+    #: 종목코드 → 안 산(또는 못 산) 이유. rejections는 사람이 읽는 한 줄이라
+    #: 종목명이 앞에 붙어 있어서 짝을 지으려면 문자열을 다시 뜯어야 한다.
+    #: 알림에서 "승인했는데 왜 안 샀지"에 답하려면 이 짝이 필요하다 —
+    #: 2026-08-26에 이유가 바로 옆에 있는데도 알림이 버리고 있었다.
+    거부사유: dict[str, str] = field(default_factory=dict)
 
 
 class TradingEngine:
@@ -392,6 +397,7 @@ class TradingEngine:
             ticker = _find_ticker(self._universe, symbol)
             if not decision.approved:
                 summary.rejections.append(f"{ticker.name}({symbol}): {decision.reason}")
+                summary.거부사유[symbol] = decision.reason
                 continue
 
             target_value = equity_after_exits * policy.max_position_weight
@@ -411,10 +417,11 @@ class TradingEngine:
             # 실패한 것이 그날 매수를 통째로 막으면 안 된다.
             살수있는수량 = self._orderable(symbol, price)
             if 살수있는수량 == 0:
+                사유 = "증권사가 살 수 있는 수량을 0주로 알려 줬습니다 — 주문가능현금이 모자랍니다"
                 summary.rejections.append(
-                    f"{_find_ticker(self._universe, symbol).name}({symbol}): "
-                    "증권사가 매수가능수량 0으로 답했습니다 — 현금이나 증거금이 모자랍니다"
+                    f"{_find_ticker(self._universe, symbol).name}({symbol}): {사유}"
                 )
+                summary.거부사유[symbol] = 사유
                 continue
             if 0 < 살수있는수량 < quantity:
                 summary.rejections.append(
@@ -426,6 +433,16 @@ class TradingEngine:
 
             cost = quantity * price * (1 + self._costs.buy_fee_pct)
             if quantity <= 0 or cost > cash:
+                # 여기서 조용히 넘어가면 "승인했는데 왜 안 샀지"가 남는다.
+                사유 = (
+                    "한 종목에 넣을 수 있는 금액 안에서 살 수 있는 수량이 0주였습니다"
+                    if quantity <= 0
+                    else f"살 돈이 모자랍니다 — {cost:,.0f}원이 필요한데 {cash:,.0f}원이 남아 있습니다"
+                )
+                summary.rejections.append(
+                    f"{_find_ticker(self._universe, symbol).name}({symbol}): {사유}"
+                )
+                summary.거부사유[symbol] = 사유
                 continue
 
             order = self._order_executor.submit_order(symbol, OrderSide.BUY, quantity, price)
