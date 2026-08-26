@@ -42,6 +42,8 @@ z점수는 "그동안의 평소에 견줘 몇 배쯤 벗어났나"로 바꾼 값
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 #: 표준화에 쓸 과거 창(거래일). 약 4년.
@@ -176,3 +178,20 @@ def describe_today(state: pd.DataFrame, raw: pd.DataFrame | None = None) -> str:
                 )
         lines.append(f"  {표시} {이름:<22}{실제:>10}   z {값:>+6.2f}")
     return "\n".join(lines)
+
+
+def 평소값(raw: pd.DataFrame, 이름: str, 날짜=None) -> float | None:
+    """그 시점까지의 과거로 본 '평소' 값. 없으면 None.
+
+    `rolling_z`가 z점수를 낼 때 쓰는 평균과 같은 것을 그대로 꺼낸다.
+    "하루 등락 2.8%"만 보여 주면 그게 큰 건지 작은 건지 알 수가 없다.
+    "평소 1.4%"가 옆에 있어야 읽힌다. 같은 정의를 두 군데 쓰지 않으려고
+    여기에 둔다."""
+    if raw is None or 이름 not in raw.columns:
+        return None
+    s = raw[이름] if 날짜 is None else raw[이름].loc[:날짜]
+    평균 = s.shift(1).rolling(STD_WINDOW, min_periods=MIN_HISTORY).mean()
+    if len(평균) == 0:
+        return None
+    값 = float(평균.iloc[-1])
+    return None if math.isnan(값) else 값
