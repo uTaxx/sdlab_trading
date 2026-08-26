@@ -13,6 +13,9 @@
 
     # 등록된 전략들을 같은 조건에서 비교
     python scripts/run_experiment.py strategies --keys volume_surge_5d,factor_score_v1
+
+    # 사는 쪽과 파는 쪽을 다른 전략으로 ('매수>매도', 여러 조합은 '|')
+    python scripts/run_experiment.py split --keys "volume_surge_5d>ma_rsi_v1"
 """
 
 import argparse
@@ -84,6 +87,32 @@ def _짧은이름(key: str) -> str:
     return f"{조각[0][:4]}_{조각[-1]}"
 
 
+def 조합파싱(글자: str) -> list[tuple[tuple[str, ...], tuple[str, ...]]]:
+    """split 모드의 --keys를 (사는키들, 파는키들) 목록으로 푼다.
+
+    '매수키>매도키'가 조합 하나다. 여러 조합은 '|'로 나눈다. 한쪽에 전략을
+    여럿 두려면 쉼표로 잇는다.
+
+    잘못 적으면 여기서 바로 멈춘다. 조용히 한쪽을 버리면 표에는 조합이
+    돌아간 것처럼 보이는데 실제로는 다른 것을 잰 상태가 된다."""
+    쌍들: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+    for 덩이 in (글자 or "").split("|"):
+        덩이 = 덩이.strip()
+        if not 덩이:
+            continue
+        if ">" not in 덩이:
+            raise SystemExit(f"'{덩이}'에 '>'가 없습니다. '매수키>매도키' 꼴로 적으세요")
+        사는, 파는 = 덩이.split(">", 1)
+        사는키 = tuple(k.strip() for k in 사는.split(",") if k.strip())
+        파는키 = tuple(k.strip() for k in 파는.split(",") if k.strip())
+        if not 사는키 or not 파는키:
+            raise SystemExit(f"'{덩이}'의 양쪽에 전략을 하나 이상 적으세요")
+        쌍들.append((사는키, 파는키))
+    if not 쌍들:
+        raise SystemExit("--keys에 '매수키>매도키' 꼴로 조합을 지정하세요 (여러 개는 '|'로 구분)")
+    return 쌍들
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="전략 실험 실행기")
     parser.add_argument(
@@ -99,6 +128,7 @@ def main() -> None:
             "takeprofit",
             "holding",
             "combo",
+            "split",
             "entry",
             "intraday_stop",
             "overnight",
@@ -406,6 +436,83 @@ def main() -> None:
                 )
         emit(format_comparison(results, years))
         save({"묶음": args.keys})
+        return
+
+    elif args.mode == "split":
+        # 사는 쪽과 파는 쪽을 다른 전략으로 굴린다.
+        #
+        # '매수키>매도키'가 조합 하나다. 여러 조합은 '|'로 나눈다. 한쪽에
+        # 전략을 여럿 두려면 쉼표로 잇는다 — 그쪽은 OR로 묶인다.
+        #
+        # 각 전략을 혼자 돌린 결과를 같은 표에 함께 세운다. 이게 요점이다.
+        # 섞은 것이 좋아 보여도 그냥 하나 쓴 것보다 못하면 섞을 이유가 없다.
+        쌍들 = 조합파싱(args.keys)
+
+        어떤방식 = (
+            "실거래와 같은 규칙 — 어제 판단 → 오늘 시가 매수·매도"
+            if args.entry_at_open and args.exit_at_open
+            else f"매수 {'시가' if args.entry_at_open else '종가'} · "
+                 f"매도 {'시가' if args.exit_at_open else '종가'}"
+        )
+        emit("■ 매수와 매도를 따로 걸었을 때 — 섞으면 나아지는가")
+        emit(f"  체결 방식: {어떤방식}")
+        emit("  사는 신호는 왼쪽 전략에서만, 파는 신호는 오른쪽 전략에서만 나온다.")
+        emit("  보유 기간 상한도 파는 쪽 것을 쓴다 — 그것도 청산 규칙이라 그렇다.")
+        emit("")
+        emit("  맨 위 줄들은 각 전략을 통째로 혼자 돌린 결과다. 섞은 줄이")
+        emit("  이것들보다 못하면 섞을 이유가 없다.")
+        emit("")
+        emit("  판단 기준은 평균이 아니라 '최악' 칸이다 — 가장 나빴던 해의 수익률.")
+        emit("  평균이 높아도 한 해에 크게 잃으면 대부분 중간에 그만둔다.\n")
+
+        # 혼자 돌린 결과를 먼저 세운다. 나온 순서를 지킨다 — format_comparison이
+        # 첫 줄을 기준선으로 삼아 '최악 몇 %p' 차이를 붙인다.
+        홀로: list[str] = []
+        for 사는키, 파는키 in 쌍들:
+            for k in list(사는키) + list(파는키):
+                if k not in 홀로:
+                    홀로.append(k)
+        results = [
+            run_experiment(
+                key, lambda k=key: build_strategy(k), histories, years,
+                entry_at_open=args.entry_at_open, exit_at_open=args.exit_at_open,
+            )
+            for key in 홀로
+        ]
+
+        경고들: list[str] = []
+        for 사는키, 파는키 in 쌍들:
+            이름 = (
+                f"{'+'.join(_짧은이름(k) for k in 사는키)}"
+                f">{'+'.join(_짧은이름(k) for k in 파는키)}"
+            )
+            # 나가는 길이 좁은 조합은 숫자만 보고 고르면 안 된다. 표 아래에
+            # 이유를 적는다 — 백테스트는 5년이 끝나면 강제로 정리하므로
+            # "영영 안 팔린다"가 성적표에는 안 보인다.
+            경고 = getattr(
+                build_strategies(사는키, "OR", 파는키), "왜조심해야하나", ""
+            )
+            if 경고:
+                경고들.append(f"  ⚠ {이름}: {경고}")
+            results.append(
+                run_experiment(
+                    이름,
+                    lambda b=사는키, s=파는키: build_strategies(b, "OR", s),
+                    histories,
+                    years,
+                    entry_at_open=args.entry_at_open,
+                    exit_at_open=args.exit_at_open,
+                )
+            )
+        emit(format_comparison(results, years))
+        if 경고들:
+            emit("")
+            emit("나가는 길이 좁은 조합")
+            for 줄 in 경고들:
+                emit(줄)
+            emit("  백테스트는 마지막 날 전부 정리하므로 이 문제가 표에는 안 보입니다.")
+            emit("  실거래에서는 값이 안 빠지면 손절 말고는 파는 길이 없습니다.")
+        save({"조합": args.keys})
         return
 
     elif args.mode == "blend":

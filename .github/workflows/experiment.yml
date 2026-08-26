@@ -15,7 +15,7 @@ on:
       mode:
         description: "무엇을 볼지"
         type: choice
-        options: ["contribution", "sweep", "param", "strategies", "correlation", "blend", "slippage", "takeprofit", "holding", "combo", "entry", "intraday_stop", "overnight", "exit_timing", "fill_timing", "diagnose"]
+        options: ["contribution", "sweep", "param", "strategies", "correlation", "blend", "slippage", "takeprofit", "holding", "combo", "split", "entry", "intraday_stop", "overnight", "exit_timing", "fill_timing", "diagnose"]
         default: "contribution"
       universe:
         description: "market_cap=시총 상위(실거래 목록) / volume=거래대금 상위"
@@ -44,7 +44,7 @@ on:
         description: "국면 Factor 설정 덮어쓰기 JSON — diagnose는 그대로, param 모드는 고정값"
         default: ""
       keys:
-        description: "strategies 모드는 비교할 전략 키(쉼표 구분, all이면 전부), diagnose 모드는 전략 하나"
+        description: "strategies 모드는 비교할 전략 키(쉼표 구분, all이면 전부), diagnose 모드는 전략 하나, split 모드는 '매수키>매도키' (여러 조합은 '|'로 구분)"
         default: "volume_surge_5d,factor_score_v1,macd_cross"
       fill_timing:
         description: "체결 시점 — close=그날 종가(지금 백테스트) / open=다음 날 시가(실거래와 같은 규칙)"
