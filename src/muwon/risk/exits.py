@@ -54,6 +54,18 @@ def _value_at(series: pd.Series, day: date) -> float | None:
     return None if pd.isna(value) or value <= 0 else float(value)
 
 
+def 보유상한(전략, 정책) -> int | None:
+    """며칠까지 들고 있을 것인가. **기준이 0이면 전략이 정한 대로.**
+
+    세 군데가 이 답을 알아야 한다. 실제로 파는 엔진, 전략 화면의 청산 조건
+    목록, 매수 알림의 매도전략 줄이다. 각자 계산하면 화면과 매매가 어긋나고,
+    어긋난 줄도 모른다."""
+    덮개 = int(getattr(정책, "max_holding_days", 0) or 0)
+    if 덮개 > 0:
+        return 덮개
+    return getattr(전략, "max_holding_days", None)
+
+
 def evaluate_exit(
     *,
     entry_price: float,

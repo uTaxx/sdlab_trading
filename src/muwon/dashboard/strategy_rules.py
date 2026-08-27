@@ -410,10 +410,16 @@ def exit_rules(strategy, policy) -> tuple[list[str], list[str]]:
             f"**{policy.trailing_stop_multiple:g}배**만큼 밀리면"
         )
 
-    # 2순위 — 보유 기간
-    holding = getattr(strategy, "max_holding_days", None)
+    # 3순위 — 보유 기간. 기준에서 덮어썼으면 그것이, 아니면 전략이 정한 대로.
+    from muwon.risk.exits import 보유상한 as _보유상한
+
+    holding = _보유상한(strategy, policy)
     if holding:
-        조건.append(f"**보유 기간** — 산 지 **{holding}거래일**이 지나면 오르든 내리든 무조건")
+        덮었나 = int(getattr(policy, "max_holding_days", 0) or 0) > 0
+        조건.append(
+            f"**보유 기간** — 산 지 **{holding}거래일**이 지나면 오르든 내리든 무조건"
+            + (" (기준에서 정한 값입니다. 전략이 정한 기간을 덮었습니다)" if 덮었나 else "")
+        )
 
     # 3순위 — 전략 자신의 매도 신호
     전략 = describe(strategy).판다

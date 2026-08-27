@@ -38,6 +38,16 @@ class RiskPolicy:
     #: 재지 않았다"는 뜻이지, 익절이 나쁘다는 뜻이 아니다.
     take_profit_pct: float = 0.0
 
+    #: 보유 기간 상한을 기준 쪽에서 덮어쓴다. **0이면 전략이 정한 대로 간다.**
+    #:
+    #: 원래 이 값은 전략 안에 있었다(거래량 급증 5일 → 5일). 그건 전략마다
+    #: 다른 것이 맞지만, "며칠까지 들고 있을 것인가"는 전략을 안 바꾸고도
+    #: 정하고 싶은 값이다. 그래서 손절·익절과 같은 자리에 덮개를 둔다.
+    #:
+    #: 기본값이 0인 것은 "안 정했다"가 아니라 **"전략에게 맡긴다"**는 뜻이다.
+    #: 지금까지의 성적표가 전부 그 상태에서 나온 숫자다.
+    max_holding_days: int = 0
+
     atr_stop_enabled: bool = False
     atr_stop_multiple: float = 2.0
     trailing_stop_enabled: bool = False

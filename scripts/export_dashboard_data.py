@@ -70,6 +70,9 @@ def 전략설명() -> list[dict]:
                 "판다": list(규칙.판다),
                 "참고": list(규칙.참고),
                 "설명있음": bool(규칙.설명있음),
+                # 이 전략이 스스로 정한 보유 기간. 화면의 "0이면 전략이
+                # 정한 대로"가 몇 일인지 말하려면 이 숫자가 필요하다.
+                "보유일": getattr(build_strategy(정의.key), "max_holding_days", None),
             }
         except Exception as 탈:  # noqa: BLE001 — 무엇이 터지든 사전은 나와야 한다
             # 전략 하나가 안 만들어진다고 사전 전체를 못 뽑으면 안 된다.

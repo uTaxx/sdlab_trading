@@ -33,7 +33,7 @@ from muwon.domain.types import OrderSide, SignalType
 from muwon.execution import state_repository
 from muwon.notify import notice_format as 모양
 from muwon.notify.telegram import TelegramNotifier
-from muwon.risk.exits import atr_series, evaluate_exit
+from muwon.risk.exits import atr_series, evaluate_exit, 보유상한
 from muwon.risk.manager import RiskManager
 from muwon.strategy.portfolio import (
     MarketContext,
@@ -124,9 +124,13 @@ def 매도규칙(전략, 정책, 산값: float) -> list[str]:
             f"{정책.trailing_stop_multiple:g}배만큼 밀리면 매도)"
         )
 
-    보유상한 = getattr(전략, "max_holding_days", None)
-    if 보유상한:
-        줄들.append(f"{보유상한}거래일이 지나면 오르든 내리든 매도")
+    상한 = 보유상한(전략, 정책)
+    if 상한:
+        덮었나 = int(getattr(정책, "max_holding_days", 0) or 0) > 0
+        줄들.append(
+            f"{상한}거래일이 지나면 오르든 내리든 매도"
+            + (" (기준에서 정한 값)" if 덮었나 else "")
+        )
 
     # 전략 자신의 매도 신호. 설명을 만드는 쪽은 화면용이라 **굵게** 표시가
     # 섞여 있다 — 텔레그램은 그것을 별표 그대로 보여 준다.
@@ -400,8 +404,9 @@ class TradingEngine:
             # 손절 판단과 매도 주문은 지금 값으로. 없으면 어제 종가로.
             price = 현재가.get(symbol) or latest_prices[symbol]
             exit_reason = None
-            max_holding_days = self._strategy.max_holding_days
             policy = self._risk_manager.get_policy()
+            # 기준에서 덮어썼으면 그것이, 아니면 전략이 정한 대로.
+            max_holding_days = 보유상한(self._strategy, policy)
             stop = evaluate_exit(
                 entry_price=position.entry_price,
                 entry_date=position.entry_date,
