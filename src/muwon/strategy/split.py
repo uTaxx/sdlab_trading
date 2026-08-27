@@ -60,10 +60,13 @@ from muwon.strategy.portfolio import (
 class SplitStrategy(PortfolioStrategy):
     """매수는 한 전략에서, 매도는 다른 전략에서."""
 
-    def __init__(self, 매수, 매도, name: str = ""):
+    def __init__(self, 매수, 매도, name: str = "", 매도한글: str = ""):
         self._매수 = as_portfolio_strategy(매수)
         self._매도 = as_portfolio_strategy(매도)
         self.name = name or f"매수:{self._매수.name}+매도:{self._매도.name}"
+        # 사람에게 보여 줄 매도 쪽 이름. name은 기록에 남는 식별자라 영문
+        # 키가 들어 있는데, 경고 문장에 그대로 쓰면 화면에 영문이 뜬다.
+        self._매도한글 = 매도한글 or self._매도.name
         # 보유 기간 상한도 청산 규칙이라 매도 쪽 것을 쓴다.
         self.max_holding_days = self._매도.max_holding_days
 
@@ -106,7 +109,7 @@ class SplitStrategy(PortfolioStrategy):
         if self.max_holding_days is not None:
             return ""
         return (
-            f"매도 쪽({self._매도.name})에 보유 기간 상한이 없습니다. "
+            f"매도 쪽({self._매도한글})에 보유 기간 상한이 없습니다. "
             "매도 신호가 안 나면 손절 말고는 파는 길이 없습니다."
         )
 

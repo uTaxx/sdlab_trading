@@ -208,6 +208,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
 h2 { font-size: 16px; font-weight: 700; margin: 22px 0 2px; }
 h2:first-child { margin-top: 0; }
 .h2곁말 { font-size: 13px; color: var(--흐린글); margin: 0 0 12px; }
+/* 한 화면 안에서 사는 쪽과 파는 쪽을 가르는 제목. h2보다 한 단 작게 두어
+   '쓰는 전략' 아래에 속한 것으로 읽히게 한다. */
+.쪽제목 { font-size: 14px; font-weight: 700; margin: 18px 0 6px; }
 
 /* ── 승인 후보 카드 ──────────────────────────────────
    표로 두면 폰에서 버튼이 가로 스크롤 뒤로 숨는다. 하루 중 유일하게

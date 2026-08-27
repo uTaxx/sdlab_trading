@@ -57,7 +57,8 @@ def 전략설명() -> list[dict]:
     for 정의 in REGISTRY:
         줄 = {
             "키": 정의.key,
-            "이름": 정의.display_name,
+            "이름": 정의.화면이름,
+            "자세한이름": 정의.display_name,
             "한줄": 정의.description,
             "계열": 정의.category,
             "상태": 정의.status,

@@ -392,11 +392,18 @@ def _active_strategy_label(selection) -> str:
     """카드에 쓸 짧은 이름.
 
     전략을 여러 개 걸 수 있게 된 뒤로 첫 번째 것만 보여 주면 화면이
-    거짓말을 한다 — 4개를 걸었는데 카드는 1개라고 말했다."""
+    거짓말을 한다 — 4개를 걸었는데 카드는 1개라고 말했다.
+
+    파는 쪽을 따로 걸었을 때도 같은 문제가 있다. 사는 쪽 이름만 적으면
+    그 전략의 파는 규칙으로 팔고 있다고 읽힌다."""
     if len(selection.active_keys) <= 1:
-        return _display_name_for(selection.active_key)
-    묶음 = "모두 동의" if selection.combine == "AND" else "하나라도"
-    return f"{len(selection.active_keys)}개 · {묶음}"
+        산다 = _display_name_for(selection.active_key)
+    else:
+        묶음 = "모두 동의" if selection.combine == "AND" else "하나라도"
+        산다 = f"{len(selection.active_keys)}개 · {묶음}"
+    if not selection.매도따로:
+        return 산다
+    return f"{산다} / 매도 {_display_name_for(selection.sell_key)}"
 
 
 def render_summary_cards(service: SettingsService) -> None:
@@ -925,12 +932,23 @@ def render_active_rules(service: SettingsService) -> None:
 
     if len(선택.active_keys) > 1:
         묶음 = "모두 동의해야 삽니다 (AND)" if 선택.combine == "AND" else "하나라도 신호나면 삽니다 (OR)"
-        st.markdown(f"#### 전략 {len(선택.active_keys)}개 · {묶음}")
+        st.markdown(f"#### 사는 쪽 — 전략 {len(선택.active_keys)}개 · {묶음}")
         st.caption(" · ".join(f"`{k}`" for k in 선택.active_keys))
     else:
         key = 선택.active_key
-        st.markdown(f"#### {_display_name_for(key)}")
+        st.markdown(f"#### 사는 쪽 — {_display_name_for(key)}")
         st.caption(f"전략 키 `{key}` · 계열 {_category_for(key)}")
+
+    # 파는 쪽을 따로 걸었으면 그 말을 반드시 한다. 안 적으면 위에 적힌
+    # 전략의 파는 규칙으로 팔고 있다고 읽힌다.
+    if 선택.매도따로:
+        st.markdown(f"#### 파는 쪽 — {_display_name_for(선택.sell_key)}")
+        st.caption(
+            f"전략 키 `{선택.sell_key}` · 계열 {_category_for(선택.sell_key)}  \n"
+            "파는 신호는 이쪽에서만 나옵니다. 보유 기간 상한도 이쪽 것을 씁니다."
+        )
+    else:
+        st.caption("파는 쪽은 따로 걸려 있지 않습니다. 위 전략이 사는 것과 파는 것을 다 맡습니다.")
 
     if rules.산다:
         st.markdown("**🟢 이럴 때 삽니다**")
@@ -1154,7 +1172,7 @@ def render_strategy_tab(service: SettingsService) -> None:
             {
                 "활성": "⭐" if d.key == current_key else "",
                 "계열": d.category,
-                "전략": d.display_name,
+                "전략": d.화면이름,
                 "키": d.key,
                 "수익률": f"{run.total_return_pct:+.2f}%" if run else "-",
                 "MDD": f"{run.max_drawdown_pct:.1f}%" if run else "-",
@@ -1177,7 +1195,10 @@ def render_strategy_tab(service: SettingsService) -> None:
 
     with st.expander("전략별 상세 설명", expanded=False):
         for d in definitions:
-            st.markdown(f"**{d.display_name}** `{d.key}` · {d.category}  \n{d.description}")
+            st.markdown(
+                f"**{d.화면이름}** `{d.key}` · {d.category}  \n"
+                f"{d.description}"
+            )
 
     render_strategy_picker(service)
 
@@ -1304,7 +1325,7 @@ def render_strategy_picker(service: SettingsService) -> None:
             "실거래에 쓸 전략 (여러 개 고를 수 있습니다)",
             options=전체,
             default=기본,
-            format_func=lambda k: f"{get_definition(k).display_name}  ({k})",
+            format_func=lambda k: f"{get_definition(k).화면이름}  ({k})",
         )
         방식 = st.radio(
             "여러 개를 고른 경우, 언제 삽니까",
@@ -1874,7 +1895,7 @@ def render_trades_tab() -> None:
 
 def _display_name_for(strategy_key: str) -> str:
     try:
-        return get_definition(strategy_key).display_name
+        return get_definition(strategy_key).화면이름
     except KeyError:
         return strategy_key  # 이후 레지스트리에서 빠진 옛 전략 키일 수 있음
 

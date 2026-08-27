@@ -266,6 +266,7 @@
           <div>
             <div class="값" id="킬값" style="font-size:19px">—</div>
             <div class="곁말" id="킬곁말">불러오는 중…</div>
+            <div class="곁말" id="매수전략줄" style="margin-top:4px"></div>
           </div>
           <button id="킬전환">바꾸기</button>
         </div>
@@ -275,6 +276,7 @@
           <div>
             <div class="값" id="매도값" style="font-size:19px">—</div>
             <div class="곁말" id="매도곁말">불러오는 중…</div>
+            <div class="곁말" id="매도전략줄" style="margin-top:4px"></div>
           </div>
           <button id="매도전환">바꾸기</button>
         </div>
@@ -295,11 +297,22 @@
       </details>
 
       <h2>쓰는 전략</h2>
-      <p class="h2곁말">고르면 <b>다음 실행부터</b> 적용됩니다. 지금 들고 있는 것은 안 건드립니다.</p>
+      <p class="h2곁말">사는 쪽과 파는 쪽을 <b>따로</b> 걸 수 있습니다.
+        고르면 <b>다음 실행부터</b> 적용됩니다. 지금 들고 있는 것은 안 건드립니다.</p>
       <div id="전략알림"></div>
-      <select id="전략"></select>
+
+      <h3 class="쪽제목">사는 쪽 — 무엇을 살지 정합니다</h3>
+      <select id="전략" aria-label="사는 쪽 전략"></select>
       <p class="설명" id="전략한줄"></p>
       <div id="전략규칙"></div>
+
+      <h3 class="쪽제목">파는 쪽 — 언제 팔지 정합니다</h3>
+      <p class="설명" style="margin-top:0">보유 기간 상한도 파는 쪽 것을 씁니다.
+        그것도 청산 규칙이라, 파는 자리를 두 군데로 나누면 왜 팔렸는지
+        설명할 수 없게 됩니다.</p>
+      <select id="매도전략" aria-label="파는 쪽 전략"></select>
+      <p class="설명" id="매도전략한줄"></p>
+      <div id="매도전략규칙"></div>
 
       <h2>기준</h2>
       <p class="h2곁말">전략보다 위에 있는 안전선입니다. 전략이 사라고 해도 여기 걸리면 안 삽니다.</p>

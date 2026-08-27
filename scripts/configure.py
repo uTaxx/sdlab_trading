@@ -112,7 +112,7 @@ def main() -> None:
         if args.list:
             for d in list_definitions():
                 marker = " [현재 활성]" if d.key == service.get_strategy_selection().active_key else ""
-                print(f"{d.key} ({d.status}){marker}: {d.display_name} — {d.description}")
+                print(f"{d.key} ({d.status}){marker}: {d.화면이름} — {d.description}")
         else:
             get_definition(args.active_key)  # 등록 안 된 키면 여기서 바로 에러
             service.set_strategy_selection(StrategySelection(active_key=args.active_key))

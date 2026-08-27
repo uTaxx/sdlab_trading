@@ -181,7 +181,7 @@ def _전략이름(열쇠: str) -> str:
     try:
         from muwon.strategy.registry import get_definition
 
-        return get_definition(열쇠).display_name
+        return get_definition(열쇠).화면이름
     except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 알림이 죽으면 안 된다
         return 열쇠
 

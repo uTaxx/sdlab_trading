@@ -84,12 +84,23 @@ class StrategyDefinition:
     factory: Callable[[], Strategy]
     category: str = CATEGORY_HYBRID
     status: str = "hypothesis"  # "hypothesis" | "backtested" | "live" | "retired"
+    #: 화면에 쓰는 짧은 한글 이름. display_name은 파라미터까지 달고 있어서
+    #: 폰 폭에서 두 줄로 넘치고, 목록에 늘어놓으면 서로 구별이 안 된다.
+    #: 비워 두면 display_name을 쓴다 — 새 전략을 등록할 때 안 적어도
+    #: 화면이 비지는 않는다.
+    짧은이름: str = ""
+
+    @property
+    def 화면이름(self) -> str:
+        """화면에 내보낼 이름. 짧은 것이 있으면 그것을 쓴다."""
+        return self.짧은이름 or self.display_name
 
 
 REGISTRY: list[StrategyDefinition] = [
     # ── 복합: 이동평균 추세 + RSI 반등을 한 전략에 섞은 것 (이 프로젝트의 출발점) ──
     StrategyDefinition(
         key="ma_rsi_v1",
+        짧은이름="이평+RSI 20/60",
         display_name="이동평균+RSI 복합 (20/60/14)",
         description="단기선 상향돌파+거래량급증 또는 RSI 과매도반등 매수, 단기선 하향이탈/RSI 과매수 매도.",
         factory=lambda: MovingAverageRsiStrategy(MovingAverageRsiParams(), name="ma_rsi_v1"),
@@ -98,6 +109,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="ma_rsi_fast5_20",
+        짧은이름="이평+RSI 5/20",
         display_name="이동평균+RSI 단타형 (5/20/7)",
         description="같은 규칙, 창을 5/20/7로 좁혀 더 짧은 주기에 반응. 신호가 잦아지는 대신 헛신호도 늘어난다.",
         factory=lambda: MovingAverageRsiStrategy(
@@ -108,6 +120,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="ma_rsi_loose_volume",
+        짧은이름="이평+RSI 완화",
         display_name="이동평균+RSI 거래량완화 (1.2배)",
         description="거래량 급증 기준을 1.5배→1.2배로 낮춰 진입 빈도/승률 트레이드오프 확인.",
         factory=lambda: MovingAverageRsiStrategy(
@@ -118,6 +131,7 @@ REGISTRY: list[StrategyDefinition] = [
     # ── 추세추종 ──
     StrategyDefinition(
         key="golden_cross_20_60",
+        짧은이름="골든크로스 20/60",
         display_name="골든크로스 (20/60)",
         description="단기 이동평균선이 장기선을 상향돌파하면 매수, 하향이탈하면 매도. 가장 고전적인 추세추종.",
         factory=lambda: GoldenCrossStrategy(GoldenCrossParams(20, 60), name="golden_cross_20_60"),
@@ -125,6 +139,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="golden_cross_5_20",
+        짧은이름="골든크로스 5/20",
         display_name="골든크로스 단타형 (5/20)",
         description="같은 규칙을 5/20으로 좁힌 단기 버전. 신호가 훨씬 잦다.",
         factory=lambda: GoldenCrossStrategy(GoldenCrossParams(5, 20), name="golden_cross_5_20"),
@@ -132,6 +147,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="ema_cross_12_26",
+        짧은이름="EMA 교차",
         display_name="EMA 교차 (12/26)",
         description="지수이동평균 교차 — 최근 가격에 가중치를 줘 단순이동평균보다 빠르게 반응.",
         factory=lambda: EmaCrossStrategy(EmaCrossParams(12, 26), name="ema_cross_12_26"),
@@ -139,6 +155,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="macd_cross",
+        짧은이름="MACD 교차",
         display_name="MACD 신호선 교차 (12/26/9)",
         description="MACD선이 신호선을 상향돌파하면 매수, 하향이탈하면 매도. 가장 널리 쓰이는 추세 지표.",
         factory=lambda: MacdCrossStrategy(MacdCrossParams(), name="macd_cross"),
@@ -146,6 +163,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="macd_cross_positive",
+        짧은이름="MACD 교차 (0선 위)",
         display_name="MACD 교차 + 0선 위 필터",
         description="MACD가 0보다 클 때(이미 상승 국면)의 교차만 매수 — 하락장 중 반짝 반등을 걸러낸다.",
         factory=lambda: MacdCrossStrategy(
@@ -155,6 +173,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="donchian_20_10",
+        짧은이름="돈치안 20/10",
         display_name="돈치안 돌파 (20일 진입/10일 청산)",
         description="20일 신고가 돌파 매수, 10일 신저가 이탈 매도. 이른바 터틀 트레이딩 규칙.",
         factory=lambda: DonchianBreakoutStrategy(
@@ -164,6 +183,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="donchian_adx_filter",
+        짧은이름="돈치안 + 추세강도",
         display_name="돈치안 돌파 + 추세강도(ADX) 필터",
         description="ADX 25 이상(추세장)일 때만 돌파 매수 — 횡보장의 가짜 돌파를 걸러낸다.",
         factory=lambda: DonchianBreakoutStrategy(
@@ -174,6 +194,7 @@ REGISTRY: list[StrategyDefinition] = [
     # ── 평균회귀 ──
     StrategyDefinition(
         key="rsi_reversion",
+        짧은이름="RSI 반등 30/70",
         display_name="RSI 평균회귀 교과서형 (30/70 + 장기선 필터)",
         description=(
             "RSI 30 반등 매수 + 60일선 위에서만 진입. "
@@ -186,6 +207,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="rsi2_pullback",
+        짧은이름="RSI(2) 눌림목",
         display_name="RSI(2) 눌림목 매수 (10/70 + 장기선 필터)",
         description=(
             "RSI 기간을 2일로 짧게 잡아 '상승추세 중 얕은 눌림'을 잡는다. "
@@ -199,6 +221,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="rsi_reversion_aggressive",
+        짧은이름="RSI 반등 공격형",
         display_name="RSI 평균회귀 공격형 (35/65, 필터 없음)",
         description="기준을 완화하고 장기 이동평균 필터도 뺀 버전 — 진입은 늘지만 하락장에서 물릴 위험이 커진다.",
         factory=lambda: RsiReversionStrategy(
@@ -209,6 +232,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="bollinger_reversion",
+        짧은이름="볼린저 하단 반등",
         display_name="볼린저 하단 반등 (20/2σ)",
         description="하단 밴드를 벗어났다 복귀하면 매수, 중심선 도달하면 청산. 박스권에서 잘 통하는 전형적 평균회귀.",
         factory=lambda: BollingerReversionStrategy(
@@ -218,6 +242,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="bollinger_reversion_wide",
+        짧은이름="볼린저 하단 넓게",
         display_name="볼린저 하단 반등 넓은밴드 (20/2.5σ)",
         description="밴드를 2.5σ로 넓혀 더 극단적으로 빠졌을 때만 진입 — 빈도는 줄고 한 건당 기대값은 커진다.",
         factory=lambda: BollingerReversionStrategy(
@@ -228,6 +253,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="stochastic_20_80",
+        짧은이름="스토캐스틱 교차",
         display_name="스토캐스틱 교차 (14/3, 20·80)",
         description="과매도 구간에서 %K가 %D 상향돌파 시 매수, 과매수 구간 하향이탈 시 매도.",
         factory=lambda: StochasticStrategy(StochasticParams(), name="stochastic_20_80"),
@@ -236,6 +262,7 @@ REGISTRY: list[StrategyDefinition] = [
     # ── 돌파·모멘텀 ──
     StrategyDefinition(
         key="bollinger_breakout",
+        짧은이름="볼린저 상단 돌파",
         display_name="볼린저 상단 돌파 (거래량 확인)",
         description="상단 밴드를 거래량 급증과 함께 뚫으면 매수. 같은 지표를 평균회귀와 정반대로 해석한 가설.",
         factory=lambda: BollingerBreakoutStrategy(
@@ -245,6 +272,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="volume_surge_5d",
+        짧은이름="거래량 급증 5일",
         display_name="거래량 급증 단타 (2배, 5일 보유)",
         description="거래량 2배 급증 + 2% 이상 상승 시 매수, 5거래일 뒤 무조건 청산. 시간 기준 청산이 특징.",
         factory=lambda: VolumeSurgeStrategy(VolumeSurgeParams(), name="volume_surge_5d"),
@@ -252,9 +280,10 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="volume_surge_5d_ma20",
+        짧은이름="거래량 급증 + 20일선",
         display_name="거래량 급증 + 20일선 매도 (최대 5일 보유)",
         description=(
-            "사는 조건은 volume_surge_5d와 같고, 파는 조건만 다르다. "
+            "사는 조건은 거래량 급증 5일과 같고, 파는 조건만 다르다. "
             "5거래일을 기다리지 않고 종가가 20일 평균선 아래로 내려온 날 판다. "
             "'정해진 날짜가 아니라 추세가 깨질 때 판다'는 가설. "
             "5일 보유는 상한으로 남는다."
@@ -266,6 +295,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="volume_surge_5d_ma10",
+        짧은이름="거래량 급증 + 10일선",
         display_name="거래량 급증 + 10일선 매도 (최대 5일 보유)",
         description=(
             "위와 같은데 매도선이 10일 평균이라 더 빨리 판다. "
@@ -278,6 +308,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="volume_surge_3d",
+        짧은이름="거래량 급증 3일",
         display_name="거래량 급증 초단타 (3배, 3일 보유)",
         description="더 강한 급증(3배)만 잡고 3일 만에 청산 — 재료 소멸 전에 빠지는 걸 노린 가설.",
         factory=lambda: VolumeSurgeStrategy(
@@ -287,6 +318,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="price_channel_20",
+        짧은이름="20일 신고가 돌파",
         display_name="종가 신고가 돌파 (20일)",
         description="20일 종가 신고가를 넘으면 매수, 20일선 이탈 시 매도. 장중 흔들림에 덜 반응하는 돌파.",
         factory=lambda: PriceChannelBreakoutStrategy(
@@ -296,6 +328,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="price_channel_60_strict",
+        짧은이름="60일 신고가 돌파",
         display_name="종가 신고가 돌파 장기·엄격 (60일, +1%)",
         description="60일 신고가를 1% 이상 확실히 뚫어야 진입 — 가짜 돌파를 최대한 걸러낸 버전.",
         factory=lambda: PriceChannelBreakoutStrategy(
@@ -312,6 +345,7 @@ REGISTRY: list[StrategyDefinition] = [
     # 기각해 두면 같은 걸 두 번 시험하지 않는다.
     StrategyDefinition(
         key="volatility_breakout_k05",
+        짧은이름="변동성 돌파",
         display_name="변동성 돌파 (K=0.5, 1일 보유)",
         description=(
             "오늘 시가 + (어제 고가−저가)×0.5 를 넘으면 매수, 다음 날 청산. "
@@ -326,6 +360,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="gap_up_go",
+        짧은이름="갭 상승 따라가기",
         display_name="갭 상승 따라가기 (2% 이상, 1일 보유)",
         description=(
             "어제 종가보다 2% 이상 높게 시작한 날 매수 — '갭 방향으로 계속 간다'는 쪽. "
@@ -336,6 +371,7 @@ REGISTRY: list[StrategyDefinition] = [
     ),
     StrategyDefinition(
         key="gap_down_fill",
+        짧은이름="갭 하락 메우기",
         display_name="갭 하락 메우기 (2% 이상, 1일 보유)",
         description=(
             "어제 종가보다 2% 이상 낮게 시작한 날 매수 — '갭은 메워진다'는 쪽. "
@@ -348,6 +384,7 @@ REGISTRY: list[StrategyDefinition] = [
     # ── 점수 합산: 조건 하나의 참/거짓이 아니라 여러 관점을 점수로 더한다 ──
     StrategyDefinition(
         key="factor_score_v1",
+        짧은이름="종합점수 합산",
         display_name="Factor 점수 합산 V1 (추세+모멘텀+상대강도+눌림+거래량+국면)",
         description=(
             "6개 관점을 각각 0~100점으로 매기고 가중 합산해 75점 이상이면 매수. "
@@ -401,7 +438,8 @@ def build_strategies(keys, combine: str = "OR", sell_keys=()):
     # 전략 이름이 바뀌어서 지금까지 쌓인 매매와 이어지지 않는다.
     if list(파는키) == [k for k in keys if k]:
         return 사는쪽
-    return SplitStrategy(사는쪽, 묶기(파는키))
+    한글 = " + ".join(get_definition(k).화면이름 for k in 파는키)
+    return SplitStrategy(사는쪽, 묶기(파는키), 매도한글=한글)
 
 
 def list_definitions(category: str | None = None) -> list[StrategyDefinition]:

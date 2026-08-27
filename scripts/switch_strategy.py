@@ -51,7 +51,7 @@ def _한줄(키: str) -> str:
         d = get_definition(키)
     except Exception:  # noqa: BLE001 — 없는 키도 화면에는 그대로 보여 준다
         return f"{키} (등록되지 않은 키입니다)"
-    return f"{키} — {d.display_name}\n      {d.description}"
+    return f"{d.화면이름} ({키})\n      {d.description}"
 
 
 def _성적(키: str) -> str:

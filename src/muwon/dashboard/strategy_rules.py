@@ -77,19 +77,39 @@ def _fallback(params) -> Rules:
 
 
 def _volume_surge_rules(p, strategy) -> Rules:
+    """거래량 급증 계열.
+
+    **exit_sma가 있으면 매도 신호를 낸다.** 예전에는 이 계열에 매도 신호가
+    아예 없어서 판다를 빈 칸으로 뒀는데, exit_sma를 붙인 전략이 생긴 뒤로도
+    그대로였다. 그래서 화면이 `volume_surge_5d_ma20`을 놓고 "파는 신호를
+    내지 않습니다"라고 적고 있었다. 지금 실제로 걸려 있는 전략이 그것이다.
+    """
+    판다 = (
+        [f"종가가 **{p.exit_sma}일 평균선 아래**로 내려온 날"]
+        if p.exit_sma is not None
+        else []
+    )
+    참고 = (
+        [
+            (f"파는 길이 둘입니다. **{p.exit_sma}일 평균선을 깨면** 그날 팔고, "
+            f"안 깨도 **{p.holding_days}거래일**이 지나면 팝니다."),
+            "그래서 자주 사고팝니다 — 수수료와 슬리피지가 여러 번 붙습니다.",
+        ]
+        if p.exit_sma is not None
+        else [
+            ("파는 조건이 지표가 아니라 **시간**입니다. "
+            "'재료가 터진 날 들어가서 며칠 안에 나온다'는 단타 방식입니다."),
+            "그래서 자주 사고팝니다 — 수수료와 슬리피지가 여러 번 붙습니다.",
+        ]
+    )
     return Rules(
         산다=[
             (f"{_volume_surge(p.volume_surge_ratio, p.volume_ma_window)} "
             f"그날 종가가 전날보다 **{_pct(p.min_price_change_pct)} 이상** 오른 종목"),
         ],
-        # 이 전략은 지표로 파는 조건이 없다 — 보유 기간(max_holding_days)은
-        # 엔진이 검사하므로 exit_rules가 낸다.
-        판다=[],
-        참고=[
-            ("파는 조건이 지표가 아니라 **시간**입니다. "
-            "'재료가 터진 날 들어가서 며칠 안에 나온다'는 단타 방식입니다."),
-            "그래서 자주 사고팝니다 — 수수료와 슬리피지가 여러 번 붙습니다.",
-        ],
+        # 보유 기간(max_holding_days)은 엔진이 검사하므로 exit_rules가 낸다.
+        판다=판다,
+        참고=참고,
     )
 
 
