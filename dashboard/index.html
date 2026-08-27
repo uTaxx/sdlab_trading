@@ -332,7 +332,13 @@
           <input id="동시보유" type="number" step="1" min="1" max="30">
           <p class="설명">한 번에 몇 종목까지 들고 있을지</p>
         </div>
+        <div>
+          <label for="익절">익절선 (%)</label>
+          <input id="익절" type="number" step="0.5" min="0" max="100">
+          <p class="설명">산 값에서 이만큼 오르면 판다. <b>0이면 끔</b></p>
+        </div>
       </div>
+      <div id="익절곁말" class="곁말"></div>
 
       <div class="줄">
         <button id="기준저장" class="주된">저장</button>

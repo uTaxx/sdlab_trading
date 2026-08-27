@@ -114,6 +114,10 @@ def 매도규칙(전략, 정책, 산값: float) -> list[str]:
     elif 손절비율:
         손절가 = 산값 * (1 + 손절비율)
         줄들.append(f"{손절비율:.0%} 손절 ({_돈(손절가)}에서 매도)")
+    # 익절도 여기 적는다. 켜 뒀는데 알림에 안 적히면 "왜 갑자기 팔렸지"가 된다.
+    익절 = getattr(정책, "take_profit_pct", 0.0) or 0.0
+    if 익절 > 0:
+        줄들.append(f"+{익절:.0%} 익절 ({_돈(산값 * (1 + 익절))}에서 매도)")
     if getattr(정책, "trailing_stop_enabled", False):
         줄들.append(
             f"트레일링 스톱 (산 뒤 최고가에서 ATR의 "
