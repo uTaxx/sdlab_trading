@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -59,6 +59,9 @@ class ReportCard:
     전략: list[Row]
     조합: list[Row]
     배운것: list[dict]
+    # 매수와 매도를 다른 전략으로 걸었을 때. 키는 "사는키>파는키"다.
+    # 전략 목록에는 이 이름이 없으므로(등록된 전략이 아니다) 따로 둔다.
+    매수매도분리: list[Row] = field(default_factory=list)
 
     @property
     def 측정일(self) -> str:
@@ -117,6 +120,7 @@ def load(path: Path | None = None) -> ReportCard:
         전략=[_row(x) for x in data.get("전략", [])],
         조합=[_row(x) for x in data.get("조합", [])],
         배운것=list(data.get("배운것", [])),
+        매수매도분리=[_row(x) for x in data.get("매수매도분리", [])],
     )
 
 

@@ -127,3 +127,70 @@ def test_옛_DB에는_매도_키가_아예_없다():
     뒤 = SettingsService(창고).get_strategy_selection()
     assert 뒤.sell_keys == ()
     assert not 뒤.매도따로
+
+
+# ── 섞은 조합의 성적 ──────────────────────────────────────────────
+#
+# 안 재 본 조합을 숫자 없이 내놓으면 재 본 것처럼 읽힌다. 반대로 재 봤는데
+# "안 쟀습니다"라고 하면 사람이 같은 실험을 또 돌린다. 둘 다 막는다.
+
+import importlib.util
+import sys
+from pathlib import Path
+
+_경로 = Path(__file__).resolve().parent.parent / "scripts" / "switch_strategy.py"
+_스펙 = importlib.util.spec_from_file_location("switch_strategy_for_test", _경로)
+switch_strategy = importlib.util.module_from_spec(_스펙)
+sys.modules["switch_strategy_for_test"] = switch_strategy
+_스펙.loader.exec_module(switch_strategy)
+
+
+def _가짜표(줄들):
+    from muwon.analysis.report_card import ReportCard
+
+    return ReportCard(
+        기준={"측정일": "2026-08-27"}, 전략=[], 조합=[], 배운것=[], 매수매도분리=줄들
+    )
+
+
+def _줄(키):
+    from muwon.analysis.report_card import Row
+
+    return Row(
+        키=키, 이름=키, 계열="섞은 것", 평균=20.0, 최악=-3.0, 샤프=1.1,
+        낙폭=-15.0, 손익비=1.3, 거래=600, 판정="조건부", 한줄평="시험용 줄입니다.",
+    )
+
+
+def test_재_본_조합이면_숫자를_보여_준다(monkeypatch):
+    import muwon.analysis.report_card as rc
+
+    monkeypatch.setattr(rc, "load", lambda *a, **k: _가짜표([_줄("A>B")]))
+    글 = switch_strategy._섞은성적("A", "B")
+
+    assert "재 본 숫자가 있습니다" in 글
+    assert "가장 나빴던 해 -3.0%" in 글
+    assert "시험용 줄입니다." in 글
+
+
+def test_안_재_본_조합이면_안_쟀다고_적는다(monkeypatch):
+    import muwon.analysis.report_card as rc
+
+    monkeypatch.setattr(rc, "load", lambda *a, **k: _가짜표([_줄("A>B")]))
+    글 = switch_strategy._섞은성적("C", "D")
+
+    assert "성적표에 없습니다" in 글
+    # 어떻게 재는지까지 적어야 사람이 다음 걸음을 안다.
+    assert "mode=split" in 글
+    assert "keys=C>D" in 글
+
+
+def test_성적표를_못_읽어도_안_터진다(monkeypatch):
+    """전략을 바꾸는 일이 성적표 파일 하나 때문에 막히면 안 된다."""
+    import muwon.analysis.report_card as rc
+
+    def 터짐(*a, **k):
+        raise OSError("없는 파일")
+
+    monkeypatch.setattr(rc, "load", 터짐)
+    assert "못 읽었습니다" in switch_strategy._섞은성적("A", "B")
