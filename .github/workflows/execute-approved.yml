@@ -40,7 +40,10 @@ on:
 
 concurrency:
   # 두 번 겹쳐 돌면 같은 종목을 두 번 산다.
-  group: execute-approved
+  # 상태 DB를 고치는 워크플로는 전부 이 그룹이다. DB가 구글드라이브의
+  # 파일 하나라, 두 실행이 겹치면 나중 것이 앞 것을 통째로 덮는다.
+  # 장중 손절 감시(watch-stops)가 5분마다 도는 뒤로 특히 그렇다.
+  group: state-write
   cancel-in-progress: false
 
 jobs:

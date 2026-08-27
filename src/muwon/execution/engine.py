@@ -266,6 +266,7 @@ class TradingEngine:
         costs: TransactionCosts | None = None,
         initial_cash: float = 10_000_000.0,
         orderable_provider: Callable[[str, float], int] | None = None,
+        현재가공급자: Callable[[], dict[str, float]] | None = None,
     ):
         self._strategy = as_portfolio_strategy(strategy)
         self._risk_manager = risk_manager
@@ -281,6 +282,16 @@ class TradingEngine:
         #: 없으면 예전처럼 우리 현금 계산만으로 간다 — 백테스트와 흉내 실행은
         #: 증권사가 없으니 물어볼 곳도 없다.
         self._orderable_provider = orderable_provider
+        #: 종목코드 → 지금 값. **손절 판단에만 쓴다.**
+        #:
+        #: 사는 판단은 어제까지의 완성된 일봉으로 한다 — 오늘 봉은 거래량이
+        #: 아직 다 안 쌓여서 "거래량 2배 급증" 같은 조건이 성립할 수가 없다.
+        #: 그런데 손절은 다르다. 손절은 "지금 이 값에 팔아야 하나"를 묻는
+        #: 것이라 어제 종가로 재면 하루 늦게 판다.
+        #:
+        #: 없으면 예전처럼 어제 종가로 잰다 — 백테스트와 흉내 실행은
+        #: 증권사가 없으니 물어볼 곳도 없다.
+        self._현재가공급자 = 현재가공급자
 
     def run_once(self, as_of: date | None = None) -> RunSummary:
         """as_of: '오늘'로 볼 날짜(기본은 한국시간 오늘). 테스트용 주입구다."""
@@ -310,6 +321,16 @@ class TradingEngine:
             latest_prices[ticker.symbol] = float(last_row["close"])
             run_date = last_row["trade_date"]
             histories[ticker.symbol] = df
+
+        # 손절은 지금 값으로 잰다. 못 물어보면 어제 종가로 재고, **그
+        # 사실을 회차 기록에 남긴다** — 조용히 어제 값으로 재면 왜 늦게
+        # 팔렸는지 나중에 알 방법이 없다.
+        현재가: dict[str, float] = {}
+        if self._현재가공급자 is not None:
+            try:
+                현재가 = {ㄱ: float(ㄴ) for ㄱ, ㄴ in (self._현재가공급자() or {}).items() if ㄴ}
+            except Exception as e:  # noqa: BLE001 — 시세를 못 물어봐도 회차는 돌아야 한다
+                logger.warning(f"지금 값을 못 물어봤습니다. 어제 종가로 손절을 잽니다: {e}")
 
         summary = RunSummary(run_date=run_date, checked_symbols=len(latest_prices))
         cash, day_start_equity = state_repository.load_engine_state(
@@ -372,7 +393,8 @@ class TradingEngine:
         for symbol, position in list(positions.items()) if 매도켬 else []:
             if symbol not in latest_prices:
                 continue
-            price = latest_prices[symbol]
+            # 손절 판단과 매도 주문은 지금 값으로. 없으면 어제 종가로.
+            price = 현재가.get(symbol) or latest_prices[symbol]
             exit_reason = None
             max_holding_days = self._strategy.max_holding_days
             policy = self._risk_manager.get_policy()

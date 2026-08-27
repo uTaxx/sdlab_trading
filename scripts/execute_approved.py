@@ -193,7 +193,10 @@ def main() -> int:
 
         data_source, executor = YahooFinanceDataSource(), SimulatedOrderExecutor()
         source_symbol = lambda t: t.yahoo_symbol
+        # 흉내 실행에는 증권사가 없어서 지금 값을 물어볼 곳도 없다.
+        지금값 = None
         print("■ --dry-run — 야후 시세로 주문 흉내만 냅니다. KIS에 안 붙습니다.")
+        print("■ 손절은 어제 종가로 잽니다 (지금 값을 물어볼 곳이 없습니다).")
     else:
         from muwon.execution.kis_order_executor import KISOrderExecutor
 
@@ -206,6 +209,13 @@ def main() -> int:
         살수있는수량 = client.get_orderable
         print("■ 매수 수량은 증권사의 매수가능수량과 견줘 작은 쪽으로 갑니다.")
 
+        # 손절은 지금 값으로 잰다. 잔고조회 한 번이면 들고 있는 종목의
+        # 현재가가 다 온다(prpr). 어제 종가로 재면 하루 늦게 판다.
+        def 지금값():
+            return {h.symbol: h.current_price for h in client.get_balance().holdings}
+
+        print("■ 손절은 어제 종가가 아니라 지금 값으로 잽니다.")
+
     engine = TradingEngine(
         strategy=strategy,
         risk_manager=RiskManager(policy_provider=정책제공),
@@ -216,6 +226,7 @@ def main() -> int:
         universe=universe,
         source_symbol=source_symbol,
         orderable_provider=살수있는수량,
+        현재가공급자=지금값,
     )
     summary = engine.run_once()
 

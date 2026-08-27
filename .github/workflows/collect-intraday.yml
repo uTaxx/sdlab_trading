@@ -29,6 +29,13 @@ on:
         description: "기록할 날짜 (비우면 오늘 KST). 조회는 언제나 당일치입니다"
         default: ""
 
+concurrency:
+  # 상태 DB를 고치는 워크플로는 전부 이 그룹이다. DB가 구글드라이브의 파일
+  # 하나라, 두 실행이 겹치면 나중 것이 앞 것을 통째로 덮는다. 장중 손절
+  # 감시(watch-stops)가 5분마다 도는 뒤로 특히 그렇다.
+  group: state-write
+  cancel-in-progress: false
+
 jobs:
   collect:
     # ── 예약은 운영 저장소에서만 돈다 ──────────────────────────

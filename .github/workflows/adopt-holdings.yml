@@ -21,6 +21,13 @@ on:
         description: "수량을 계좌 값으로 덮을 종목 (쉼표로 여럿). 원인을 확인한 뒤에만 — 부분 체결·손매매·버그가 겉이 같다"
         default: ""
 
+concurrency:
+  # 상태 DB를 고치는 워크플로는 전부 이 그룹이다. DB가 구글드라이브의 파일
+  # 하나라, 두 실행이 겹치면 나중 것이 앞 것을 통째로 덮는다. 장중 손절
+  # 감시(watch-stops)가 5분마다 도는 뒤로 특히 그렇다.
+  group: state-write
+  cancel-in-progress: false
+
 jobs:
   adopt:
     runs-on: ubuntu-latest

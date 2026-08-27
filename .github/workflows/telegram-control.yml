@@ -36,8 +36,10 @@ on:
         default: false
 
 concurrency:
-  # 둘이 동시에 돌면 같은 명령을 두 번 실행한다.
-  group: telegram-control
+  # 둘이 동시에 돌면 같은 명령을 두 번 실행한다. 그리고 이 워크플로는
+  # 상태 DB도 고친다. 그룹은 하나만 걸 수 있어서 DB 쪽으로 맞춘다 —
+  # 명령이 두 번 도는 것보다 DB가 통째로 덮이는 쪽이 훨씬 비싸다.
+  group: state-write
   cancel-in-progress: false
 
 jobs:

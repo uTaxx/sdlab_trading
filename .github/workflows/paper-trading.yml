@@ -38,6 +38,13 @@ on:
         description: "이번 실행에 쓸 전략 키 (비우면 저장된 활성 전략 그대로 — 지정하면 활성 전략 자체가 바뀐다)"
         default: ""
 
+concurrency:
+  # 상태 DB를 고치는 워크플로는 전부 이 그룹이다. DB가 구글드라이브의 파일
+  # 하나라, 두 실행이 겹치면 나중 것이 앞 것을 통째로 덮는다. 장중 손절
+  # 감시(watch-stops)가 5분마다 도는 뒤로 특히 그렇다.
+  group: state-write
+  cancel-in-progress: false
+
 jobs:
   trade:
     runs-on: ubuntu-latest
