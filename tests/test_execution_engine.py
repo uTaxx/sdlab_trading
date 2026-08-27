@@ -82,11 +82,12 @@ def test_buy_signal_executes_order_persists_position_and_notifies():
 
     assert len(notifier.messages) == 1
     글 = notifier.messages[0]
-    assert "매수했습니다" in 글
+    assert "🟢 매수체결" in 글
     assert TEST_TICKER.name in 글
     # 처음 쓰는 사람이 제일 먼저 묻는 둘 — 얼마를 썼고, 언제 팔리나.
-    assert "모두" in 글, "총액이 없으면 얼마 나갔는지 암산해야 한다"
-    assert "자동으로 팝니다" in 글, "손절선을 알려 주지 않으면 언제 팔리는지 모른다"
+    assert "매수총액 : " in 글, "총액이 없으면 얼마 나갔는지 암산해야 한다"
+    assert "매도전략" in 글, "언제 팔리는지 안 적으면 사람이 알 방법이 없다"
+    assert "손절" in 글
 
 
 def test_dead_cross_sells_existing_position_and_notifies():
@@ -116,10 +117,10 @@ def test_dead_cross_sells_existing_position_and_notifies():
     assert trades[0].exit_reason == "단기선 하향이탈"
     assert trades[0].pnl_pct < 0  # 진입가보다 낮은 가격에 청산됐으므로 손실
 
-    (매도글,) = [m for m in notifier.messages if "팔았습니다" in m]
+    (매도글,) = [m for m in notifier.messages if "🔴 매도체결" in m]
     # 판 뒤에 제일 먼저 묻는 것은 "벌었나 잃었나"다. 예전 글에는 그게 없었다.
-    assert "이 거래의 결과" in 매도글
-    assert "산 값" in 매도글 and "판 값" in 매도글
+    assert "실현손익 : " in 매도글
+    assert "매수단가 : " in 매도글 and "단가 : " in 매도글
 
 
 def test_trading_disabled_blocks_entry_and_sends_no_notification():

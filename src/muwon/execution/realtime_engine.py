@@ -31,6 +31,7 @@ from muwon.db.models import PositionRow
 from muwon.domain.interfaces import OrderExecutor, Strategy
 from muwon.domain.types import OrderSide, SignalType
 from muwon.execution import state_repository
+from muwon.execution.engine import 매도알림, 매수알림
 from muwon.notify.telegram import TelegramNotifier
 from muwon.risk.manager import RiskManager
 
@@ -152,9 +153,13 @@ class RealtimeTradingEngine:
         state_repository.save_position(self._session_factory, new_position)
         state_repository.record_order(self._session_factory, order, buy_signals[0].reason)
         state_repository.save_engine_state(self._session_factory, self._cash, self._day_start_equity)
+        # 알림 모양은 하루 한 번 도는 엔진과 같은 것을 쓴다. 각자 쓰면 같은
+        # 일을 두 말투로 알리게 되고, 하나를 고칠 때 나머지를 빠뜨린다.
         self._notifier.send(
-            f"🟢 매수 체결(장중)\n종목: {ticker.name}({symbol})\n수량: {order.quantity}주\n"
-            f"가격: {order.price:,.0f}원\n사유: {buy_signals[0].reason}"
+            매수알림(
+                ticker.name, symbol, order, buy_signals[0].reason,
+                전략=self._strategy, 정책=self._risk_manager.get_policy(), 장중=True,
+            )
         )
 
     def _sell(self, ticker: Ticker, position: PositionRow, price: float, reason: str) -> None:
@@ -166,8 +171,12 @@ class RealtimeTradingEngine:
         state_repository.record_trade(self._session_factory, position, order, reason)
         state_repository.save_engine_state(self._session_factory, self._cash, self._day_start_equity)
         self._notifier.send(
-            f"🔴 매도 체결(장중)\n종목: {ticker.name}({position.symbol})\n수량: {order.quantity}주\n"
-            f"가격: {order.price:,.0f}원\n사유: {reason}"
+            매도알림(
+                ticker.name, position.symbol, order, reason,
+                진입가=position.entry_price, 진입일=position.entry_date,
+                판날=date.today(),  # noqa: DTZ011 — 알림 표시용, tz 무관
+                장중=True,
+            )
         )
 
     def _current_equity(self, positions: dict[str, PositionRow]) -> float:

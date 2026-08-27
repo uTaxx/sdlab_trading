@@ -269,6 +269,6 @@ def test_모르는_전략_이름이어도_안_터진다():
 
 
 def test_텔레그램에_안_먹는_기호를_안_쓴다():
-    """send_message에 parse_mode를 안 준다 — `**굵게**`가 그대로 도착한다."""
+    """텔레그램은 마크다운을 안 읽는다 — `**굵게**`가 그대로 도착한다."""
     assert "**" not in 알림글(후보들, 오늘, "https://example.com")
     assert "**" not in 알림글([], 오늘, "https://example.com", 살펴본수=0)

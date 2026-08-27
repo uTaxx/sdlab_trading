@@ -51,6 +51,7 @@ from muwon.db.models import OrderRow, PositionRow
 from muwon.db.session import ensure_schema, make_session_factory
 from muwon.execution import state_repository
 from muwon.execution.fill_settle import 보유맞추기, 주문맞추기
+from muwon.notify import notice_format as 모양
 from muwon.notify.telegram import TelegramNotifier
 from muwon.settings.service import build_settings_service
 
@@ -240,38 +241,42 @@ def _알림글(날짜, 주문들, 보유들, 손절비율: float | None = None, 
                 if 차 > 0
                 else f"{abs(차)}주가 실제로는 체결되지 않았습니다"
             )
-            줄.append(f"   기록한 수량 {ㅈ.옛수량}주, 실제 {ㅈ.새수량}주. {무슨일}.")
+            줄.append(모양.칸("수량", f"{모양.주(ㅈ.옛수량)} → {모양.주(ㅈ.새수량)}"))
+            줄.append(f"       {무슨일}.")
         else:
-            줄.append(f"   수량 {ㅈ.새수량}주 (기록한 그대로)")
+            줄.append(모양.칸("수량", f"{모양.주(ㅈ.새수량)} (기록한 그대로)"))
 
-        줄.append(f"   1주당 {ㅈ.새체결가:,.0f}원 · 모두 {ㅈ.새수량 * ㅈ.새체결가:,.0f}원")
+        줄 += [
+            모양.칸("단가", 모양.단가(ㅈ.새체결가)),
+            모양.칸(f"{방향글}총액", 모양.돈(ㅈ.새수량 * ㅈ.새체결가)),
+        ]
         if ㅈ.판단가 > 0:
             줄 += [
-                f"   {ㅈ.슬리피지글}",
-                f"     · 전략이 보고 정한 값  {ㅈ.판단가:,.0f}원",
-                f"     · 실제로 체결된 값    {ㅈ.새체결가:,.0f}원",
+                모양.칸("슬리피지", ㅈ.슬리피지글),
+                모양.칸("판단가", 모양.단가(ㅈ.판단가)),
             ]
 
     for ㅂ in 보유들:
         부른이름 = f"{이름[ㅂ.symbol]}({ㅂ.symbol})" if ㅂ.symbol in 이름 else ㅂ.symbol
-        줄 += ["", f"■ {부른이름}", "   지금부터 지켜지는 기준이 바뀝니다."]
+        줄 += ["", f"■ {부른이름}", "지금부터 지켜지는 기준이 바뀝니다."]
         if ㅂ.옛수량 != ㅂ.새수량:
-            줄.append(f"   들고 있는 수량 {ㅂ.옛수량}주 → {ㅂ.새수량}주 (증권사 계좌 기준)")
+            줄.append(
+                모양.칸("보유수량", f"{모양.주(ㅂ.옛수량)} → {모양.주(ㅂ.새수량)} (증권사 계좌 기준)")
+            )
             if ㅂ.새수량 > ㅂ.옛수량:
                 줄.append(
-                    f"   늘어난 {ㅂ.새수량 - ㅂ.옛수량}주는 그동안 기록에 없어서 "
+                    f"       늘어난 {모양.주(ㅂ.새수량 - ㅂ.옛수량)}는 그동안 기록에 없어서 "
                     "손절이 안 걸려 있었습니다. 이제 같이 걸립니다."
                 )
         if abs(ㅂ.옛진입가 - ㅂ.새진입가) > 0.5:
-            줄.append(f"   산 값 기준 {ㅂ.옛진입가:,.0f}원 → {ㅂ.새진입가:,.0f}원")
+            줄.append(
+                모양.칸("매수단가", f"{모양.단가(ㅂ.옛진입가)} → {모양.단가(ㅂ.새진입가)}")
+            )
         if 손절비율 and not atr손절:
             손절가 = ㅂ.새진입가 * (1 + 손절비율)
-            줄.append(
-                f"   손절선: {손절가:,.0f}원 "
-                f"(산 값에서 {abs(손절비율):.0%} 빠지면 자동으로 팝니다)"
-            )
+            줄.append(모양.칸("매도전략", f"{손절비율:.0%} 손절 ({모양.돈(손절가)}에서 매도)"))
         elif atr손절:
-            줄.append("   손절선: 그 종목이 하루에 보통 움직이는 폭(ATR)을 기준으로 걸립니다")
+            줄.append(모양.칸("매도전략", "변동성 손절 (하루 평균 변동폭을 기준으로 걸립니다)"))
 
     줄 += [
         "",

@@ -49,6 +49,7 @@ from muwon.db.session import ensure_schema, make_session_factory
 from muwon.execution.approved_universe import build_universe
 from muwon.execution.engine import TradingEngine
 from muwon.execution.reconciliation import check_account_consistency
+from muwon.notify import notice_format as 모양
 from muwon.notify.dry_run import 모의알림
 from muwon.notify.telegram import TelegramNotifier
 from muwon.risk.manager import RiskManager
@@ -302,20 +303,26 @@ def _알림글(날짜, 승인된것, 산것, 판것, 안산것, 켜짐, 거부�
             "",
         ]
 
+    # 체결 알림과 같은 라벨을 쓴다. 같은 일을 두 말투로 알리면 두 가지
+    # 일처럼 읽힌다.
     for a in 산것:
         줄 += [
-            f"🟢 {a.name}({a.symbol}) {a.quantity}주 샀습니다",
-            f"   1주당 {a.price:,.0f}원 · 모두 {a.quantity * a.price:,.0f}원",
+            f"🟢 매수체결 {a.name}({a.symbol})",
+            모양.칸("수량", 모양.주(a.quantity)),
+            모양.칸("단가", 모양.단가(a.price)),
+            모양.칸("매수총액", 모양.돈(a.quantity * a.price)),
+            모양.칸("적용전략", a.reason),
+            "",
         ]
     for a in 판것:
         줄 += [
-            f"🔴 {a.name}({a.symbol}) {a.quantity}주 팔았습니다",
-            f"   1주당 {a.price:,.0f}원 · 모두 {a.quantity * a.price:,.0f}원",
-            f"   판 이유: {a.reason}",
+            f"🔴 매도체결 {a.name}({a.symbol})",
+            모양.칸("수량", 모양.주(a.quantity)),
+            모양.칸("단가", 모양.단가(a.price)),
+            모양.칸("매도총액", 모양.돈(a.quantity * a.price)),
+            모양.칸("매도사유", a.reason),
+            "",
         ]
-    if 산것 or 판것:
-        줄.append("")
-
     if 안산것:
         줄.append(f"⚠️ 승인했는데 못 산 것 {len(안산것)}종목")
         줄.append("")
@@ -332,7 +339,7 @@ def _알림글(날짜, 승인된것, 산것, 판것, 안산것, 켜짐, 거부�
     if not 안산것 and not 산것 and not 판것:
         줄.append("오늘은 조건에 맞는 것이 없었습니다. 아무것도 안 하셔도 됩니다.")
 
-    return "\n".join(줄)
+    return 모양.글(줄)
 
 
 if __name__ == "__main__":

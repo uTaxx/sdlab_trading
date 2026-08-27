@@ -22,6 +22,7 @@ import json
 from typing import Any
 
 import requests
+from loguru import logger
 
 from muwon.notify import footer
 
@@ -80,9 +81,23 @@ def webhook_info(token: str) -> dict:
     return call(token, "getWebhookInfo", raise_on_error=False)
 
 
+def _꼬리붙여보내기(token: str, method: str, 본문: str, **몸통: Any) -> dict:
+    """대시보드 링크를 걸어 보낸다. HTML이 거절당하면 평문으로 한 번 더.
+
+    하이퍼링크는 HTML 모드에서만 되는데, 본문에 `<`나 `&`가 섞이면 텔레그램이
+    글 전체를 거절한다. 그때 그냥 죽으면 **알림이 통째로 안 간다.** 나중에야
+    알게 되는 종류의 실패라, 되돌아갈 길을 여기 둔다."""
+    답 = call(token, method, raise_on_error=False,
+              text=footer.하이퍼(본문), parse_mode="HTML", **몸통)
+    if isinstance(답, dict) and 답.get("ok") is False:
+        logger.warning(f"HTML 알림이 거절당해 평문으로 다시 보냅니다: {답.get('description')}")
+        답 = call(token, method, raise_on_error=False, text=footer.평문(본문), **몸통)
+    return 답
+
+
 def send(token: str, chat_id: str, text: str, reply_markup: dict | None = None) -> dict:
-    return call(token, "sendMessage", chat_id=chat_id, text=footer.붙이기(text),
-                reply_markup=reply_markup)
+    return _꼬리붙여보내기(token, "sendMessage", text,
+                     chat_id=chat_id, reply_markup=reply_markup)
 
 
 def answer_callback(token: str, callback_query_id: str, text: str = "",
@@ -101,9 +116,8 @@ def edit_text(token: str, chat_id: str, message_id: int, text: str,
 
     둘을 따로 부르면 사이에 잠깐 어긋난 상태가 보이고, 호출도 두 번이라
     하나만 실패할 수 있다."""
-    call(token, "editMessageText", raise_on_error=False,
-         chat_id=chat_id, message_id=message_id, text=footer.붙이기(text),
-         reply_markup=reply_markup)
+    _꼬리붙여보내기(token, "editMessageText", text,
+              chat_id=chat_id, message_id=message_id, reply_markup=reply_markup)
 
 
 def edit_reply_markup(token: str, chat_id: str, message_id: int,

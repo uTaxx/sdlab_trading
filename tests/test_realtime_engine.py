@@ -75,7 +75,7 @@ def test_breakout_bar_sequence_triggers_buy_and_notifies():
     assert len(positions) == 1
     assert len(orders) == 1
     assert orders[0].side == "buy"
-    assert any("매수 체결(장중)" in m for m in notifier.messages)
+    assert any("🟢 매수체결 (장중)" in m for m in notifier.messages)
 
 
 def test_dead_cross_bar_sells_existing_position():
@@ -101,7 +101,7 @@ def test_dead_cross_bar_sells_existing_position():
     assert trades[0].strategy_key == "ma_rsi_v1"
     assert trades[0].exit_reason == "단기선 하향이탈"
 
-    assert any("매도 체결(장중)" in m for m in notifier.messages)
+    assert any("🔴 매도체결 (장중)" in m for m in notifier.messages)
 
 
 def test_trading_disabled_blocks_realtime_entry():
