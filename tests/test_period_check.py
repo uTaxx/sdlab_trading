@@ -306,7 +306,7 @@ def test_신호글은_바꾸라고_말하지_않는다():
 
     난것 = 전략신호({"5년": _성적("5년", total_return_pct=-12.0, num_trades=300)})
     _, 글 = 신호글(난것)
-    assert "돈이 나가는 결정" in 글
+    assert "바꾸라는 말이 아니라" in 글
     for 하면안되는말 in ("로 바꾸세요", "로 갈아타", "추천"):
         assert 하면안되는말 not in 글
 
@@ -337,3 +337,70 @@ def test_사람에게_가는_문장에_줄표를_안_쓴다():
     ))
     for 글 in 글들:
         assert "—" not in 글, 글
+
+
+def test_신호가_하나면_등급_딱지를_안_붙인다():
+    """머리말에 이미 등급이 적힌다. 줄에도 붙이면 같은 말을 두 번 한다."""
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    하나 = 전략신호({
+        "12개월": _성적("12개월", max_drawdown_pct=-31.4, total_return_pct=24.9),
+        "5년": _성적("5년", max_drawdown_pct=-32.3, total_return_pct=154.9),
+    })
+    assert len(하나) == 1
+    assert "[살펴볼것]" not in 신호글(하나)[1]
+
+    둘 = 전략신호(
+        {
+            "3개월": _성적("3개월", total_return_pct=-20.0, max_drawdown_pct=-22.0),
+            "12개월": _성적("12개월", max_drawdown_pct=-31.4, total_return_pct=24.9),
+            "5년": _성적("5년", max_drawdown_pct=-32.3, total_return_pct=154.9),
+        },
+        {"3개월": (22, 26, 1)},
+    )
+    assert len(둘) == 2
+    assert "[살펴볼것]" in 신호글(둘)[1]
+
+
+def test_신호글에_알아듣기_어려운_말을_안_쓴다():
+    """폰으로 그대로 나가는 글이다. 앞뒤에 표도 설명도 없다.
+
+    2026-08-28에 실제로 받아 보고 무슨 말인지 모르겠다는 말을 들었다.
+    낙폭이라는 말을 풀어 쓰지 않았고, 이 저장소 안에서만 통하는 말인
+    성적표를 그대로 썼다."""
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호(
+        {
+            "3개월": _성적("3개월", total_return_pct=-20.0, exposure_pct=5.0),
+            "12개월": _성적("12개월", max_drawdown_pct=-31.4, total_return_pct=24.9),
+            "5년": _성적("5년", max_drawdown_pct=-32.3, total_return_pct=154.9),
+        },
+        {"3개월": (22, 26, 1)},
+    )
+    글 = 신호글(난것)[1]
+    for 어려운말 in ("낙폭", "성적표", "같은 자로", "아팠던", "덜 맞"):
+        assert 어려운말 not in 글, f"{어려운말!r}: {글}"
+
+
+def test_알림글에_무슨_전략인지와_번_것이_같이_들어간다():
+    """화면과 달리 폰에는 이 글 하나만 간다. 표가 옆에 없다.
+
+    어느 전략인지 안 적으면 무엇에 대한 말인지 알 수 없고, 번 것을 안 적으면
+    줄어든 숫자만 남아서 다 망한 것처럼 읽힌다."""
+    from muwon.analysis.period_check import 신호글, 알림글, 전략신호
+
+    성적들 = {
+        "3개월": _성적("3개월", total_return_pct=-20.74, max_drawdown_pct=-22.61),
+        "12개월": _성적("12개월", total_return_pct=24.90, max_drawdown_pct=-31.40),
+        "5년": _성적("5년", total_return_pct=154.86, max_drawdown_pct=-32.30),
+    }
+    등급, 신호 = 신호글(전략신호(성적들))
+    글 = 알림글(등급, 신호, "거래량 급증 + 20일선", 성적들)
+
+    assert "거래량 급증 + 20일선" in 글
+    assert 등급 in 글.splitlines()[0]
+    # 세 구간의 수익률이 다 들어가고, 순서는 짧은 것부터다.
+    assert "3개월 -20.74%, 12개월 +24.90%, 5년 +154.86%" in 글
+    assert 신호 in 글
+    assert "—" not in 글

@@ -52,6 +52,7 @@ from muwon.analysis.period_check import (
     돌려보기,
     비교총평,
     신호글,
+    알림글,
     전략신호,
     평가글,
 )
@@ -139,6 +140,12 @@ def 전략이름(열쇠: str) -> str:
         return get_definition(열쇠).화면이름
     except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 검증이 죽으면 안 된다
         return 열쇠
+
+
+def 전략글(사는키: str, 파는키: str) -> str:
+    """알림에 적을 전략 이름. 파는 쪽을 따로 걸었으면 그것까지 적는다."""
+    산것 = 전략이름(사는키)
+    return f"{산것}(매도는 {전략이름(파는키)})" if 파는키 else 산것
 
 
 def 줄만들기(잰때: datetime, 성적, 사는키: str, 파는키: str, 기준: str,
@@ -413,7 +420,8 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
         print(f"못 돌린 구간: {', '.join(못돌린것)} (시세가 모자랍니다)")
 
     # 전략을 다시 볼 이유가 있나. **바꾸라는 말이 아니라 보라는 말이다.**
-    등급, 신호 = 신호글(전략신호({ㅅ.이름: ㅅ for ㅅ in 성적들}))
+    성적표 = {ㅅ.이름: ㅅ for ㅅ in 성적들}
+    등급, 신호 = 신호글(전략신호(성적표))
     print(f"■ 전략 신호: {등급}")
     print(신호 + "\n")
 
@@ -422,7 +430,7 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     # 화면을 안 열어도 알아야 하는 것만 보낸다. 이상 없는 회차까지 보내면
     # 알림이 흔해지고, 흔해진 알림은 진짜일 때도 안 읽는다.
     if 등급 != "이상없음":
-        알리기(f"🔎 전략 신호 · {등급}\n\n{신호}")
+        알리기(알림글(등급, 신호, 전략글(사는키, 파는키), 성적표))
     return 0
 
 
@@ -516,7 +524,7 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
         print(f"■ 전략 신호: {등급}")
         print(신호 + "\n")
         if 등급 != "이상없음":
-            알리기(f"🔎 전략 신호 · {등급}\n\n{신호}")
+            알리기(알림글(등급, 신호, 전략글(지금키, ""), 있는것))
 
     if sheet_id:
         from muwon.cloud.sheet_log import append
