@@ -53,6 +53,19 @@
     </div>
   </div>
 
+  <!--
+    지금 무엇이 걸려 있는지를 머리 바로 밑에 둔다. 스위치와 같은 이유로
+    어느 탭에 있든 보인다 — 스위치는 "켜져 있다"까지만 말하고 "무엇이
+    켜져 있다"는 말해 주지 않는다.
+
+    전략 이름은 늘 한글로 적는다. `volume_surge_5d_ma20`은 처음 보는
+    사람에게 아무 뜻도 없고, 뜻이 없으면 그 줄을 아예 안 읽게 된다.
+  -->
+  <div id="전략띠" class="전략띠 숨김">
+    <span class="쪽 사는쪽">매수 전략 <b id="띠매수">—</b></span>
+    <span class="쪽 파는쪽">매도 전략 <b id="띠매도">—</b></span>
+  </div>
+
   <div id="매도경고" class="알림 숨김" style="margin-top:12px">
     <strong>🛑 매도가 꺼져 있습니다.</strong><br>
     손절·익절·보유일수 청산이 <b>전부 멈춰 있습니다.</b> 들고 있는 종목의
@@ -221,7 +234,7 @@
       <div class="표싸개">
         <table>
           <thead><tr>
-            <th>종목</th><th>손익</th><th>수익률</th><th>수량</th>
+            <th>종목</th><th>전략</th><th>손익</th><th>수익률</th><th>수량</th>
             <th>산 값</th><th>판 값</th><th>기간</th>
           </tr></thead>
           <tbody id="기록몸"></tbody>
@@ -241,7 +254,7 @@
       <div class="표싸개">
         <table>
           <thead><tr>
-            <th>때</th><th>살펴본 종목</th><th>매수 신호</th><th>매도 신호</th>
+            <th>때</th><th>전략</th><th>살펴본 종목</th><th>매수 신호</th><th>매도 신호</th>
             <th>주문</th><th>막힌 이유</th>
           </tr></thead>
           <tbody id="회차몸"></tbody>

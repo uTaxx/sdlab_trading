@@ -1,0 +1,247 @@
+[
+  {
+    "열쇠": "daily_loss_limit_pct",
+    "이름": "하루 손실 한도",
+    "전략값": false
+  },
+  {
+    "열쇠": "kis.account_no",
+    "이름": "증권사 계좌번호",
+    "전략값": false
+  },
+  {
+    "열쇠": "kis.account_product_cd",
+    "이름": "증권사 상품코드",
+    "전략값": false
+  },
+  {
+    "열쇠": "kis.app_key",
+    "이름": "증권사 앱키",
+    "전략값": false
+  },
+  {
+    "열쇠": "kis.app_secret",
+    "이름": "증권사 앱시크릿",
+    "전략값": false
+  },
+  {
+    "열쇠": "kis.env",
+    "이름": "증권사 환경(모의/실거래)",
+    "전략값": false
+  },
+  {
+    "열쇠": "max_concurrent_positions",
+    "이름": "동시 보유 종목 수",
+    "전략값": false
+  },
+  {
+    "열쇠": "max_holding_days",
+    "이름": "보유 기간 상한(일)",
+    "전략값": false
+  },
+  {
+    "열쇠": "max_per_sector",
+    "이름": "섹터당 종목 수",
+    "전략값": false
+  },
+  {
+    "열쇠": "max_position_weight",
+    "이름": "한 종목 최대 비중",
+    "전략값": false
+  },
+  {
+    "열쇠": "min_turnover_eok",
+    "이름": "거래대금 문턱(억)",
+    "전략값": false
+  },
+  {
+    "열쇠": "require_approval",
+    "이름": "매수 전 승인",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.atr_stop_enabled",
+    "이름": "변동성 손절 켜기",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.atr_stop_multiple",
+    "이름": "변동성 손절 배수",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.atr_window",
+    "이름": "변동성 재는 기간(일)",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.daily_loss_limit_pct",
+    "이름": "하루 손실 한도",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.max_concurrent_positions",
+    "이름": "동시 보유 종목 수",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.max_holding_days",
+    "이름": "보유 기간 상한(일)",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.max_per_sector",
+    "이름": "섹터당 종목 수",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.max_position_weight",
+    "이름": "한 종목 최대 비중",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.min_turnover_eok",
+    "이름": "거래대금 문턱(억)",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.require_approval",
+    "이름": "매수 전 승인",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.sector_filter_enabled",
+    "이름": "1차 섹터 거르기",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.sector_lookback",
+    "이름": "섹터 강도 기간(일)",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.sector_top_n",
+    "이름": "고를 섹터 수",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.sell_enabled",
+    "이름": "매도 스위치",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.sell_strategy",
+    "이름": "파는 쪽 전략",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.stop_loss_pct",
+    "이름": "손절선",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.strategy",
+    "이름": "쓰는 전략",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.take_profit_pct",
+    "이름": "익절선",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.trading_enabled",
+    "이름": "킬스위치",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.trailing_stop_enabled",
+    "이름": "트레일링 손절 켜기",
+    "전략값": false
+  },
+  {
+    "열쇠": "risk.trailing_stop_multiple",
+    "이름": "트레일링 손절 배수",
+    "전략값": false
+  },
+  {
+    "열쇠": "sector_filter_enabled",
+    "이름": "1차 섹터 거르기",
+    "전략값": false
+  },
+  {
+    "열쇠": "sector_lookback",
+    "이름": "섹터 강도 기간(일)",
+    "전략값": false
+  },
+  {
+    "열쇠": "sector_top_n",
+    "이름": "고를 섹터 수",
+    "전략값": false
+  },
+  {
+    "열쇠": "sell_enabled",
+    "이름": "매도 스위치",
+    "전략값": false
+  },
+  {
+    "열쇠": "sell_strategy",
+    "이름": "파는 쪽 전략",
+    "전략값": true
+  },
+  {
+    "열쇠": "stop_loss_pct",
+    "이름": "손절선",
+    "전략값": false
+  },
+  {
+    "열쇠": "strategy",
+    "이름": "쓰는 전략",
+    "전략값": true
+  },
+  {
+    "열쇠": "strategy.active_key",
+    "이름": "쓰는 전략(옛 칸)",
+    "전략값": true
+  },
+  {
+    "열쇠": "strategy.active_keys",
+    "이름": "쓰는 전략",
+    "전략값": true
+  },
+  {
+    "열쇠": "strategy.combine",
+    "이름": "전략 합치는 방식(AND/OR)",
+    "전략값": false
+  },
+  {
+    "열쇠": "strategy.factor_config",
+    "이름": "종합점수 가중치",
+    "전략값": false
+  },
+  {
+    "열쇠": "strategy.sell_keys",
+    "이름": "파는 쪽 전략",
+    "전략값": true
+  },
+  {
+    "열쇠": "take_profit_pct",
+    "이름": "익절선",
+    "전략값": false
+  },
+  {
+    "열쇠": "telegram.bot_token",
+    "이름": "텔레그램 봇 토큰",
+    "전략값": false
+  },
+  {
+    "열쇠": "telegram.chat_id",
+    "이름": "텔레그램 대화방",
+    "전략값": false
+  },
+  {
+    "열쇠": "trading_enabled",
+    "이름": "킬스위치",
+    "전략값": false
+  }
+]

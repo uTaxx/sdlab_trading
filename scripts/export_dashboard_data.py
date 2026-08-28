@@ -1,4 +1,4 @@
-"""용어 사전과 전략 설명을 대시보드가 읽을 JSON으로 뽑는다.
+"""용어 사전, 전략 설명, 기준 이름을 대시보드가 읽을 JSON으로 뽑는다.
 
 ## 왜 뽑아 내나
 
@@ -28,6 +28,7 @@ from pathlib import Path
 
 from muwon.dashboard.glossary import TERMS
 from muwon.dashboard.strategy_rules import describe
+from muwon.settings.from_sheet import 기준들
 from muwon.strategy.registry import REGISTRY, build_strategy
 
 나가는곳 = Path(__file__).resolve().parent.parent / "dashboard" / "자료"
@@ -83,7 +84,65 @@ def 전략설명() -> list[dict]:
     return 나온것
 
 
-자료들 = {"용어사전.json": 용어사전, "전략설명.json": 전략설명}
+#: 변경 이력에 값 자체가 전략 키로 적히는 칸들. 화면은 이 칸의 값을
+#: 전략 이름으로 바꿔서 보여 준다. 나머지 칸은 숫자나 true/false라
+#: 바꾸면 오히려 틀린 말이 된다.
+전략값칸 = (
+    "strategy", "sell_strategy",
+    "strategy.active_key", "strategy.active_keys", "strategy.sell_keys",
+)
+
+#: 시트 기준표에 없는, DB에만 있는 열쇠말. 변경 이력은 DB에서 나오므로
+#: 이쪽 이름이 그대로 화면에 뜬다.
+_디비칸 = {
+    "strategy.active_keys": "쓰는 전략",
+    "strategy.active_key": "쓰는 전략(옛 칸)",
+    "strategy.sell_keys": "파는 쪽 전략",
+    "strategy.combine": "전략 합치는 방식(AND/OR)",
+    "strategy.factor_config": "종합점수 가중치",
+    "risk.atr_stop_enabled": "변동성 손절 켜기",
+    "risk.atr_stop_multiple": "변동성 손절 배수",
+    "risk.atr_window": "변동성 재는 기간(일)",
+    "risk.trailing_stop_enabled": "트레일링 손절 켜기",
+    "risk.trailing_stop_multiple": "트레일링 손절 배수",
+    "kis.account_no": "증권사 계좌번호",
+    "kis.account_product_cd": "증권사 상품코드",
+    "kis.app_key": "증권사 앱키",
+    "kis.app_secret": "증권사 앱시크릿",
+    "kis.env": "증권사 환경(모의/실거래)",
+    "telegram.bot_token": "텔레그램 봇 토큰",
+    "telegram.chat_id": "텔레그램 대화방",
+}
+
+
+def 기준이름() -> list[dict]:
+    """설정 열쇠말 → 사람이 읽는 이름.
+
+    변경 이력 표가 `stop_loss_pct` 같은 열쇠말을 그대로 보여 주고 있었다.
+    무엇이 바뀌었는지 알아보려면 머릿속에서 한 번 옮겨야 하는데, 그 표는
+    성적이 달라졌을 때 제일 먼저 보는 곳이라 그러면 안 된다.
+
+    원본은 `from_sheet.기준들` 하나다. 시트 초안·검증·화면이 이미 그것을
+    읽고 있어서, 여기서 한 벌 더 적으면 언젠가 어긋난다.
+
+    같은 값이 시트에서는 `stop_loss_pct`, DB에서는 `risk.stop_loss_pct`로
+    적힌다. 변경 이력은 DB에서 나오므로 **둘 다 넣는다.**
+    """
+    표: dict[str, str] = {}
+    for b in 기준들:
+        표[b.이름] = b.표시
+        표.setdefault(f"risk.{b.이름}", b.표시)
+        if b.정책필드:
+            표.setdefault(f"risk.{b.정책필드}", b.표시)
+    표 |= _디비칸
+    return [
+        {"열쇠": 열쇠, "이름": 이름, "전략값": 열쇠 in 전략값칸}
+        for 열쇠, 이름 in sorted(표.items())
+    ]
+
+
+자료들 = {"용어사전.json": 용어사전, "전략설명.json": 전략설명,
+         "기준설명.json": 기준이름}
 
 
 def 글로(값) -> str:
@@ -117,7 +176,7 @@ def main() -> int:
               file=sys.stderr)
         return 1
     if 인자.check:
-        print("용어 사전과 전략 설명이 파이썬 원본과 같습니다.")
+        print("용어 사전·전략 설명·기준 이름이 파이썬 원본과 같습니다.")
     return 0
 
 
