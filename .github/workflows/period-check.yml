@@ -41,7 +41,7 @@ on:
           - 5년
         default: 전부
       strategies:
-        description: "어느 전략을 잴 것인가 (지금 / 전부 / 쉼표로 적은 전략 키들)"
+        description: "어느 전략을 잴 것인가 (지금 / 전부 / 전략키 / 매수키>매도키)"
         default: "지금"
       no_cache:
         description: "시세 캐시를 쓰지 않고 새로 받는다"
@@ -91,13 +91,20 @@ jobs:
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          # **사람이 넣은 값은 명령 줄에 직접 박지 않는다.** `${{ }}`는 셸
+          # 스크립트 글자 안으로 그대로 치환되므로, 따옴표나 `$(...)`가 섞인
+          # 값이 오면 그게 명령으로 실행된다. 화면에서 전략을 골라 보낼 수
+          # 있게 한 뒤로 이 자리에 아무 글자나 들어올 수 있다.
+          # 환경변수로 넘기면 셸이 그 값을 글자로만 본다.
+          MUWON_PERIOD: ${{ github.event.inputs.period || '전부' }}
+          MUWON_STRATEGIES: ${{ github.event.inputs.strategies || '지금' }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
           # 실패가 이 저장소에서 제일 비싼 종류다.
           set -o pipefail
           python scripts/run_period_check.py \
-            --기간 "${{ github.event.inputs.period || '전부' }}" \
-            --전략 "${{ github.event.inputs.strategies || '지금' }}" \
+            --기간 "$MUWON_PERIOD" \
+            --전략 "$MUWON_STRATEGIES" \
             ${{ github.event.inputs.no_cache == 'true' && '--no-cache' || '' }} \
             | tee period-check.txt
 

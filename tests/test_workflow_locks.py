@@ -111,3 +111,61 @@ def test_기간검증은_상태DB를_안_고치므로_잠그지_않는다():
     assert "group: state-write" not in 글
     # DB를 올리는 줄이 있으면 위의 전제가 깨진다.
     assert "gdrive_sync.py upload" not in 글
+
+
+#: 아직 입력값을 `run:` 안에 직접 박고 있는 워크플로들. **줄일 수만 있다.**
+#:
+#: 이 자리는 셸 주입이 가능한 모양이다. 다만 이것들은 GitHub에 쓰기 권한이
+#: 있는 사람만 부를 수 있어서, 화면에서 아무나 값을 넣는 period-check와는
+#: 위험이 다르다. 한꺼번에 고치면 시험해 볼 수 없는 워크플로를 여럿 건드리게
+#: 되므로 목록으로 남겨 두고 손대는 김에 하나씩 고친다.
+아직안고친것 = {
+    "adopt-holdings.yml", "analysis-report.yml", "cancel-orders.yml",
+    "drop-phantom.yml", "execute-approved.yml", "experiment.yml",
+    "hypothesis-log.yml", "market-report.yml", "propose-buys.yml",
+    "push-records.yml", "reconcile-orders.yml", "robustness-check.yml",
+    "sector-sheet.yml", "settle-fills.yml", "switch-strategy.yml",
+    "update-universe.yml", "verify-kis-order.yml",
+}
+
+
+def test_사람이_넣은_값을_명령줄에_직접_박지_않는다():
+    """`${{ github.event.inputs.* }}`는 셸 스크립트 글자 안으로 그대로
+    치환된다. 따옴표나 `$(...)`가 섞인 값이 오면 그게 명령으로 실행된다.
+
+    화면에서 전략을 골라 보낼 수 있게 한 뒤로 이 자리에 아무 글자나 들어올
+    수 있다. 환경변수로 넘기면 셸이 그 값을 글자로만 본다.
+
+    다만 `type: choice` 입력은 GitHub이 목록 밖의 값을 안 받으므로 예외다.
+    `== '값'`으로 견주기만 하는 것도 안전하다."""
+    import re
+    from pathlib import Path
+
+    나쁜것: list[str] = []
+    이미아는것: set[str] = set()
+    for 길 in sorted((Path(__file__).resolve().parent.parent / ".github" / "workflows").glob("*.yml")):
+        글 = 길.read_text(encoding="utf-8")
+        # `run:` 블록만 본다. env:에 넣는 것은 안전한 쪽이다.
+        for 덩이 in re.findall(r"\n        run: \|\n(.*?)(?=\n      - |\n  \w|\Z)", 글, re.DOTALL):
+            for 식 in re.findall(r"\$\{\{(.*?)\}\}", 덩이, re.DOTALL):
+                if "github.event.inputs" not in 식:
+                    continue
+                # `A == 'x' && '켬' || ''` 처럼 값을 견주기만 하는 것은 괜찮다.
+                if "==" in 식:
+                    continue
+                if 길.name in 아직안고친것:
+                    이미아는것.add(길.name)
+                    continue
+                나쁜것.append(f"{길.name}: {식.strip()}")
+
+    assert not 나쁜것, (
+        "입력값을 run: 안에 직접 박았습니다. env:로 넘기고 \"$이름\"으로 쓰세요:\n  "
+        + "\n  ".join(나쁜것)
+    )
+    # 목록은 줄기만 해야 한다. 고쳐 놓고 목록에서 안 빼면 다음에 다시
+    # 들어가도 아무것도 안 빨개진다.
+    남은것 = 아직안고친것 - 이미아는것
+    assert not 남은것, (
+        "이미 고쳤는데 '아직안고친것'에 남아 있습니다. 지우세요: "
+        + ", ".join(sorted(남은것))
+    )

@@ -84,8 +84,50 @@ from muwon.strategy.registry import (
 비교머리 = [
     "열쇠", "잰때", "기간", "시작일", "끝일", "전략", "전략이름",
     "수익률%", "최대낙폭%", "최악토막", "최악토막%", "승률%", "손익비",
-    "거래수", "노출%", "기준",
+    "거래수", "노출%", "기준", "매도전략", "매도전략이름",
 ]
+
+
+def 아는열쇠() -> list[str]:
+    return [ㅈ.key for ㅈ in list_definitions()]
+
+
+def 전략고르기(글: str) -> tuple[list[str], list[str]]:
+    """`--전략` 값을 (사는키들, 파는키들)로 푼다.
+
+    받는 모양은 넷이다.
+
+        지금                          지금 DB에 걸린 것 (이때는 여기까지 안 온다)
+        전부                          등록된 전략 전부를 견준다
+        volume_surge_3d               그 전략 하나
+        volume_surge_3d>macd_cross    사는 쪽과 파는 쪽을 따로
+
+    사는 쪽에 여럿을 적으려면 쉼표로 잇는다. `>` 뒤가 파는 쪽이고, 안 적으면
+    사는 쪽이 파는 것까지 맡는다.
+
+    **모르는 열쇠말은 조용히 버리지 않고 여기서 멈춘다.** 하나를 잘못 적었는데
+    나머지만 돌면, 표에는 결과가 나오는데 내가 물어본 것은 안 재고 있는
+    상태가 된다."""
+    글 = (글 or "").strip()
+    사는쪽, _, 파는쪽 = 글.partition(">")
+
+
+    def 쪼개기(조각: str) -> list[str]:
+        return [ㄱ.strip() for ㄱ in 조각.split(",") if ㄱ.strip()]
+
+    사는키 = 아는열쇠() if 사는쪽.strip() in ("전부", "all") else 쪼개기(사는쪽)
+    파는키 = 쪼개기(파는쪽)
+    if not 사는키:
+        raise ValueError(f"--전략에 무엇을 잴지 적으세요: {글!r}")
+
+    아는것 = set(아는열쇠())
+    모르는것 = [ㄱ for ㄱ in 사는키 + 파는키 if ㄱ not in 아는것]
+    if 모르는것:
+        raise ValueError(
+            "등록되지 않은 전략입니다: " + ", ".join(모르는것)
+            + " · 쓸 수 있는 것: " + ", ".join(sorted(아는것))
+        )
+    return 사는키, 파는키
 
 
 def 전략이름(열쇠: str) -> str:
@@ -178,11 +220,13 @@ def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str) -> N
         print()
 
 
-def 비교줄만들기(잰때: datetime, 열쇠: str, 성적, 기준: str) -> list[str]:
+def 비교줄만들기(잰때: datetime, 열쇠: str, 성적, 기준: str,
+            파는키: str = "") -> list[str]:
     ㅁ = 성적.metrics
     최악 = 성적.최악토막
+    꼬리 = f">{파는키}" if 파는키 else ""
     return [
-        f"C{잰때.strftime('%Y-%m-%dT%H:%M')}|{성적.이름}|{열쇠}",
+        f"C{잰때.strftime('%Y-%m-%dT%H:%M')}|{성적.이름}|{열쇠}{꼬리}",
         잰때.strftime("%Y-%m-%d %H:%M"),
         성적.이름,
         성적.시작.isoformat(),
@@ -198,17 +242,21 @@ def 비교줄만들기(잰때: datetime, 열쇠: str, 성적, 기준: str) -> li
         str(ㅁ.num_trades),
         f"{ㅁ.exposure_pct:.1f}",
         기준,
+        파는키,
+        전략이름(파는키) if 파는키 else "",
     ]
 
 
-def 비교표(정의, 줄들: list[tuple[str, object]]) -> None:
+def 비교표(정의, 줄들: list[tuple[str, object]], 파는글: str = "") -> None:
     """한 구간의 전략별 성적을 순위로 찍는다. **수익률이 높은 순이다.**
 
     빠지는 구간에서는 이 순위가 곧 방어력 순위다. 다만 **안 산 전략이
     위로 온다.** 거래 0건은 지킨 것이 아니라 아무 일도 안 한 것이라,
     노출과 거래 수를 같은 줄에 찍어서 그 둘을 구별하게 한다."""
     차례 = sorted(줄들, key=lambda ㄱ: -ㄱ[1].metrics.total_return_pct)
-    print(f"[{정의.이름}] {차례[0][1].시작} ~ {차례[0][1].끝} · 전략 {len(차례)}개")
+    꼬리 = f" · 매도 {파는글}" if 파는글 else ""
+    print(f"[{정의.이름}] {차례[0][1].시작} ~ {차례[0][1].끝} "
+          f"· 전략 {len(차례)}개{꼬리}")
     print(f"  {'':2} {'전략':<22} {'수익률':>8} {'최대낙폭':>9} "
           f"{'최악토막':>12} {'거래':>5} {'승률':>6} {'노출':>6}")
     for 번호, (열쇠, 성적) in enumerate(차례, 1):
@@ -277,6 +325,11 @@ def main() -> int:
 
 
 def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
+    # 고른 전략을 **시세를 받기 전에** 푼다. 잘못 적은 것을 5년치 시세
+    # 내려받은 뒤에 알려 주면 5분을 버린다.
+    고를것 = 인자.전략.strip()
+    골라진전략 = None if 고를것 in ("지금", "") else 전략고르기(고를것)
+
     service = build_settings_service()
     고름 = service.get_strategy_selection()
     사는키 = ",".join(고름.active_keys)
@@ -313,15 +366,11 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     )
     print(f"■ 시세 {len(histories)}종목 · {처음} 앞 예열 포함\n")
 
-    # 전략 여러 개를 견주는 모드. 지금 걸린 것 하나만 재는 것과 섞지 않는다.
-    고를것 = 인자.전략.strip()
-    if 고를것 not in ("지금", ""):
-        열쇠들 = (
-            [ㅈ.key for ㅈ in list_definitions()]
-            if 고를것 in ("전부", "all")
-            else [ㄱ.strip() for ㄱ in 고를것.split(",") if ㄱ.strip()]
-        )
-        return 비교하기(골라진것, 잰때, sheet_id, histories, 끝, 정책, 기준, 열쇠들)
+    # 골라서 재는 모드. 지금 걸린 것 하나만 재는 것과 섞지 않는다.
+    if 골라진전략 is not None:
+        열쇠들, 파는키 = 골라진전략
+        return 비교하기(골라진것, 잰때, sheet_id, histories, 끝, 정책, 기준,
+                    열쇠들, 파는키)
 
     # 구간마다 새로 만든다. 전략이 예열 결과를 안에 들고 있어서, 같은
     # 객체를 여러 구간에 쓰면 앞 구간 자료가 남는다.
@@ -349,7 +398,7 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
 
 
 def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 정책,
-          기준: str, 열쇠들: list[str]) -> int:
+          기준: str, 열쇠들: list[str], 파는키들: list[str] | None = None) -> int:
     """등록된 전략들을 **같은 구간·같은 기준**으로 돌려 순위를 낸다.
 
     빠지는 구간에서 어느 전략이 덜 잃었는지를 보는 자리다. 시세를 한 번만
@@ -359,15 +408,29 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
     **여기서 나온 1등을 그대로 걸면 안 된다.** 한 구간에서 제일 좋았던 것을
     고르는 일이 곧 과최적화다. 이 표는 "지금 걸린 것이 유난히 나쁜가"를
     묻는 자리이지 다음 전략을 정하는 자리가 아니다."""
-    print(f"■ 견주는 전략 {len(열쇠들)}개\n")
+    파는키들 = list(파는키들 or [])
+    파는글 = ",".join(파는키들)
+    print(f"■ 견주는 매수 전략 {len(열쇠들)}개")
+    print("■ 매도 전략: "
+          + (", ".join(전략이름(ㄱ) for ㄱ in 파는키들) if 파는키들 else "매수와 같음")
+          + "\n")
     올릴것: list[list[str]] = []
+
+    def 만들기(사는키: str):
+        """사는 쪽과 파는 쪽을 따로 걸었으면 그대로 묶는다.
+
+        파는 쪽을 안 적었으면 감싸지 않는다 — 감싸면 기록에 남는 전략 이름이
+        바뀌어서 지금까지 쌓인 것과 이어지지 않는다."""
+        if not 파는키들:
+            return build_strategy(사는키)
+        return build_strategies([사는키], "OR", 파는키들)
 
     for 정의 in 골라진것:
         줄들 = []
         못만든것 = []
         for 열쇠 in 열쇠들:
             try:
-                성적 = 돌려보기(정의, (lambda k=열쇠: build_strategy(k)),
+                성적 = 돌려보기(정의, (lambda k=열쇠: 만들기(k)),
                             histories, 끝, 정책)
             except Exception as 탈:  # noqa: BLE001 — 하나가 터져도 나머지는 봐야 한다
                 못만든것.append(f"{열쇠} ({type(탈).__name__}: {탈})")
@@ -376,21 +439,22 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
                 못만든것.append(f"{열쇠} (시세 부족)")
                 continue
             줄들.append((열쇠, 성적))
-            올릴것.append(비교줄만들기(잰때, 열쇠, 성적, 기준))
+            올릴것.append(비교줄만들기(잰때, 열쇠, 성적, 기준, 파는글))
 
         if not 줄들:
             print(f"[{정의.이름}] 한 전략도 못 돌렸습니다.")
             continue
-        비교표(정의, 줄들)
+        비교표(정의, 줄들, 파는글)
         if 못만든것:
             print(f"  못 돌린 전략: {', '.join(못만든것)}\n")
 
     if not 올릴것:
         raise RuntimeError("견줄 결과가 한 줄도 안 나왔습니다.")
 
-    print("이 표의 1등을 그대로 걸면 안 됩니다. 한 구간에서 제일 좋았던 것을")
-    print("고르는 일이 곧 과최적화입니다. 지금 걸린 것이 유난히 나쁜지를")
-    print("묻는 자리이지 다음 전략을 정하는 자리가 아닙니다.")
+    if len(열쇠들) > 1:
+        print("이 표의 1등을 그대로 걸면 안 됩니다. 한 구간에서 제일 좋았던 것을")
+        print("고르는 일이 곧 과최적화입니다. 지금 걸린 것이 유난히 나쁜지를")
+        print("묻는 자리이지 다음 전략을 정하는 자리가 아닙니다.")
 
     if sheet_id:
         from muwon.cloud.sheet_log import append
