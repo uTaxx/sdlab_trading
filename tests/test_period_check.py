@@ -309,3 +309,31 @@ def test_신호글은_바꾸라고_말하지_않는다():
     assert "돈이 나가는 결정" in 글
     for 하면안되는말 in ("로 바꾸세요", "로 갈아타", "추천"):
         assert 하면안되는말 not in 글
+
+
+def test_사람에게_가는_문장에_줄표를_안_쓴다():
+    """CLAUDE.md의 보고 말투다. 줄표(—)는 쉼표와 마침표로 끊는다.
+
+    이 문장들은 텔레그램과 화면에 그대로 나간다. 여기서 한 번 새면
+    화면·알림·시트에 동시에 남고, 나중에 어디를 고쳐야 하는지 헷갈린다."""
+    from muwon.analysis.period_check import 기간표, 비교총평, 신호글, 전략신호, 평가글
+
+    난것 = 전략신호(
+        {
+            "3개월": _성적("3개월", total_return_pct=-20.0, max_drawdown_pct=-22.0),
+            "12개월": _성적("12개월", max_drawdown_pct=-31.4, total_return_pct=24.9),
+            "5년": _성적("5년", max_drawdown_pct=-32.3, total_return_pct=154.9),
+        },
+        {"3개월": (22, 26, 1), "12개월": (24, 26, 20)},
+    )
+    글들 = [신호글(난것)[1], 신호글([])[1]]
+    for 이름, 정의 in 기간표.items():
+        글들.append(평가글(_성적(이름, total_return_pct=-4.0), 정의))
+    글들.append(비교총평(
+        기간표["3개월"],
+        [("volume_surge_5d_ma20", _성적("3개월", total_return_pct=-20.0)),
+         ("macd_cross", _성적("3개월", total_return_pct=1.0))],
+        "volume_surge_5d_ma20",
+    ))
+    for 글 in 글들:
+        assert "—" not in 글, 글
