@@ -26,6 +26,7 @@ import json
 import sys
 from pathlib import Path
 
+from muwon.analysis.period_check import 기간들
 from muwon.dashboard.glossary import TERMS
 from muwon.dashboard.strategy_rules import describe
 from muwon.settings.from_sheet import 기준들
@@ -141,8 +142,20 @@ def 기준이름() -> list[dict]:
     ]
 
 
+def 기간설명() -> list[dict]:
+    """화면에서 고를 수 있는 구간 목록.
+
+    원본은 `analysis/period_check.기간들` 하나다. 화면의 드롭다운, 워크플로
+    입력, 스크립트 인자가 전부 그것을 읽는다. 세 곳에 따로 적으면 하나만
+    고치고 둘을 잊는다."""
+    return [
+        {"이름": ㄱ.이름, "달수": ㄱ.달수, "쪼갬": ㄱ.쪼갬, "설명": ㄱ.설명}
+        for ㄱ in 기간들
+    ]
+
+
 자료들 = {"용어사전.json": 용어사전, "전략설명.json": 전략설명,
-         "기준설명.json": 기준이름}
+         "기준설명.json": 기준이름, "기간설명.json": 기간설명}
 
 
 def 글로(값) -> str:
@@ -176,7 +189,7 @@ def main() -> int:
               file=sys.stderr)
         return 1
     if 인자.check:
-        print("용어 사전·전략 설명·기준 이름이 파이썬 원본과 같습니다.")
+        print("뽑아 둔 자료 넷이 파이썬 원본과 같습니다.")
     return 0
 
 

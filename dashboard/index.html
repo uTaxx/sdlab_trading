@@ -119,6 +119,7 @@
       <button class="탭" role="tab" data-탭="승인"  aria-selected="false">오늘 승인</button>
       <button class="탭" role="tab" data-탭="기록"  aria-selected="false">기록</button>
       <button class="탭" role="tab" data-탭="기준"  aria-selected="false">전략과 기준</button>
+      <button class="탭" role="tab" data-탭="검증"  aria-selected="false">기간 검증</button>
       <button class="탭" role="tab" data-탭="도움말" aria-selected="false">용어</button>
     </div>
 
@@ -415,7 +416,70 @@
       </div>
     </section>
 
-    <!-- 탭 5 · 용어 ──────────────────────────────────── -->
+    <!-- 탭 5 · 기간 검증 ─────────────────────────────── -->
+    <section id="쪽-검증" role="tabpanel" class="숨김">
+      <div class="알림 순한">
+        <strong>과거 시세로 돌려 본 숫자입니다. 실제로 번 돈이 아닙니다.</strong><br>
+        지금 걸려 있는 매수·매도 전략을, 지금 정해 둔 기준(손절·익절·보유 기간·
+        비중) 그대로 과거에 돌렸다면 어땠을지를 잽니다.
+        실제로 사고판 성적은 <b>기록</b> 탭에 있습니다.
+      </div>
+
+      <h2>이 전략으로 돌려 보기</h2>
+      <p class="h2곁말">
+        한 번 누르면 <b>5~15분</b> 걸립니다. 5년치 시세를 받아 하루씩 다시
+        굴리기 때문입니다. 다 되면 아래 표에 줄이 늘어납니다.
+        <b>주문은 나가지 않습니다.</b>
+      </p>
+      <div id="검증알림"></div>
+      <div class="줄">
+        <select id="검증기간" aria-label="어느 구간을 잴 것인가"></select>
+        <button id="검증실행" class="주된">▶ 돌려 보기</button>
+        <button id="검증다시">🔄 결과 다시 불러오기</button>
+      </div>
+      <p class="설명" id="검증기간설명"></p>
+      <div class="때" id="검증때"></div>
+
+      <h2>결과</h2>
+      <p class="h2곁말">
+        <b>제일 먼저 볼 것은 수익률이 아니라 '제일 나빴던 토막'입니다.</b>
+        한 해에 30%를 잃으면 대부분 중간에 그만두고, 그러면 좋은 수익률은
+        받아 보지도 못합니다.
+      </p>
+      <div class="표싸개">
+        <table>
+          <thead><tr>
+            <th>기간</th><th>수익률</th><th>제일 나빴던 토막</th><th>최대낙폭</th>
+            <th>거래</th><th>승률</th><th>손익비</th><th>잰 때</th>
+          </tr></thead>
+          <tbody id="검증몸"></tbody>
+        </table>
+      </div>
+      <div id="검증조건"></div>
+
+      <details style="margin-top:14px">
+        <summary>이 숫자를 어떻게 읽나</summary>
+        <ul>
+          <li><b>거래가 20건 아래면 숫자를 믿지 마세요.</b> 크게 오른 한 종목이
+            결과의 대부분을 만듭니다. 그것이 실력인지 운인지 구별할 방법이
+            없습니다. 3개월은 거의 언제나 여기 걸립니다.</li>
+          <li><b>체결은 다음 날 시가로 잽니다.</b> 실거래 엔진이 실제로 그렇게
+            합니다. 종가 체결로 재면 그날 종가를 보고 그날 종가에 산 것이 되어,
+            실제로는 낼 수 없는 성적이 나옵니다.</li>
+          <li><b>슬리피지는 0으로 둡니다.</b> 사겠다고 판단한 값과 실제로 사진
+            값의 차이입니다. 실거래 표본이 아직 0건이라 넣을 값이 없습니다.
+            그래서 실제 성적은 이 숫자보다 조금 나쁩니다.</li>
+          <li><b>매수·매도 스위치는 켠 채로 돕니다.</b> 킬스위치는 "오늘 실제로
+            주문을 낼 것인가"를 정하는 값이고, 여기서 묻는 것은 "돌렸으면
+            어땠을까"라 상관이 없습니다.</li>
+          <li><b>같은 조건으로 다시 재도 숫자가 조금 달라집니다.</b> 매매 대상
+            종목 목록이 주마다 바뀌기 때문입니다. 표의 '잰 때'가 다르면 다른
+            목록으로 잰 숫자일 수 있습니다.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 탭 6 · 용어 ──────────────────────────────────── -->
     <section id="쪽-도움말" role="tabpanel" class="숨김">
       <h2>모르는 말이 나오면</h2>
       <p class="h2곁말">

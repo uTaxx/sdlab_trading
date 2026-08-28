@@ -25,7 +25,7 @@ from pathlib import Path
 def _표들() -> dict[str, int]:
     """표마다 `<th>`가 몇 개인지. 열쇠는 tbody의 id다."""
     나온것 = {}
-    for 덩이 in re.findall(r"<table>(.*?)</table>", 쪽, re.S):
+    for 덩이 in re.findall(r"<table>(.*?)</table>", 쪽, re.DOTALL):
         이름 = re.search(r'<tbody id="([^"]+)"', 덩이)
         if 이름:
             나온것[이름.group(1)] = len(re.findall(r"<th[ >]", 덩이))
@@ -41,8 +41,10 @@ def test_표의_빈줄_칸수가_머리_칸수와_같다():
     # 직접 그리는 둘은 colspan을 손으로 적는다.
     assert 표["보유몸"] == 7
     assert 표["기록몸"] == 8
+    assert 표["검증몸"] == 8
     assert 'colspan="7" class="빔">보유 종목이 없습니다' in 글
     assert 'colspan="8" class="빔">아직 청산까지' in 글
+    assert 'colspan="8" class="빔">아직 돌려 본 적이' in 글
 
 
 def test_전략이_나오는_자리마다_한글로_옮긴다():
@@ -75,6 +77,40 @@ def test_화면에_전략키를_손으로_적어_두지_않는다():
     """예시 자료 말고 화면 글에 코드 이름이 박혀 있으면 그것만 안 바뀐다.
 
     주석은 뺀다. 주석은 화면에 안 뜨고, 왜 그렇게 했는지를 적는 자리다."""
-    본문만 = re.sub(r"<!--.*?-->", "", 쪽, flags=re.S)
+    본문만 = re.sub(r"<!--.*?-->", "", 쪽, flags=re.DOTALL)
     박힌것 = [줄 for 줄 in 본문만.splitlines() if "volume_surge" in 줄 or "ma_rsi" in 줄]
     assert not 박힌것, f"index.html에 전략 키가 박혀 있습니다: {박힌것}"
+
+
+def test_기간_목록이_파이썬_워크플로_화면에서_같다():
+    """구간 이름이 세 곳에 있다. 파이썬 원본, 워크플로 입력, 화면 드롭다운.
+    하나만 고치면 화면에서 고른 값을 워크플로가 모르는 값으로 받는다."""
+    import json
+
+    from muwon.analysis.period_check import 기간들
+
+    원본 = [ㄱ.이름 for ㄱ in 기간들]
+
+    뽑아둔것 = json.loads(
+        (뿌리 / "dashboard" / "자료" / "기간설명.json").read_text(encoding="utf-8")
+    )
+    assert [ㄱ["이름"] for ㄱ in 뽑아둔것] == 원본
+
+    일 = (뿌리 / ".github" / "workflows" / "period-check.yml").read_text(encoding="utf-8")
+    for 이름 in 원본:
+        assert f"          - {이름}\n" in 일, f"워크플로 입력에 {이름}이 없습니다"
+
+
+def test_돌려보기가_주문을_내지_않는다고_화면이_말한다():
+    """이 단추는 아무것도 사지 않는다. 그 말이 화면에 없으면 누르기 무섭다."""
+    assert "주문은 나가지 않습니다" in 쪽
+    assert "주문은 나가지 않습니다" in 글
+
+
+def test_검증탭이_기록탭과_섞이지_않는다():
+    """실제로 사고판 성적과 '이랬으면 어땠을까'는 다른 표에 있어야 한다.
+    같이 두면 번 적 없는 돈을 번 것으로 읽는다."""
+    assert "실제로 번 돈이 아닙니다" in 쪽
+    검증 = 쪽.index('id="쪽-검증"')
+    기록 = 쪽.index('id="쪽-기록"')
+    assert 검증 != 기록
