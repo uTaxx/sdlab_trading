@@ -22,7 +22,11 @@ name: 기간별 전략 검증
 on:
   workflow_dispatch:
     inputs:
-      기간:
+      # **입력 이름은 영문으로 둔다.** GitHub Actions 표현식 파서가 한글
+      # 식별자를 못 읽는다. `github.event.inputs.기간`을 쓰면 워크플로 파일이
+      # 통째로 파싱에 실패하고, dispatch가 422로 거절된다(2026-08-28에 겪음).
+      # 고를 값은 한글이어도 된다 — 그건 그냥 글자다.
+      period:
         description: "어느 구간을 잴 것인가"
         type: choice
         options:
@@ -84,7 +88,7 @@ jobs:
           # 실패가 이 저장소에서 제일 비싼 종류다.
           set -o pipefail
           python scripts/run_period_check.py \
-            --기간 "${{ github.event.inputs.기간 || '전부' }}" \
+            --기간 "${{ github.event.inputs.period || '전부' }}" \
             ${{ github.event.inputs.no_cache == 'true' && '--no-cache' || '' }} \
             | tee period-check.txt
 

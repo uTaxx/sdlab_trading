@@ -75,3 +75,39 @@ def test_장중_손절_감시는_판_것이_있을_때만_DB를_올린다():
     assert "hashFiles('db-changed')" in 앞부분, (
         "DB 올리기에 조건이 없습니다. 판 것이 없을 때도 올리면 안 됩니다."
     )
+
+
+def test_액션_표현식에_한글_식별자를_쓰지_않는다():
+    """GitHub Actions 표현식 파서는 한글 식별자를 못 읽는다.
+
+    이 저장소에서 두 번 겪었다. 처음은 `id: 배포`와 `steps.배포.outputs`였고
+    (워크플로가 0초 만에 로그도 없이 죽었다), 두 번째는 workflow_dispatch
+    입력 이름을 `기간`으로 두었다가 dispatch가 422로 거절된 것이다.
+
+    증상이 고약하다. 파일 전체가 파싱에 실패해서 무엇이 틀렸는지 안 보인다.
+    사람이 읽는 name·description·값은 한글이어도 된다. 식별자만 영문이다."""
+    import re
+    from pathlib import Path
+
+    나쁜것 = []
+    for 길 in sorted((Path(__file__).resolve().parent.parent / ".github" / "workflows").glob("*.yml")):
+        글 = 길.read_text(encoding="utf-8")
+        for 식 in re.findall(r"\$\{\{(.*?)\}\}", 글, re.DOTALL):
+            # 따옴표 안은 그냥 글자다. 식별자만 본다.
+            벗긴것 = re.sub(r"'[^']*'|\"[^\"]*\"", "", 식)
+            if any("가" <= ㄱ <= "힣" for ㄱ in 벗긴것):
+                나쁜것.append(f"{길.name}: {식.strip()}")
+    assert not 나쁜것, "표현식에 한글 식별자가 있습니다:\n  " + "\n  ".join(나쁜것)
+
+
+def test_기간검증은_상태DB를_안_고치므로_잠그지_않는다():
+    """읽기만 하는 워크플로를 state-write에 묶으면 5분마다 도는 손절 감시가
+    검증 15분을 기다린다. 손절이 늦는 쪽이 훨씬 나쁘다."""
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent
+          / ".github" / "workflows" / "period-check.yml").read_text(encoding="utf-8")
+    assert "group: period-check" in 글
+    assert "group: state-write" not in 글
+    # DB를 올리는 줄이 있으면 위의 전제가 깨진다.
+    assert "gdrive_sync.py upload" not in 글
