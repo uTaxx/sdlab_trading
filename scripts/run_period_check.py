@@ -7,6 +7,9 @@
     python scripts/run_period_check.py --기간 3개월        # 하나만
     python scripts/run_period_check.py --no-sheet         # 화면에만
 
+    # 등록된 전략 전부를 같은 구간에 돌려 순위를 낸다(비교 모드)
+    python scripts/run_period_check.py --기간 3개월 --전략 전부
+
 ## 이 스크립트는 주문을 내지 않는다
 
 과거 시세로 돌려 보기만 한다. 증권사에 붙지 않고, 상태 DB도 고치지 않는다.
@@ -56,7 +59,12 @@ from muwon.data.yahoo_client import YahooFinanceDataSource
 from muwon.db.session import make_session_factory
 from muwon.settings.from_sheet import build_policy_provider
 from muwon.settings.service import build_settings_service
-from muwon.strategy.registry import build_strategies, get_definition
+from muwon.strategy.registry import (
+    build_strategies,
+    build_strategy,
+    get_definition,
+    list_definitions,
+)
 
 서울 = ZoneInfo("Asia/Seoul")
 
@@ -67,6 +75,17 @@ from muwon.strategy.registry import build_strategies, get_definition
 ]
 
 탭이름 = "기간검증"
+
+#: 비교 모드가 쓰는 탭. 검증과 섞지 않는다 — 저기는 "지금 걸린 전략이
+#: 최근에 어땠나"의 기록이고, 여기는 "그때 어느 전략이 제일 덜 잃었나"의
+#: 기록이다. 한 표에 두면 어느 줄이 지금 도는 것인지 알 수 없다.
+비교탭 = "기간비교"
+
+비교머리 = [
+    "열쇠", "잰때", "기간", "시작일", "끝일", "전략", "전략이름",
+    "수익률%", "최대낙폭%", "최악토막", "최악토막%", "승률%", "손익비",
+    "거래수", "노출%", "기준",
+]
 
 
 def 전략이름(열쇠: str) -> str:
@@ -159,6 +178,60 @@ def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str) -> N
         print()
 
 
+def 비교줄만들기(잰때: datetime, 열쇠: str, 성적, 기준: str) -> list[str]:
+    ㅁ = 성적.metrics
+    최악 = 성적.최악토막
+    return [
+        f"C{잰때.strftime('%Y-%m-%dT%H:%M')}|{성적.이름}|{열쇠}",
+        잰때.strftime("%Y-%m-%d %H:%M"),
+        성적.이름,
+        성적.시작.isoformat(),
+        성적.끝.isoformat(),
+        열쇠,
+        전략이름(열쇠),
+        f"{ㅁ.total_return_pct:.2f}",
+        f"{ㅁ.max_drawdown_pct:.2f}",
+        최악[0] if 최악 else "",
+        f"{최악[1]:.2f}" if 최악 else "",
+        f"{ㅁ.win_rate_pct:.1f}",
+        f"{ㅁ.profit_factor:.2f}",
+        str(ㅁ.num_trades),
+        f"{ㅁ.exposure_pct:.1f}",
+        기준,
+    ]
+
+
+def 비교표(정의, 줄들: list[tuple[str, object]]) -> None:
+    """한 구간의 전략별 성적을 순위로 찍는다. **수익률이 높은 순이다.**
+
+    빠지는 구간에서는 이 순위가 곧 방어력 순위다. 다만 **안 산 전략이
+    위로 온다.** 거래 0건은 지킨 것이 아니라 아무 일도 안 한 것이라,
+    노출과 거래 수를 같은 줄에 찍어서 그 둘을 구별하게 한다."""
+    차례 = sorted(줄들, key=lambda ㄱ: -ㄱ[1].metrics.total_return_pct)
+    print(f"[{정의.이름}] {차례[0][1].시작} ~ {차례[0][1].끝} · 전략 {len(차례)}개")
+    print(f"  {'':2} {'전략':<22} {'수익률':>8} {'최대낙폭':>9} "
+          f"{'최악토막':>12} {'거래':>5} {'승률':>6} {'노출':>6}")
+    for 번호, (열쇠, 성적) in enumerate(차례, 1):
+        ㅁ = 성적.metrics
+        최악 = 성적.최악토막
+        최악글 = f"{최악[0]} {최악[1]:+.1f}%" if 최악 else "—"
+        print(f"  {번호:>2} {전략이름(열쇠)[:22]:<22} {ㅁ.total_return_pct:>+7.2f}% "
+              f"{ㅁ.max_drawdown_pct:>8.2f}% {최악글:>12} {ㅁ.num_trades:>5} "
+              f"{ㅁ.win_rate_pct:>5.1f}% {ㅁ.exposure_pct:>5.1f}%")
+
+    안산것 = [열쇠 for 열쇠, ㅅ in 차례 if ㅅ.metrics.num_trades == 0]
+    적게산것 = [열쇠 for 열쇠, ㅅ in 차례 if 0 < ㅅ.metrics.num_trades < 5]
+    if 안산것:
+        print(f"\n  거래 0건({len(안산것)}개): "
+              + ", ".join(전략이름(ㄱ) for ㄱ in 안산것))
+        print("  지킨 것이 아니라 아무것도 안 한 것입니다. 순위에서 빼고 보세요.")
+    if 적게산것:
+        print(f"  거래 5건 미만({len(적게산것)}개): "
+              + ", ".join(전략이름(ㄱ) for ㄱ in 적게산것))
+        print("  한 종목이 결과를 통째로 만든 숫자입니다.")
+    print()
+
+
 def main() -> int:
     받은것 = argparse.ArgumentParser(description=__doc__)
     받은것.add_argument(
@@ -167,6 +240,10 @@ def main() -> int:
     )
     받은것.add_argument("--no-sheet", action="store_true", help="시트에 안 올린다")
     받은것.add_argument("--no-cache", action="store_true", help="시세를 새로 받는다")
+    받은것.add_argument(
+        "--전략", default="지금",
+        help="지금 걸린 것(지금) / 등록된 전부(전부) / 쉼표로 적은 전략 키들",
+    )
     받은것.add_argument("--sheet-id", default=os.environ.get("MUWON_SHEET_ID", ""))
     받은것.add_argument("--folder-id", default=os.environ.get("GDRIVE_FOLDER_ID", ""))
     인자 = 받은것.parse_args()
@@ -236,6 +313,16 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     )
     print(f"■ 시세 {len(histories)}종목 · {처음} 앞 예열 포함\n")
 
+    # 전략 여러 개를 견주는 모드. 지금 걸린 것 하나만 재는 것과 섞지 않는다.
+    고를것 = 인자.전략.strip()
+    if 고를것 not in ("지금", ""):
+        열쇠들 = (
+            [ㅈ.key for ㅈ in list_definitions()]
+            if 고를것 in ("전부", "all")
+            else [ㄱ.strip() for ㄱ in 고를것.split(",") if ㄱ.strip()]
+        )
+        return 비교하기(골라진것, 잰때, sheet_id, histories, 끝, 정책, 기준, 열쇠들)
+
     # 구간마다 새로 만든다. 전략이 예열 결과를 안에 들고 있어서, 같은
     # 객체를 여러 구간에 쓰면 앞 구간 자료가 남는다.
     def 전략만들기():
@@ -258,6 +345,58 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
         print(f"못 돌린 구간: {', '.join(못돌린것)} (시세가 모자랍니다)")
 
     올리기(sheet_id, [줄만들기(잰때, ㅅ, 사는키, 파는키, 기준) for ㅅ in 성적들])
+    return 0
+
+
+def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 정책,
+          기준: str, 열쇠들: list[str]) -> int:
+    """등록된 전략들을 **같은 구간·같은 기준**으로 돌려 순위를 낸다.
+
+    빠지는 구간에서 어느 전략이 덜 잃었는지를 보는 자리다. 시세를 한 번만
+    받아 전부가 나눠 쓰므로 **모든 전략이 정확히 같은 자료를 본다.** 이게
+    어긋나면 비교 자체가 성립하지 않는다.
+
+    **여기서 나온 1등을 그대로 걸면 안 된다.** 한 구간에서 제일 좋았던 것을
+    고르는 일이 곧 과최적화다. 이 표는 "지금 걸린 것이 유난히 나쁜가"를
+    묻는 자리이지 다음 전략을 정하는 자리가 아니다."""
+    print(f"■ 견주는 전략 {len(열쇠들)}개\n")
+    올릴것: list[list[str]] = []
+
+    for 정의 in 골라진것:
+        줄들 = []
+        못만든것 = []
+        for 열쇠 in 열쇠들:
+            try:
+                성적 = 돌려보기(정의, (lambda k=열쇠: build_strategy(k)),
+                            histories, 끝, 정책)
+            except Exception as 탈:  # noqa: BLE001 — 하나가 터져도 나머지는 봐야 한다
+                못만든것.append(f"{열쇠} ({type(탈).__name__}: {탈})")
+                continue
+            if 성적 is None:
+                못만든것.append(f"{열쇠} (시세 부족)")
+                continue
+            줄들.append((열쇠, 성적))
+            올릴것.append(비교줄만들기(잰때, 열쇠, 성적, 기준))
+
+        if not 줄들:
+            print(f"[{정의.이름}] 한 전략도 못 돌렸습니다.")
+            continue
+        비교표(정의, 줄들)
+        if 못만든것:
+            print(f"  못 돌린 전략: {', '.join(못만든것)}\n")
+
+    if not 올릴것:
+        raise RuntimeError("견줄 결과가 한 줄도 안 나왔습니다.")
+
+    print("이 표의 1등을 그대로 걸면 안 됩니다. 한 구간에서 제일 좋았던 것을")
+    print("고르는 일이 곧 과최적화입니다. 지금 걸린 것이 유난히 나쁜지를")
+    print("묻는 자리이지 다음 전략을 정하는 자리가 아닙니다.")
+
+    if sheet_id:
+        from muwon.cloud.sheet_log import append
+
+        올린수 = append(sheet_id, 비교탭, 비교머리, 올릴것)
+        print(f"\n시트 '{비교탭}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
     return 0
 
 
