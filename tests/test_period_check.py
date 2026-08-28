@@ -222,3 +222,90 @@ def test_총평이_구간_문제인지를_말한다():
     줄들 = [(f"s{i}", _성적(total_return_pct=-5.0 - i)) for i in range(10)]
     글 = 비교총평(기간표["3개월"], 줄들)
     assert "구간 문제" in 글
+
+
+# ── 전략 변경 신호 ─────────────────────────────────────────────────
+#
+# 이 신호는 "바꿔라"가 아니라 "봐야 한다"다. 한 구간에서 제일 좋았던 것으로
+# 갈아타는 일이 곧 과최적화라, 그런 말은 여기서 절대 안 나와야 한다.
+
+def test_이유가_없으면_아무_신호도_안_낸다():
+    """억지로 한 줄 만들면 매번 뭔가 뜨고, 그러면 진짜일 때도 안 읽는다."""
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    성적들 = {
+        "3개월": _성적("3개월", total_return_pct=2.0, max_drawdown_pct=-5.0),
+        "12개월": _성적("12개월", total_return_pct=20.0, max_drawdown_pct=-10.0),
+        "5년": _성적("5년", total_return_pct=100.0, max_drawdown_pct=-25.0),
+    }
+    assert 전략신호(성적들) == []
+    등급, 글 = 신호글([])
+    assert 등급 == "이상없음"
+    assert "잘 벌고 있다는 뜻이 아니라" in 글
+
+
+def test_5년이_마이너스면_확인필요다():
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호({"5년": _성적("5년", total_return_pct=-12.0, num_trades=300)})
+    등급, 글 = 신호글(난것)
+    assert 등급 == "확인필요"
+    assert "걸어 둘 근거" in 글
+
+
+def test_한_주도_안_사면_확인필요다():
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호({"3개월": _성적("3개월", num_trades=0, exposure_pct=0.0)})
+    등급, _ = 신호글(난것)
+    assert 등급 == "확인필요"
+
+
+def test_최악_구간이_최근에_몰리면_살펴볼것이다():
+    """12개월 낙폭이 5년 낙폭에 거의 닿으면, 5년을 통틀어 제일 나빴던 구간이
+    바로 최근 1년 안에 있다는 뜻이다. 옛날 얘기가 아니다."""
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호({
+        "12개월": _성적("12개월", max_drawdown_pct=-31.4, total_return_pct=24.9),
+        "5년": _성적("5년", max_drawdown_pct=-32.3, total_return_pct=154.9),
+    })
+    등급, 글 = 신호글(난것)
+    assert 등급 == "살펴볼것"
+    assert "최근 1년 안에 있습니다" in 글
+
+
+def test_다_같이_나쁘면_구간_문제라고_말한다():
+    """장이 나빠서 다 마이너스인 것은 전략을 바꿀 이유가 아니다."""
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호(
+        {"3개월": _성적("3개월", total_return_pct=-20.0, max_drawdown_pct=-22.0)},
+        {"3개월": (22, 26, 1)},
+    )
+    등급, 글 = 신호글(난것)
+    assert 등급 == "이상없음"
+    assert "구간 문제" in 글
+
+
+def test_남들은_버텼는데_하위권이면_살펴볼것이다():
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호(
+        {"12개월": _성적("12개월", total_return_pct=-3.0, max_drawdown_pct=-15.0)},
+        {"12개월": (24, 26, 20)},
+    )
+    등급, 글 = 신호글(난것)
+    assert 등급 == "살펴볼것"
+    assert "이 전략이 이 구간과 안 맞았다" in 글
+
+
+def test_신호글은_바꾸라고_말하지_않는다():
+    """한 구간에서 제일 좋았던 것을 고르는 일이 곧 과최적화다."""
+    from muwon.analysis.period_check import 신호글, 전략신호
+
+    난것 = 전략신호({"5년": _성적("5년", total_return_pct=-12.0, num_trades=300)})
+    _, 글 = 신호글(난것)
+    assert "돈이 나가는 결정" in 글
+    for 하면안되는말 in ("로 바꾸세요", "로 갈아타", "추천"):
+        assert 하면안되는말 not in 글

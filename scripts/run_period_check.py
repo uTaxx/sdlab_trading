@@ -51,6 +51,8 @@ from muwon.analysis.period_check import (
     기준글,
     돌려보기,
     비교총평,
+    신호글,
+    전략신호,
     평가글,
 )
 from muwon.config import bootstrap_settings
@@ -73,7 +75,7 @@ from muwon.strategy.registry import (
 기간검증머리 = [
     "열쇠", "잰때", "기간", "시작일", "끝일", "매수전략", "매도전략",
     "수익률%", "최대낙폭%", "최악토막", "최악토막%", "승률%", "손익비",
-    "거래수", "표본충분", "기준", "상태", "까닭", "평가",
+    "거래수", "표본충분", "기준", "상태", "까닭", "평가", "신호등급", "신호",
 ]
 
 탭이름 = "기간검증"
@@ -140,7 +142,7 @@ def 전략이름(열쇠: str) -> str:
 
 
 def 줄만들기(잰때: datetime, 성적, 사는키: str, 파는키: str, 기준: str,
-          정의=None) -> list[str]:
+          정의=None, 등급: str = "", 신호: str = "") -> list[str]:
     ㅁ = 성적.metrics
     최악 = 성적.최악토막
     return [
@@ -163,6 +165,8 @@ def 줄만들기(잰때: datetime, 성적, 사는키: str, 파는키: str, 기�
         "됨",
         성적.모자람,
         평가글(성적, 정의 or 기간표[성적.이름]),
+        등급,
+        신호,
     ]
 
 
@@ -197,6 +201,19 @@ def 올리기(sheet_id: str, 줄들: list[list[str]]) -> None:
 
     올린수 = append(sheet_id, 탭이름, 기간검증머리, 줄들)
     print(f"시트 '{탭이름}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
+
+
+def 알리기(글: str) -> None:
+    """텔레그램으로 보낸다. **못 보내도 검증 자체는 실패가 아니다.**
+
+    시트에는 이미 남아 있고 화면에도 뜬다. 알림 하나 때문에 워크플로를
+    빨갛게 만들면, 정작 계산이 잘못됐을 때의 빨간불과 구별이 안 된다."""
+    try:
+        from muwon.notify.telegram import TelegramNotifier
+
+        TelegramNotifier(build_settings_service()).send(글)
+    except Exception as 탈:  # noqa: BLE001 — 알림 실패로 결과를 잃지 않는다
+        print(f"텔레그램으로는 못 보냈습니다: {type(탈).__name__}: {탈}", file=sys.stderr)
 
 
 def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str) -> None:
@@ -395,8 +412,32 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     if 못돌린것:
         print(f"못 돌린 구간: {', '.join(못돌린것)} (시세가 모자랍니다)")
 
-    올리기(sheet_id, [줄만들기(잰때, ㅅ, 사는키, 파는키, 기준) for ㅅ in 성적들])
+    # 전략을 다시 볼 이유가 있나. **바꾸라는 말이 아니라 보라는 말이다.**
+    등급, 신호 = 신호글(전략신호({ㅅ.이름: ㅅ for ㅅ in 성적들}))
+    print(f"■ 전략 신호: {등급}")
+    print(신호 + "\n")
+
+    올리기(sheet_id,
+         [줄만들기(잰때, ㅅ, 사는키, 파는키, 기준, None, 등급, 신호) for ㅅ in 성적들])
+    # 화면을 안 열어도 알아야 하는 것만 보낸다. 이상 없는 회차까지 보내면
+    # 알림이 흔해지고, 흔해진 알림은 진짜일 때도 안 읽는다.
+    if 등급 != "이상없음":
+        알리기(f"🔎 전략 신호 · {등급}\n\n{신호}")
     return 0
+
+
+def _자리(줄들, 지금키: str):
+    """(몇 위, 산 것 몇 개, 플러스 몇 개). 지금 걸린 것이 없으면 None.
+
+    **한 주도 안 산 전략은 순위에서 뺀다.** 수익률 0%로 위에 오는데 그건
+    지킨 것이 아니라 아무 일도 안 한 것이다."""
+    산것 = [(ㅋ, ㅅ) for ㅋ, ㅅ in 줄들 if ㅅ.metrics.num_trades > 0]
+    if not 지금키 or 지금키 not in dict(산것):
+        return None
+    차례 = sorted(산것, key=lambda ㄱ: -ㄱ[1].metrics.total_return_pct)
+    순 = next(i for i, (ㅋ, _) in enumerate(차례, 1) if ㅋ == 지금키)
+    플러스 = sum(1 for _, ㅅ in 차례 if ㅅ.수익률 > 0)
+    return (순, len(차례), 플러스)
 
 
 def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 정책,
@@ -418,6 +459,9 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
           + (", ".join(전략이름(ㄱ) for ㄱ in 파는키들) if 파는키들 else "매수와 같음")
           + "\n")
     올릴것: list[list[str]] = []
+    # 신호는 지금 걸린 전략이 목록에 있을 때만 낸다.
+    본것: dict = {}
+    순위: dict = {}
 
     def 만들기(사는키: str):
         """사는 쪽과 파는 쪽을 따로 걸었으면 그대로 묶는다.
@@ -455,11 +499,24 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
         )
         비교표(정의, 줄들, 파는글)
         print(f"  {총평}\n")
+
+        # 신호에 쓸 순위를 챙겨 둔다. 지금 걸린 것이 목록에 없으면 못 낸다.
+        본것[정의.이름] = dict(줄들).get(지금키)
+        순위[정의.이름] = _자리(줄들, 지금키)
         if 못만든것:
             print(f"  못 돌린 전략: {', '.join(못만든것)}\n")
 
     if not 올릴것:
         raise RuntimeError("견줄 결과가 한 줄도 안 나왔습니다.")
+
+    # 여럿을 견줬으니 "장 탓인가 이 전략 탓인가"까지 볼 수 있다.
+    있는것 = {ㅇ: ㅅ for ㅇ, ㅅ in 본것.items() if ㅅ is not None}
+    if 있는것:
+        등급, 신호 = 신호글(전략신호(있는것, 순위))
+        print(f"■ 전략 신호: {등급}")
+        print(신호 + "\n")
+        if 등급 != "이상없음":
+            알리기(f"🔎 전략 신호 · {등급}\n\n{신호}")
 
     if sheet_id:
         from muwon.cloud.sheet_log import append
