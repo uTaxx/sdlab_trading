@@ -50,6 +50,8 @@ from muwon.analysis.period_check import (
     기간표,
     기준글,
     돌려보기,
+    비교총평,
+    평가글,
 )
 from muwon.config import bootstrap_settings
 from muwon.data.price_cache import PriceCache
@@ -71,7 +73,7 @@ from muwon.strategy.registry import (
 기간검증머리 = [
     "열쇠", "잰때", "기간", "시작일", "끝일", "매수전략", "매도전략",
     "수익률%", "최대낙폭%", "최악토막", "최악토막%", "승률%", "손익비",
-    "거래수", "표본충분", "기준", "상태", "까닭",
+    "거래수", "표본충분", "기준", "상태", "까닭", "평가",
 ]
 
 탭이름 = "기간검증"
@@ -84,7 +86,7 @@ from muwon.strategy.registry import (
 비교머리 = [
     "열쇠", "잰때", "기간", "시작일", "끝일", "전략", "전략이름",
     "수익률%", "최대낙폭%", "최악토막", "최악토막%", "승률%", "손익비",
-    "거래수", "노출%", "기준", "매도전략", "매도전략이름",
+    "거래수", "노출%", "기준", "매도전략", "매도전략이름", "총평",
 ]
 
 
@@ -137,7 +139,8 @@ def 전략이름(열쇠: str) -> str:
         return 열쇠
 
 
-def 줄만들기(잰때: datetime, 성적, 사는키: str, 파는키: str, 기준: str) -> list[str]:
+def 줄만들기(잰때: datetime, 성적, 사는키: str, 파는키: str, 기준: str,
+          정의=None) -> list[str]:
     ㅁ = 성적.metrics
     최악 = 성적.최악토막
     return [
@@ -159,6 +162,7 @@ def 줄만들기(잰때: datetime, 성적, 사는키: str, 파는키: str, 기�
         기준,
         "됨",
         성적.모자람,
+        평가글(성적, 정의 or 기간표[성적.이름]),
     ]
 
 
@@ -167,8 +171,8 @@ def 실패줄(잰때: datetime, 기간글: str, 까닭: str) -> list[str]:
     줄[0] = f"P{잰때.strftime('%Y-%m-%dT%H:%M')}|{기간글}"
     줄[1] = 잰때.strftime("%Y-%m-%d %H:%M")
     줄[2] = 기간글
-    줄[16] = "실패"
-    줄[17] = 까닭[:200]
+    줄[기간검증머리.index("상태")] = "실패"
+    줄[기간검증머리.index("까닭")] = 까닭[:200]
     return 줄
 
 
@@ -213,15 +217,12 @@ def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str) -> N
             f"  거래 {ㅁ.num_trades}건 · 승률 {ㅁ.win_rate_pct:.1f}% · "
             f"손익비 {ㅁ.profit_factor:.2f}"
         )
-        if not 성적.믿을만한가:
-            print("  표본이 적습니다. 거래 20건 아래면 한 종목이 결과를 만듭니다.")
-        if 성적.모자람:
-            print(f"  {성적.모자람}")
+        print(f"  {평가글(성적, 기간표[성적.이름])}")
         print()
 
 
 def 비교줄만들기(잰때: datetime, 열쇠: str, 성적, 기준: str,
-            파는키: str = "") -> list[str]:
+            파는키: str = "", 총평: str = "") -> list[str]:
     ㅁ = 성적.metrics
     최악 = 성적.최악토막
     꼬리 = f">{파는키}" if 파는키 else ""
@@ -244,6 +245,7 @@ def 비교줄만들기(잰때: datetime, 열쇠: str, 성적, 기준: str,
         기준,
         파는키,
         전략이름(파는키) if 파는키 else "",
+        총평,
     ]
 
 
@@ -370,7 +372,7 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     if 골라진전략 is not None:
         열쇠들, 파는키 = 골라진전략
         return 비교하기(골라진것, 잰때, sheet_id, histories, 끝, 정책, 기준,
-                    열쇠들, 파는키)
+                    열쇠들, 파는키, 지금키=(고름.active_keys or ("",))[0])
 
     # 구간마다 새로 만든다. 전략이 예열 결과를 안에 들고 있어서, 같은
     # 객체를 여러 구간에 쓰면 앞 구간 자료가 남는다.
@@ -398,7 +400,8 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
 
 
 def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 정책,
-          기준: str, 열쇠들: list[str], 파는키들: list[str] | None = None) -> int:
+          기준: str, 열쇠들: list[str], 파는키들: list[str] | None = None,
+          지금키: str = "") -> int:
     """등록된 전략들을 **같은 구간·같은 기준**으로 돌려 순위를 낸다.
 
     빠지는 구간에서 어느 전략이 덜 잃었는지를 보는 자리다. 시세를 한 번만
@@ -439,22 +442,24 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
                 못만든것.append(f"{열쇠} (시세 부족)")
                 continue
             줄들.append((열쇠, 성적))
-            올릴것.append(비교줄만들기(잰때, 열쇠, 성적, 기준, 파는글))
 
         if not 줄들:
             print(f"[{정의.이름}] 한 전략도 못 돌렸습니다.")
             continue
+
+        # 총평은 순위가 나와야 쓸 수 있다. 한 구간을 다 돌린 뒤에 만들어
+        # 그 구간의 모든 줄에 같이 싣는다.
+        총평 = 비교총평(정의, 줄들, 지금키)
+        올릴것.extend(
+            비교줄만들기(잰때, ㅋ, ㅅ, 기준, 파는글, 총평) for ㅋ, ㅅ in 줄들
+        )
         비교표(정의, 줄들, 파는글)
+        print(f"  {총평}\n")
         if 못만든것:
             print(f"  못 돌린 전략: {', '.join(못만든것)}\n")
 
     if not 올릴것:
         raise RuntimeError("견줄 결과가 한 줄도 안 나왔습니다.")
-
-    if len(열쇠들) > 1:
-        print("이 표의 1등을 그대로 걸면 안 됩니다. 한 구간에서 제일 좋았던 것을")
-        print("고르는 일이 곧 과최적화입니다. 지금 걸린 것이 유난히 나쁜지를")
-        print("묻는 자리이지 다음 전략을 정하는 자리가 아닙니다.")
 
     if sheet_id:
         from muwon.cloud.sheet_log import append

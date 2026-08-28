@@ -303,6 +303,36 @@ def _service():  # pragma: no cover — 실제 호출은 시험하지 않는다
     return build("sheets", "v4", credentials=_credentials())
 
 
+def 머리늘려야하나(있는머리: Sequence[str], 머리: Sequence[str]) -> bool:
+    """칸을 새로 붙였을 때 제목 줄만 옛것으로 남는 것을 막는다.
+
+    탭은 처음 만들 때만 제목을 적는다. 나중에 칸이 늘면 값은 오른쪽에
+    붙는데 제목은 그대로라, 시트를 열어 본 사람이 그 칸이 뭔지 알 수가 없다.
+
+    **줄어들 때는 손대지 않는다.** 앞쪽이 그대로 겹칠 때만 늘린다. 사람이
+    제목을 고쳐 뒀을 수도 있는데 그것을 코드가 덮으면 안 된다."""
+    있는것 = [str(ㄱ).strip() for ㄱ in (있는머리 or [])]
+    새것 = [str(ㄱ).strip() for ㄱ in 머리]
+    if len(있는것) >= len(새것):
+        return False
+    return 있는것 == 새것[: len(있는것)]
+
+
+def _머리늘리기(svc, sheet_id: str, 탭: str, 머리: Sequence[str]) -> None:  # pragma: no cover
+    첫줄 = (
+        svc.values()
+        .get(spreadsheetId=sheet_id, range=f"{탭}!1:1")
+        .execute()
+        .get("values", [[]])
+    )
+    if not 머리늘려야하나(첫줄[0] if 첫줄 else [], 머리):
+        return
+    svc.values().update(
+        spreadsheetId=sheet_id, range=f"{탭}!A1",
+        valueInputOption="RAW", body={"values": [list(머리)]},
+    ).execute()
+
+
 def append(sheet_id: str, 탭: str, 머리: Sequence[str], 줄들: Sequence[Sequence[str]],
            svc=None) -> int:
     """탭이 없으면 만들고, 이미 있는 열쇠는 빼고 덧붙인다. 올린 줄 수를 돌려준다."""
@@ -322,6 +352,7 @@ def append(sheet_id: str, 탭: str, 머리: Sequence[str], 줄들: Sequence[Sequ
         ).execute()
         있는열쇠: list[str] = []
     else:
+        _머리늘리기(svc, sheet_id, 탭, 머리)
         칸 = svc.values().get(spreadsheetId=sheet_id, range=f"{탭}!A1:A100000").execute()
         있는열쇠 = [줄[0] for 줄 in 칸.get("values", []) if 줄]
 

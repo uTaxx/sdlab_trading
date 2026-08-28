@@ -132,3 +132,93 @@ def test_기준글에_조건이_다_들어간다():
     켠것 = 기준글(RiskPolicy(take_profit_pct=0.1, max_holding_days=3), 45, "시가총액")
     assert "익절 10%" in 켠것
     assert "보유 3일" in 켠것
+
+
+# ── 평가 문장 ──────────────────────────────────────────────────────
+#
+# 이 문장은 시트에 같이 쌓여서 나중에 "그때 뭐라고 적혀 있었지"의 답이 된다.
+# 그래서 숫자에서 바로 나오는 말만 적어야 하고, 표본이 없을 때 그 사실을
+# 빠뜨리면 안 된다.
+
+def _성적(이름="3개월", **덮개):
+    from muwon.analysis.period_check import 기간성적
+    from muwon.backtest.metrics import BacktestMetrics
+
+    기본 = {
+        "total_return_pct": -8.0, "cagr_pct": -8.0, "max_drawdown_pct": -9.0,
+        "sharpe": 0.0, "sortino": 0.0, "profit_factor": 0.5,
+        "expectancy_pct": -1.0, "win_rate_pct": 30.0, "num_trades": 40,
+        "avg_holding_days": 5.0, "exposure_pct": 60.0, "turnover": 1.0,
+    }
+    기본.update({k: v for k, v in 덮개.items() if k in 기본})
+    return 기간성적(
+        이름=이름,
+        시작=date(2026, 5, 28),
+        끝=date(2026, 8, 28),
+        metrics=BacktestMetrics(**기본),
+        토막들=덮개.get("토막들", [("2026-06", -7.0), ("2026-07", 1.0)]),
+        모자람=덮개.get("모자람", ""),
+    )
+
+
+def test_한_주도_안_샀으면_그것부터_말한다():
+    """거래 0건은 수익률 0%로 나온다. 화면에서 그것이 제일 위에 오는데,
+    지킨 것이 아니라 아무 일도 안 한 것이다."""
+    from muwon.analysis.period_check import 평가글
+
+    글 = 평가글(_성적(num_trades=0, total_return_pct=0.0), 기간표["3개월"])
+    assert "한 주도 안 샀습니다" in 글
+    assert "아무 일도 안 한" in 글
+
+
+def test_표본이_적으면_판단하지_말라고_적는다():
+    from muwon.analysis.period_check import 평가글
+
+    글 = 평가글(_성적(num_trades=9), 기간표["3개월"])
+    assert "9건뿐입니다" in 글
+    assert "판단하면 안 됩니다" in 글
+
+
+def test_최대낙폭이_깊으면_그_뜻을_적는다():
+    """이 저장소가 제일 먼저 보는 숫자다. -32%를 숫자로만 찍으면 안 읽는다."""
+    from muwon.analysis.period_check import 평가글
+
+    깊은것 = 평가글(_성적(max_drawdown_pct=-32.3), 기간표["5년"])
+    assert "30% 넘게 줄어" in 깊은것
+    얕은것 = 평가글(_성적(max_drawdown_pct=-8.0), 기간표["5년"])
+    assert "견디기 어려운 폭은 아닙니다" in 얕은것
+
+
+def test_해로_쪼갠_구간이_다_플러스면_그렇게_적는다():
+    from muwon.analysis.period_check import 평가글
+
+    글 = 평가글(
+        _성적("5년", 토막들=[("2021년", 6.7), ("2022년", 12.0)]), 기간표["5년"]
+    )
+    assert "마이너스인 해가 없습니다" in 글
+
+
+def test_총평에_지금_걸린_것의_순위가_들어간다():
+    from muwon.analysis.period_check import 비교총평
+
+    줄들 = [
+        ("a", _성적(total_return_pct=5.0)),
+        ("b", _성적(total_return_pct=-3.0)),
+        ("c", _성적(total_return_pct=-9.0)),
+        ("빈것", _성적(num_trades=0, total_return_pct=0.0)),
+    ]
+    글 = 비교총평(기간표["3개월"], 줄들, 지금키="b")
+    assert "산 전략 3개" in 글
+    assert "3개 중 2위" in 글
+    assert "한 주도 안 산 전략이 1개" in 글
+    # 1등을 고르라는 말은 절대 안 적는다.
+    assert "과최적화" in 글
+
+
+def test_총평이_구간_문제인지를_말한다():
+    """대부분이 마이너스면 전략을 바꿀 일이 아니라 장이 나빴던 것이다."""
+    from muwon.analysis.period_check import 비교총평
+
+    줄들 = [(f"s{i}", _성적(total_return_pct=-5.0 - i)) for i in range(10)]
+    글 = 비교총평(기간표["3개월"], 줄들)
+    assert "구간 문제" in 글
