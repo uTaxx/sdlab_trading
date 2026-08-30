@@ -462,3 +462,33 @@ def test_알림글에_무슨_전략인지와_번_것이_같이_들어간다():
     assert "—" not in 글
     # 굵게 표시는 못 쓴다. 꼬리를 HTML로 보내면서 본문을 이스케이프한다.
     assert "**" not in 글 and "<b>" not in 글
+
+
+def test_파는쪽만_갈아_끼워_견줄_수_있다():
+    """"사는 조건이 나쁜 건가 파는 조건이 나쁜 건가"를 가르는 자리다.
+
+    `>전부`는 사는 쪽을 고정하고 파는 쪽을 하나씩 갈아 끼운다. 쉼표로 여럿을
+    적는 것과 다르다. 그쪽은 OR로 묶어 파는 규칙 **하나**를 만든다."""
+    import sys
+
+    sys.path.insert(0, "scripts")
+    from run_period_check import 아는열쇠, 전략고르기
+
+    사는키, 파는키, 견주기 = 전략고르기("volume_surge_5d_ma20>전부")
+    assert 사는키 == ["volume_surge_5d_ma20"]
+    assert 파는키 == 아는열쇠()
+    assert 견주기 is True
+
+    # 쉼표는 예전 뜻 그대로다. 둘을 같은 글자로 쓰면 안 된다.
+    _, 파는키, 견주기 = 전략고르기("volume_surge_5d_ma20>macd_cross,ma_rsi_v1")
+    assert 파는키 == ["macd_cross", "ma_rsi_v1"]
+    assert 견주기 is False
+
+    # 사는 쪽도 파는 쪽도 다 돌리면 한 줄이 무엇을 바꾼 결과인지 알 수 없다.
+    for 안되는것 in ("전부>전부", "volume_surge_3d,macd_cross>전부"):
+        try:
+            전략고르기(안되는것)
+        except ValueError as 탈:
+            assert "하나로 적으세요" in str(탈), 탈
+        else:
+            raise AssertionError(f"{안되는것!r}가 통과했습니다")
