@@ -48,6 +48,16 @@ on:
       strategies:
         description: "어느 전략을 잴 것인가 (지금 / 전부 / 전략키 / 매수키>매도키 / 매수키>전부)"
         default: "지금"
+      split:
+        description: "구간 안을 무엇으로 쪼갤 것인가 (비우면 구간마다 정한 대로). 바꾸면 시트에 안 올린다"
+        type: choice
+        options:
+          - ""
+          - 날
+          - 주
+          - 달
+          - 해
+        default: ""
       no_cache:
         description: "시세 캐시를 쓰지 않고 새로 받는다"
         type: boolean
@@ -103,6 +113,7 @@ jobs:
           # 환경변수로 넘기면 셸이 그 값을 글자로만 본다.
           MUWON_PERIOD: ${{ github.event.inputs.period || '전부' }}
           MUWON_STRATEGIES: ${{ github.event.inputs.strategies || '지금' }}
+          MUWON_SPLIT: ${{ github.event.inputs.split }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
           # 실패가 이 저장소에서 제일 비싼 종류다.
@@ -110,6 +121,7 @@ jobs:
           python scripts/run_period_check.py \
             --기간 "$MUWON_PERIOD" \
             --전략 "$MUWON_STRATEGIES" \
+            --쪼갬 "$MUWON_SPLIT" \
             ${{ github.event.inputs.no_cache == 'true' && '--no-cache' || '' }} \
             | tee period-check.txt
 

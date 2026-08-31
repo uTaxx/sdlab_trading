@@ -35,6 +35,7 @@ import argparse
 import os
 import sys
 import traceback
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -44,6 +45,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from muwon.analysis.experiment import WARMUP_DAYS
 from muwon.analysis.market_data import load_histories
 from muwon.analysis.period_check import (
+    _조사,
     검증용정책,
     구간,
     기간들,
@@ -251,7 +253,8 @@ def 알리기(글: str) -> None:
         print(f"텔레그램으로는 못 보냈습니다: {type(탈).__name__}: {탈}", file=sys.stderr)
 
 
-def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str) -> None:
+def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str,
+         정의표: dict | None = None) -> None:
     print(f"■ 매수 전략: {전략이름(사는키)} ({사는키})")
     print(
         f"■ 매도 전략: {전략이름(파는키)} ({파는키})"
@@ -269,7 +272,13 @@ def 화면에(성적들: list, 사는키: str, 파는키: str, 기준: str) -> N
             f"  거래 {ㅁ.num_trades}건 · 승률 {ㅁ.win_rate_pct:.1f}% · "
             f"손익비 {ㅁ.profit_factor:.2f}"
         )
-        print(f"  {평가글(성적, 기간표[성적.이름])}")
+        # 토막을 전부 찍는다. 제일 나빴던 것 하나만 보면 "나빠지고 있나
+        # 나아지고 있나"를 알 수 없다. 그 물음이 곧 지금 걸어 둘지 말지다.
+        if len(성적.토막들) > 1:
+            print("  토막별 수익률")
+            for 이름, 값 in 성적.토막들:
+                print(f"    {이름:>12} {값:+7.2f}%")
+        print(f"  {평가글(성적, (정의표 or 기간표)[성적.이름])}")
         print()
 
 
@@ -346,6 +355,10 @@ def main() -> int:
         "--전략", default="지금",
         help="지금 걸린 것(지금) / 등록된 전부(전부) / 쉼표로 적은 전략 키들",
     )
+    받은것.add_argument(
+        "--쪼갬", default="",
+        help="구간 안을 무엇으로 쪼갤 것인가 (날/주/달/해). 안 적으면 구간마다 정한 대로",
+    )
     받은것.add_argument("--sheet-id", default=os.environ.get("MUWON_SHEET_ID", ""))
     받은것.add_argument("--folder-id", default=os.environ.get("GDRIVE_FOLDER_ID", ""))
     인자 = 받은것.parse_args()
@@ -358,6 +371,18 @@ def main() -> int:
     if not 골라진것:
         raise SystemExit(f"모르는 기간입니다: {인자.기간} (쓸 수 있는 것: {list(기간표)})")
 
+    # 쪼개는 단위를 손으로 바꾼다. "3개월이 나쁜데 최근에도 계속 나쁜가"는
+    # 달로 쪼개면 토막이 셋뿐이라 안 보인다. 주로 쪼개면 열세 토막이 된다.
+    #
+    # **시트에는 안 올린다.** 쌓이는 줄은 구간마다 정한 쪼갬으로 잰 것이라야
+    # 지난 회차와 이어진다. 여기서 바꾼 것을 같이 쌓으면 같은 칸에 뜻이
+    # 다른 값이 섞인다.
+    쪼갤것 = 인자.쪼갬.strip()
+    if 쪼갤것:
+        if 쪼갤것 not in _조사:
+            raise SystemExit(f"모르는 쪼갬입니다: {쪼갤것} (쓸 수 있는 것: {list(_조사)})")
+        골라진것 = [replace(ㄱ, 쪼갬=쪼갤것) for ㄱ in 골라진것]
+
     잰때 = datetime.now(서울)
     기간글 = ",".join(ㄱ.이름 for ㄱ in 골라진것)
     print(f"■ 잰 때: {잰때:%Y-%m-%d %H:%M} (한국시간)")
@@ -365,7 +390,9 @@ def main() -> int:
 
     # 시트는 결과를 올릴 곳이자 기준을 읽을 곳이다. 실패해도 그 사실을
     # 시트에 남겨야 하므로 먼저 찾아 둔다.
-    sheet_id = "" if 인자.no_sheet else 시트찾기(인자)
+    sheet_id = "" if (인자.no_sheet or 쪼갤것) else 시트찾기(인자)
+    if 쪼갤것:
+        print(f"■ 쪼갬을 {쪼갤것}로 바꿔서 봅니다. 시트에는 안 올립니다.")
 
     try:
         return 진짜로(골라진것, 잰때, 인자, sheet_id)
@@ -444,7 +471,7 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     if not 성적들:
         raise RuntimeError(f"시세가 모자라 한 구간도 못 돌렸습니다: {', '.join(못돌린것)}")
 
-    화면에(성적들, 사는키, 파는키, 기준)
+    화면에(성적들, 사는키, 파는키, 기준, {ㄱ.이름: ㄱ for ㄱ in 골라진것})
     if 못돌린것:
         print(f"못 돌린 구간: {', '.join(못돌린것)} (시세가 모자랍니다)")
 
