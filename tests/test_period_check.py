@@ -492,3 +492,43 @@ def test_파는쪽만_갈아_끼워_견줄_수_있다():
             assert "하나로 적으세요" in str(탈), 탈
         else:
             raise AssertionError(f"{안되는것!r}가 통과했습니다")
+
+
+def test_유니버스를_시트로_고를_수_있다():
+    """테스트가 보는 종목과 실제로 사는 종목이 달랐다(2026-08-31에 드러남).
+
+    시가총액 상위 30종목은 run_paper_trading.py가 쓰고, 실제 매수 후보를
+    뽑는 propose_buys.py는 구글 시트의 종목 탭을 읽는다. 시가총액으로만
+    재면 나온 숫자가 실제 매매를 설명하지 못한다."""
+    import sys
+
+    sys.path.insert(0, "scripts")
+    from run_period_check import 대상종목
+
+    class 인자:
+        유니버스 = "없는것"
+
+    try:
+        대상종목(인자, "시트없음", None)
+    except ValueError as 탈:
+        assert "모르는 유니버스" in str(탈), 탈
+    else:
+        raise AssertionError("모르는 값이 통과했습니다")
+
+    인자.유니버스 = "시트"
+    try:
+        대상종목(인자, "", None)
+    except ValueError as 탈:
+        assert "시트를 못 찾아" in str(탈), 탈
+    else:
+        raise AssertionError("시트 없이 통과했습니다")
+
+
+def test_기준글에_유니버스_종류가_들어간다():
+    """시트에는 두 종류로 잰 줄이 같이 쌓인다. 줄마다 어느 목록으로 잰
+    것인지 남아 있어야 나중에 비교할 수 있다."""
+    from muwon.analysis.period_check import 기준글
+
+    정책 = RiskPolicy()
+    assert "유니버스 시가총액 30종목" in 기준글(정책, 30, "시가총액")
+    assert "유니버스 섹터시트 63종목" in 기준글(정책, 63, "섹터시트")

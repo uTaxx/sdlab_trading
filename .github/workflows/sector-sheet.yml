@@ -15,12 +15,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "check=읽고 검증만 / add-missing-settings=빠진 기준 줄만 채우기 / set=기준 하나 바꾸기 / push=통째로 덮어쓰기(첫 채움 전용)"
+        description: "check=읽고 검증만 / push-catalog=종목 목록만 갱신(설정 유지) / add-missing-settings=빠진 기준 줄만 채우기 / set=기준 바꾸기 / push=통째로 덮어쓰기(첫 채움 전용)"
         type: choice
-        options: ["check", "add-missing-settings", "set", "push"]
+        options: ["check", "push-catalog", "add-missing-settings", "set", "push"]
         default: "check"
       set:
-        description: "mode=set일 때 바꿀 기준 (예: trading_enabled=true)"
+        description: "mode=set일 때 바꿀 기준. 쉼표로 여럿 (예: max_per_sector=3,max_concurrent_positions=8)"
         default: ""
 
 jobs:
@@ -40,13 +40,22 @@ jobs:
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          # **사람이 넣은 값을 명령 줄에 직접 박지 않는다.** `${{ }}`는 셸
+          # 스크립트 글자 안으로 그대로 치환되므로, `$(...)`가 섞인 값이
+          # 오면 그것이 명령으로 실행된다. 환경변수로 넘기면 셸이 그 값을
+          # 글자로만 본다.
+          MUWON_MODE: ${{ github.event.inputs.mode }}
+          MUWON_SET: ${{ github.event.inputs.set }}
         run: |
-          if [ "${{ github.event.inputs.mode }}" = "push" ]; then
+          set -o pipefail
+          if [ "$MUWON_MODE" = "push" ]; then
             python scripts/sync_sector_sheet.py --push
-          elif [ "${{ github.event.inputs.mode }}" = "add-missing-settings" ]; then
+          elif [ "$MUWON_MODE" = "push-catalog" ]; then
+            python scripts/sync_sector_sheet.py --push-catalog
+          elif [ "$MUWON_MODE" = "add-missing-settings" ]; then
             python scripts/sync_sector_sheet.py --add-missing-settings
-          elif [ "${{ github.event.inputs.mode }}" = "set" ]; then
-            python scripts/sync_sector_sheet.py --set "${{ github.event.inputs.set }}"
+          elif [ "$MUWON_MODE" = "set" ]; then
+            python scripts/sync_sector_sheet.py --set "$MUWON_SET"
           else
             python scripts/sync_sector_sheet.py
           fi

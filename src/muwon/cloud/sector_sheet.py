@@ -268,6 +268,29 @@ def write_all(sheet_id: str, 섹터행, 종목행, 설정행) -> None:
         ).execute(num_retries=3)
 
 
+def write_catalog(sheet_id: str, 섹터행, 종목행) -> None:
+    """`섹터`와 `종목` 탭만 덮어쓴다. **`설정` 탭은 건드리지 않는다.**
+
+    `write_all`은 설정까지 기본값으로 되돌린다. 그러면 킬스위치와 걸어 둔
+    전략이 초기화되는데, 종목 목록을 늘리려다 매매 설정을 잃는 것은
+    말이 안 된다. 종목을 더할 때는 이쪽을 쓴다."""
+    svc = _service().spreadsheets()
+    있는탭 = {s["properties"]["title"] for s in svc.get(spreadsheetId=sheet_id).execute()["sheets"]}
+    요청 = [
+        {"addSheet": {"properties": {"title": 탭}}}
+        for 탭 in ("섹터", "종목")
+        if 탭 not in 있는탭
+    ]
+    if 요청:
+        svc.batchUpdate(spreadsheetId=sheet_id, body={"requests": 요청}).execute(num_retries=3)
+    for 탭, 행 in (("섹터", 섹터행), ("종목", 종목행)):
+        svc.values().clear(spreadsheetId=sheet_id, range=f"{탭}!A1:Z5000").execute(num_retries=3)
+        svc.values().update(
+            spreadsheetId=sheet_id, range=f"{탭}!A1",
+            valueInputOption="RAW", body={"values": 행},
+        ).execute(num_retries=3)
+
+
 def append_settings(sheet_id: str, 줄들, svc=None) -> int:
     """`설정` 탭 맨 아래에 줄을 한꺼번에 붙인다. 있는 값은 안 건드린다.
 

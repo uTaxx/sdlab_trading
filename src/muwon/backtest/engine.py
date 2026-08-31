@@ -163,6 +163,22 @@ class BacktestEngine:
         pending_exits: dict[str, str] = {}
         pending_entries: dict[str, str] = {}
 
+        # **마지막으로 본 종가.** 들고 있는 종목의 그날 시세가 없을 때 쓴다.
+        #
+        # 전에는 시세가 없으면 평가금액 계산에서 그 종목을 통째로 뺐다.
+        # 그러면 그 종목이 0원이 된다. 종목마다 상장일이 다르면 어떤 날은
+        # 한 종목만 거래일이라, 그날 들고 있던 나머지가 전부 0원이 되고
+        # 계좌가 하루 만에 90% 넘게 줄어든 것으로 찍혔다. 다음 날 되돌아와서
+        # 총수익률은 멀쩡해 보이고 최대 하락폭만 말이 안 되게 나왔다
+        # (2026-08-31에 63종목으로 재다가 드러남).
+        마지막종가: dict[str, float] = {}
+
+        def 값(symbol: str, 오늘시세: dict) -> float:
+            """평가에 쓸 값. 오늘 시세가 없으면 마지막으로 본 값을 쓴다."""
+            if symbol in 오늘시세:
+                return float(오늘시세[symbol])
+            return 마지막종가.get(symbol, positions[symbol].entry_price)
+
         for current_date in all_dates:
             if trade_from is not None and current_date < trade_from:
                 continue  # 지표 예열 구간 — 매매도 평가금액 기록도 하지 않는다
@@ -212,9 +228,8 @@ class BacktestEngine:
             # 아침에 계좌를 보고 수량을 정한다.
             if pending_entries:
                 시가평가금액 = cash + sum(
-                    positions[s].quantity * float(opens_today[s])
+                    positions[s].quantity * 값(s, opens_today)
                     for s in positions
-                    if s in opens_today
                 )
                 # 개장 시점에 알 수 있는 손익은 밤사이 움직임뿐이다.
                 밤사이손익 = (
@@ -280,9 +295,8 @@ class BacktestEngine:
 
             # 2) 이 시점 평가금액 → 오늘 손익률 계산
             equity_after_exits = cash + sum(
-                positions[s].quantity * float(closes_today[s])
+                positions[s].quantity * 값(s, closes_today)
                 for s in positions
-                if s in closes_today
             )
             daily_pnl_pct = (
                 (equity_after_exits - day_start_equity) / day_start_equity
@@ -317,10 +331,10 @@ class BacktestEngine:
                     positions,
                 )
 
+            마지막종가.update({ㅅ: float(ㄱ) for ㅅ, ㄱ in closes_today.items()})
             equity = cash + sum(
-                positions[s].quantity * float(closes_today[s])
+                positions[s].quantity * 값(s, closes_today)
                 for s in positions
-                if s in closes_today
             )
             # 보유 종목 수와 현금도 남긴다 — 노출도(자금을 얼마나 굴렸나)와
             # 회전율을 나중에 계산하려면 이 두 값이 있어야 한다. 수익률만

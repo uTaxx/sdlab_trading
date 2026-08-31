@@ -44,6 +44,8 @@ from muwon.settings.schema import RiskPolicy
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--push", action="store_true", help="코드의 초안을 시트에 덮어쓴다 (첫 채움 전용)")
+    parser.add_argument("--push-catalog", action="store_true",
+                        help="섹터·종목 탭만 코드 카탈로그로 덮어쓴다 (설정은 안 건드린다)")
     parser.add_argument("--add-missing-settings", action="store_true",
                         help="설정 탭에 빠진 기준 줄만 채운다 (있는 값은 안 건드림)")
     parser.add_argument("--set", default="", metavar="이름=값",
@@ -65,6 +67,16 @@ def main() -> int:
         print(f"올렸습니다 — 섹터 {len(섹터행) - 1}줄 · 종목 {len(종목행) - 1}줄 · 설정 {len(default_settings_rows()) - 1}줄")
         print("\n**이제부터는 시트에서 고치세요.** --push는 시트를 통째로 덮어씁니다.")
 
+    # 종목을 더하거나 뺄 때 쓴다. **설정 탭은 안 건드린다** — 종목 목록을
+    # 늘리려다 킬스위치와 걸어 둔 전략을 잃으면 안 된다.
+    if args.push_catalog:
+        from muwon.cloud.sector_sheet import write_catalog
+
+        섹터행, 종목행 = catalog_rows()
+        write_catalog(sheet_id, 섹터행, 종목행)
+        print(f"섹터 {len(섹터행) - 1}줄 · 종목 {len(종목행) - 1}줄을 올렸습니다. "
+              "설정 탭은 그대로 두었습니다.")
+
     # 시트 값을 손으로 못 고치는 자리(워크플로 등)에서 바꾸는 길.
     #
     # **텔레그램에서는 매매를 켤 수 없게 막아 뒀다**(폰에서 손가락이
@@ -75,21 +87,35 @@ def main() -> int:
         from muwon.cloud.sector_sheet import update_setting
         from muwon.settings.from_sheet import SettingsError, 기준표, 해석값
 
-        if "=" not in args.set:
-            raise SystemExit(f"--set은 이름=값 모양이어야 합니다: {args.set!r}")
-        이름, _, 글자 = args.set.partition("=")
-        이름, 글자 = 이름.strip(), 글자.strip()
-        b = 기준표.get(이름)
-        if b is None:
-            raise SystemExit(f"모르는 기준입니다: {이름}\n아는 것: {', '.join(기준표)}")
-        try:
-            새값 = 해석값(b, 글자)
-        except SettingsError as e:
-            raise SystemExit(f"{e}") from e
-        옛글자 = update_setting(sheet_id, 이름, 글자)
-        print(f"\n■ {b.표시} 을(를) 바꿨습니다 — {옛글자 or '(빈칸)'} → {글자}")
-        print(f"  {b.설명}")
-        if 이름 == "trading_enabled" and 새값:
+        # 쉼표로 여럿을 받는다. 둘을 바꾸려고 워크플로를 두 번 실행하면
+        # 그 사이에 한쪽만 바뀐 상태로 매매가 실행될 수 있다.
+        바꿀것 = []
+        for 조각 in args.set.split(","):
+            조각 = 조각.strip()
+            if not 조각:
+                continue
+            if "=" not in 조각:
+                raise SystemExit(f"--set은 이름=값 모양이어야 합니다: {조각!r}")
+            이름, _, 글자 = 조각.partition("=")
+            이름, 글자 = 이름.strip(), 글자.strip()
+            b = 기준표.get(이름)
+            if b is None:
+                raise SystemExit(f"모르는 기준입니다: {이름}\n아는 것: {', '.join(기준표)}")
+            try:
+                해석값(b, 글자)
+            except SettingsError as e:
+                raise SystemExit(f"{e}") from e
+            바꿀것.append((이름, 글자, b))
+
+        # **다 확인한 뒤에 쓴다.** 하나가 틀렸는데 앞의 것만 바뀌면
+        # 시트가 어중간한 상태로 남는다.
+        켠것 = False
+        for 이름, 글자, b in 바꿀것:
+            옛글자 = update_setting(sheet_id, 이름, 글자)
+            print(f"\n■ {b.표시} 을(를) 바꿨습니다 — {옛글자 or '(빈칸)'} → {글자}")
+            print(f"  {b.설명}")
+            켠것 = 켠것 or (이름 == "trading_enabled" and 해석값(b, 글자))
+        if 켠것:
             print("\n🟢 **매매를 켰습니다.** 다만 시트와 대시보드가 **둘 다** 켜져야")
             print("   실제로 켜집니다 — 아래 '지금 걸려 있는 기준'에서 확인하세요.")
 

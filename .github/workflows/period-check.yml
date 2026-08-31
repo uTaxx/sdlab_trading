@@ -3,6 +3,10 @@ name: 기간별 전략 검증
 # 지금 걸린 전략을 최근 1주·1개월·3개월·12개월·5년에 돌려 보고 결과를
 # 시트에 남긴다. 1주와 1개월은 거래가 몇 건뿐이라 판단에 쓸 숫자가 아니다.
 #
+# `universe`가 두 가지다. **시가총액은 실제 매수 후보와 다른 목록이다.**
+# 매수 후보를 뽑는 propose_buys.py는 구글 시트의 종목 탭을 읽는다. 실제
+# 매매를 설명하는 숫자를 보려면 '시트'로 재야 한다.
+#
 # `strategies`에 '전부'를 주면 등록된 전략 27개를 **같은 구간·같은 기준**으로
 # 돌려 순위를 낸다. 빠지는 구간에서 어느 전략이 덜 잃었는지를 보는 용도다.
 # '매수키>전부'는 반대다. 사는 쪽을 고정하고 **파는 쪽만** 갈아 끼운다.
@@ -48,6 +52,13 @@ on:
       strategies:
         description: "어느 전략을 잴 것인가 (지금 / 전부 / 전략키 / 매수키>매도키 / 매수키>전부)"
         default: "지금"
+      universe:
+        description: "무슨 종목으로 잴 것인가. 시트=실제 매수 후보와 같은 목록"
+        type: choice
+        options:
+          - 시가총액
+          - 시트
+        default: 시가총액
       split:
         description: "구간 안을 무엇으로 쪼갤 것인가 (비우면 구간마다 정한 대로). 바꾸면 시트에 안 올린다"
         type: choice
@@ -114,6 +125,7 @@ jobs:
           MUWON_PERIOD: ${{ github.event.inputs.period || '전부' }}
           MUWON_STRATEGIES: ${{ github.event.inputs.strategies || '지금' }}
           MUWON_SPLIT: ${{ github.event.inputs.split }}
+          MUWON_UNIVERSE: ${{ github.event.inputs.universe || '시가총액' }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
           # 실패가 이 저장소에서 제일 비싼 종류다.
@@ -122,6 +134,7 @@ jobs:
             --기간 "$MUWON_PERIOD" \
             --전략 "$MUWON_STRATEGIES" \
             --쪼갬 "$MUWON_SPLIT" \
+            --유니버스 "$MUWON_UNIVERSE" \
             ${{ github.event.inputs.no_cache == 'true' && '--no-cache' || '' }} \
             | tee period-check.txt
 

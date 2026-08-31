@@ -124,7 +124,7 @@ def test_기간검증은_상태DB를_안_고치므로_잠그지_않는다():
     "drop-phantom.yml", "execute-approved.yml", "experiment.yml",
     "hypothesis-log.yml", "market-report.yml", "propose-buys.yml",
     "push-records.yml", "reconcile-orders.yml", "robustness-check.yml",
-    "sector-sheet.yml", "settle-fills.yml", "switch-strategy.yml",
+    "settle-fills.yml", "switch-strategy.yml",
     "update-universe.yml", "verify-kis-order.yml",
 }
 

@@ -359,6 +359,11 @@ def main() -> int:
         "--쪼갬", default="",
         help="구간 안을 무엇으로 쪼갤 것인가 (날/주/달/해). 안 적으면 구간마다 정한 대로",
     )
+    받은것.add_argument(
+        "--유니버스", default="시가총액",
+        help="무슨 종목을 대상으로 잴 것인가 (시가총액 / 시트). "
+             "시트는 실제 매수 후보와 같은 목록이다",
+    )
     받은것.add_argument("--sheet-id", default=os.environ.get("MUWON_SHEET_ID", ""))
     받은것.add_argument("--folder-id", default=os.environ.get("GDRIVE_FOLDER_ID", ""))
     인자 = 받은것.parse_args()
@@ -405,6 +410,38 @@ def main() -> int:
         return 1
 
 
+def 대상종목(인자, sheet_id: str, session_factory):
+    """무슨 종목을 대상으로 잴 것인가. (종목목록, 종류이름).
+
+    **두 목록이 서로 다르다.** 시가총액 상위 30종목은 `run_paper_trading.py`가
+    쓰고, 실제로 매수 후보를 뽑는 `propose_buys.py`는 구글 시트의 종목 탭을
+    읽는다. 시가총액 쪽으로만 재면 나온 숫자가 실제 매매를 설명하지 못한다.
+
+    **종류를 기준 글에 적는다.** 시트에는 두 종류로 잰 줄이 같이 쌓이므로,
+    어느 목록으로 잰 것인지 줄마다 남아 있어야 나중에 견줄 수 있다."""
+    고른것 = (인자.유니버스 or "시가총액").strip()
+    if 고른것 in ("시가총액", "market_cap"):
+        return active_universe(session_factory, list(UNIVERSE), kind=KIND_MARKET_CAP), "시가총액"
+    if 고른것 not in ("시트", "sheet"):
+        raise ValueError(f"모르는 유니버스입니다: {고른것} (시가총액 / 시트)")
+
+    if not sheet_id:
+        raise ValueError("시트를 못 찾아 시트 종목으로 잴 수 없습니다.")
+    from muwon.cloud.sector_sheet import read as 섹터시트읽기
+    from muwon.data.universe import Ticker
+
+    내용 = 섹터시트읽기(sheet_id)
+    목록 = [
+        Ticker(symbol=m.symbol, name=m.name, market=m.market,
+               yahoo_symbol=f"{m.symbol}.{'KQ' if m.market == 'KOSDAQ' else 'KS'}")
+        for s in 내용.섹터 if s.활성
+        for m in s.활성종목
+    ]
+    if not 목록:
+        raise ValueError("시트에 켜져 있는 종목이 하나도 없습니다.")
+    return 목록, "섹터시트"
+
+
 def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     # 고른 전략을 **시세를 받기 전에** 푼다. 잘못 적은 것을 5년치 시세
     # 내려받은 뒤에 알려 주면 5분을 버린다.
@@ -428,9 +465,9 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     정책 = 검증용정책(정책)
 
     session_factory = make_session_factory(bootstrap_settings.database_url)
-    유니버스 = active_universe(session_factory, list(UNIVERSE), kind=KIND_MARKET_CAP)
-    기준 = 기준글(정책, len(유니버스), "시가총액")
-    print(f"■ 대상 {len(유니버스)}종목")
+    유니버스, 종류 = 대상종목(인자, sheet_id, session_factory)
+    기준 = 기준글(정책, len(유니버스), 종류)
+    print(f"■ 대상 {len(유니버스)}종목 ({종류})")
 
     # 제일 긴 구간 하나만 받아 두고 짧은 것은 거기서 잘라 쓴다. 구간마다
     # 따로 받으면 같은 자료를 세 번 받고, 더 나쁘게는 받는 사이에 값이

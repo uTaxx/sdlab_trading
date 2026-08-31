@@ -272,3 +272,54 @@ def test_텔레그램에_안_먹는_기호를_안_쓴다():
     """텔레그램은 마크다운을 안 읽는다 — `**굵게**`가 그대로 도착한다."""
     assert "**" not in 알림글(후보들, 오늘, "https://example.com")
     assert "**" not in 알림글([], 오늘, "https://example.com", 살펴본수=0)
+
+
+def _순위():
+    from muwon.sector.selection import 섹터점수
+
+    return [
+        섹터점수("SEMI", "반도체", 8.4, True),
+        섹터점수("BATT", "2차전지", 0.9),
+        섹터점수("AUTO", "자동차", -3.8),
+        섹터점수("COMM", "원자재 ETF", None),
+    ]
+
+
+def test_알림에_섹터_강도가_전부_들어간다():
+    """뽑힌 섹터만 적으면 안 뽑힌 섹터가 왜 빠졌는지 알 수 없다.
+
+    강도가 나빠서 빠진 것인지 애초에 못 잰 것인지가 갈린다. 앞의 것은
+    정상이고 뒤의 것은 시세를 못 받은 것이라 고쳐야 한다."""
+    from muwon.cloud.approval import 알림글
+
+    글 = 알림글([], date(2026, 9, 1), "https://예시", 살펴본수=63, 섹터강도=_순위())
+
+    for 이름 in ("반도체", "2차전지", "자동차"):
+        assert 이름 in 글, f"{이름}이 없습니다: {글}"
+    assert "+8.4%p" in 글 and "-3.8%p" in 글
+    # 못 잰 섹터도 숨기지 않는다.
+    assert "못 잰 섹터: 원자재 ETF" in 글
+    # 어느 것이 오늘 매수 대상인지 표시가 있어야 한다.
+    assert "○" in 글
+
+
+def test_알림에_후보의_사흘_등락이_들어간다():
+    """이미 사흘 내리 오른 것을 사는지 사람이 보고 판단하는 자리다.
+
+    합계와 하루하루를 같이 적는다. 합계만 보면 사흘 내리 오른 것과 이틀
+    빠지고 하루 크게 오른 것이 같아 보인다."""
+    from muwon.cloud.approval import 알림글, 후보
+
+    오른것 = 후보(symbol="042700", name="한미반도체", strategy="volume_surge_5d_ma20",
+              quantity=12, price=82000, sector_name="반도체",
+              사흘등락=(2.0, 3.0, 4.0))
+    글 = 알림글([오른것], date(2026, 9, 1), "https://예시", 섹터강도=_순위())
+
+    assert "+2.0%" in 글 and "+3.0%" in 글 and "+4.0%" in 글
+    # 사흘을 곱하면 +9.3%다. 더하기(+9.0%)가 아니다.
+    assert "+9.3%" in 글, 글
+
+    # 자료가 없으면 그 줄을 아예 안 적는다. 0%로 적으면 안 움직인 것으로 읽힌다.
+    없는것 = 후보(symbol="000660", name="SK하이닉스", strategy="x",
+              quantity=1, price=100, sector_name="반도체")
+    assert "최근" not in 알림글([없는것], date(2026, 9, 1), "https://예시").split("승인하시면")[0]

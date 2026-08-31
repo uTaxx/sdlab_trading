@@ -69,6 +69,19 @@ WARMUP_DAYS = 400
 MIN_DAYS = 60
 
 
+def 사흘등락(df) -> tuple[float, ...]:
+    """최근 사흘 하루하루의 등락률(%). 오래된 날부터.
+
+    승인 단추를 누를 때 "이미 많이 오른 것을 사는 건 아닌가"를 보는 자리다.
+    지금 걸린 전략은 거래량이 늘고 값이 오른 날 사는 것이라, 후보가 사흘
+    내리 올랐다면 늦게 들어가는 것일 수 있다. 그 판단은 사람이 한다."""
+    종가 = df["close"].astype(float)
+    if len(종가) < 2:
+        return ()
+    변동 = (종가.pct_change() * 100).dropna()
+    return tuple(round(float(ㄱ), 2) for ㄱ in 변동.tail(3))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sheet-id", default=os.environ.get("MUWON_SHEET_ID", ""))
@@ -185,6 +198,7 @@ def main() -> int:
                 quantity=0,  # 수량은 매수 단계에서 그때 현금으로 정한다
                 price=float(df["close"].iloc[-1]),
                 reason=sig.reason, sector=코드, sector_name=이름표.get(코드, 코드),
+                사흘등락=사흘등락(df),
             )))
 
     살펴본수 = sum(
@@ -280,7 +294,8 @@ def main() -> int:
                 for p in 순위[:3] if p.상대강도 is not None
             )
             글 = 알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
-                     전략=selection.describe(), 섹터요약=강한섹터)
+                     전략=selection.describe(), 섹터요약=강한섹터,
+                     섹터강도=순위)
             send(cfg.bot_token, cfg.chat_id, 글,
                  reply_markup=keyboard(고른것, 오늘) if 고른것 else None)
             print("텔레그램으로 알렸습니다(버튼 포함).", file=sys.stderr)
