@@ -287,8 +287,21 @@ def main() -> int:
     if not 설정.승인필요:
         print("\n⚠️ 시트의 require_approval이 꺼져 있습니다 — 승인 없이 사도록 설정돼 있습니다.")
 
+    주소 = f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+
     if args.dry_run:
+        # 보낼 글을 그대로 찍는다. 안 찍으면 dry-run으로는 알림이 어떻게
+        # 생겼는지 볼 수가 없고, 문구를 고칠 때마다 진짜로 보내 봐야 한다.
+        강한섹터 = " · ".join(
+            f"{p.이름} {p.상대강도:+.1f}%p"
+            for p in 순위[:3] if p.상대강도 is not None
+        )
         print("\n(--dry-run이라 시트·텔레그램에 안 보냈습니다)")
+        print("\n─── 텔레그램으로 갈 글 ───")
+        print(알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
+                   전략=selection.describe(), 섹터요약=강한섹터,
+                   섹터강도=순위, 보유=보유알림))
+        print("─── 여기까지 ───")
         return 0
 
     # ── 하루에 한 번만 제안한다 ──────────────────────────────
@@ -314,7 +327,6 @@ def main() -> int:
                 return 0
 
     올린수 = append(sheet_id, "승인대기", 승인머리, pending_rows(고른것, 오늘))
-    주소 = f"https://docs.google.com/spreadsheets/d/{sheet_id}"
     print(f"\n승인대기 탭에 {올린수}줄 올렸습니다 — {주소}")
 
     # 후보 밑에 **승인 / 거절 버튼**을 붙여 보낸다. 종목코드 여섯 자리를
