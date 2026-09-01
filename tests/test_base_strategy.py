@@ -81,7 +81,7 @@ def test_엔진과_화면과_알림이_같은_기간을_말한다(덮개):
     답 = 보유상한(전략, 정책)
 
     조건, _ = exit_rules(전략, 정책)
-    화면 = [ㄱ for ㄱ in 조건 if "보유 기간" in ㄱ]
+    화면 = [ㄱ for ㄱ in 조건 if "보유기간 만료" in ㄱ]
     알림 = [ㄱ for ㄱ in 매도규칙(전략, 정책, 산값=100.0) if "거래일이 지나면" in ㄱ]
 
     assert 화면 and f"{답}거래일" in 화면[0]
@@ -92,17 +92,17 @@ def test_기초에서_덮었으면_그렇다고_적는다():
     """전략이 5일이라고 적혀 있는데 3일에 팔리면 화면이 거짓말한 것이 된다."""
     전략 = build_strategy("volume_surge_5d_ma20")
     조건, _ = exit_rules(전략, RiskPolicy(max_holding_days=3))
-    보유줄 = next(ㄱ for ㄱ in 조건 if "보유 기간" in ㄱ)
+    보유줄 = next(ㄱ for ㄱ in 조건 if "보유기간 만료" in ㄱ)
 
-    assert "기준에서 정한 값" in 보유줄
+    assert "기본 전략에서 설정한 값" in 보유줄
 
 
 def test_안_덮었으면_그런_말을_안_붙인다():
     전략 = build_strategy("volume_surge_5d_ma20")
     조건, _ = exit_rules(전략, RiskPolicy())
-    보유줄 = next(ㄱ for ㄱ in 조건 if "보유 기간" in ㄱ)
+    보유줄 = next(ㄱ for ㄱ in 조건 if "보유기간 만료" in ㄱ)
 
-    assert "기준에서 정한 값" not in 보유줄
+    assert "기본 전략에서 설정한 값" not in 보유줄
 
 
 def test_매수_알림에도_덮었다는_말이_붙는다():

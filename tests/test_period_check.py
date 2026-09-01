@@ -209,16 +209,16 @@ def test_한_주도_안_샀으면_그것부터_말한다():
     from muwon.analysis.period_check import 평가글
 
     글 = 평가글(_성적(num_trades=0, total_return_pct=0.0), 기간표["3개월"])
-    assert "한 주도 안 샀습니다" in 글
-    assert "아무 일도 안 한" in 글
+    assert "매수가 발생하지 않았습니다" in 글
+    assert "거래 자체가 없었던 것" in 글
 
 
 def test_표본이_적으면_판단하지_말라고_적는다():
     from muwon.analysis.period_check import 평가글
 
     글 = 평가글(_성적(num_trades=9), 기간표["3개월"])
-    assert "9건뿐입니다" in 글
-    assert "판단하면 안 됩니다" in 글
+    assert "9건에 불과합니다" in 글
+    assert "판단하기 어렵습니다" in 글
 
 
 def test_최대낙폭이_깊으면_그_뜻을_적는다():
@@ -226,9 +226,9 @@ def test_최대낙폭이_깊으면_그_뜻을_적는다():
     from muwon.analysis.period_check import 평가글
 
     깊은것 = 평가글(_성적(max_drawdown_pct=-32.3), 기간표["5년"])
-    assert "30% 넘게 줄어" in 깊은것
+    assert "고점 대비 30% 이상 감소" in 깊은것
     얕은것 = 평가글(_성적(max_drawdown_pct=-8.0), 기간표["5년"])
-    assert "견디기 어려운 폭은 아닙니다" in 얕은것
+    assert "일반적인 변동 범위" in 얕은것
 
 
 def test_해로_쪼갠_구간이_다_플러스면_그렇게_적는다():
@@ -237,7 +237,7 @@ def test_해로_쪼갠_구간이_다_플러스면_그렇게_적는다():
     글 = 평가글(
         _성적("5년", 토막들=[("2021년", 6.7), ("2022년", 12.0)]), 기간표["5년"]
     )
-    assert "마이너스인 해가 없습니다" in 글
+    assert "손실이 발생한 해가 없습니다" in 글
 
 
 def test_총평에_지금_걸린_것의_순위가_들어간다():
@@ -250,9 +250,9 @@ def test_총평에_지금_걸린_것의_순위가_들어간다():
         ("빈것", _성적(num_trades=0, total_return_pct=0.0)),
     ]
     글 = 비교총평(기간표["3개월"], 줄들, 지금키="b")
-    assert "산 전략 3개" in 글
+    assert "매수가 발생한 전략 3개" in 글
     assert "3개 중 2위" in 글
-    assert "한 주도 안 산 전략이 1개" in 글
+    assert "매수가 발생하지 않은 전략 1개" in 글
     # 1등을 고르라는 말은 절대 안 적는다.
     assert "과최적화" in 글
 
@@ -263,7 +263,7 @@ def test_총평이_구간_문제인지를_말한다():
 
     줄들 = [(f"s{i}", _성적(total_return_pct=-5.0 - i)) for i in range(10)]
     글 = 비교총평(기간표["3개월"], 줄들)
-    assert "구간 문제" in 글
+    assert "해당 기간의 시장 영향으로 보입니다" in 글
 
 
 # ── 전략 변경 신호 ─────────────────────────────────────────────────
@@ -283,7 +283,7 @@ def test_이유가_없으면_아무_신호도_안_낸다():
     assert 전략신호(성적들) == []
     등급, 글 = 신호글([])
     assert 등급 == "이상없음"
-    assert "잘 벌고 있다는 뜻이 아니라" in 글
+    assert "수익성이 양호하다는 의미가 아니라" in 글
 
 
 def test_5년이_마이너스면_확인필요다():
@@ -292,7 +292,7 @@ def test_5년이_마이너스면_확인필요다():
     난것 = 전략신호({"5년": _성적("5년", total_return_pct=-12.0, num_trades=300)})
     등급, 글 = 신호글(난것)
     assert 등급 == "확인필요"
-    assert "걸어 둘 근거" in 글
+    assert "유지할 근거를 확인하기 어렵습니다" in 글
 
 
 def test_한_주도_안_사면_확인필요다():
@@ -339,7 +339,7 @@ def test_남들은_버텼는데_하위권이면_살펴볼것이다():
     )
     등급, 글 = 신호글(난것)
     assert 등급 == "살펴볼것"
-    assert "이 전략이 이 구간과 안 맞았다" in 글
+    assert "이 전략이 해당 구간과 맞지 않았을 가능성" in 글
 
 
 def test_신호글은_바꾸라고_말하지_않는다():
@@ -348,7 +348,7 @@ def test_신호글은_바꾸라고_말하지_않는다():
 
     난것 = 전략신호({"5년": _성적("5년", total_return_pct=-12.0, num_trades=300)})
     _, 글 = 신호글(난것)
-    assert "바꾸라는 말이 아니라" in 글
+    assert "전략 변경을 지시하는 것이 아니라 검토를 권고하는 것" in 글
     for 하면안되는말 in ("로 바꾸세요", "로 갈아타", "추천"):
         assert 하면안되는말 not in 글
 
@@ -425,7 +425,7 @@ def test_신호글에_알아듣기_어려운_말을_안_쓴다():
         assert 어려운말 not in 글, f"{어려운말!r}: {글}"
     # 낙폭은 쓰되 혼자 두지 않는다. 뜻을 같은 글 안에서 풀어 준다.
     if "낙폭" in 글:
-        assert "계좌가 제일 많았을 때보다 얼마나 줄었는지" in 글, 글
+        assert "평가금액이 고점 대비" in 글, 글
 
     # 평가글도 같은 자리에 뜬다. 여기만 비유가 남으면 화면에서 티가 난다.
     from muwon.analysis.period_check import 기간표, 평가글

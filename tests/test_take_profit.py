@@ -122,7 +122,7 @@ def test_꺼_두면_왜_껐는지까지_적는다():
     assert not any("익절" in ㄱ for ㄱ in 조건)
     익절주의 = [ㄱ for ㄱ in 주의 if "익절" in ㄱ]
     assert 익절주의
-    assert "꺼져 있습니다" in 익절주의[0]
+    assert "해제되어 있습니다" in 익절주의[0]
     assert "0.28%" in 익절주의[0], "왜 뺐는지 숫자가 있어야 한다"
 
 

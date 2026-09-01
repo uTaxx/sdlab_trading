@@ -90,7 +90,7 @@ def test_common_rules_carry_the_actual_policy_numbers():
 def test_the_kill_switch_wording_says_stops_do_still_run():
     """'꺼짐'을 '방치'로 읽으면 안 된다 — 보유분 손절은 계속 작동한다."""
     off = " ".join(common_rules(RiskPolicy(trading_enabled=False), 60, "market_cap"))
-    assert "손절은 그대로" in off
+    assert "손절은 계속 동작합니다" in off
 
 
 def test_selling_conditions_include_the_stop_loss_not_just_the_strategy():
@@ -138,7 +138,7 @@ def test_turning_on_the_atr_stop_changes_what_is_shown():
 
 def test_the_off_switches_are_disclosed_while_off():
     _, 주의 = exit_rules(build_strategy("volume_surge_5d"), RiskPolicy())
-    assert any("꺼져 있습니다" in line for line in 주의)
+    assert any("해제되어 있습니다" in line for line in 주의)
 
 
 def test_a_combined_strategy_shows_each_members_conditions():
@@ -174,5 +174,5 @@ def test_combined_exit_rules_gather_every_members_sell_signal():
     )
     합친글 = " ".join(조건)
     assert "손절" in 합친글
-    assert "보유 기간" in 합친글
+    assert "보유기간 만료" in 합친글
     assert "데드크로스" in 합친글

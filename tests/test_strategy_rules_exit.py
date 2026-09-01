@@ -37,10 +37,10 @@ def test_매도선_숫자가_설명에_그대로_들어간다():
 
 def test_매도선이_있으면_나가는_길이_둘이라고_적는다():
     참고 = " ".join(_규칙("volume_surge_5d_ma20").참고)
-    assert "파는 길이 둘" in 참고
+    assert "매도 조건이 두 가지" in 참고
     assert "5거래일" in 참고
 
 
 def test_매도선이_없으면_시간_청산이라고_적는다():
     참고 = " ".join(_규칙("volume_surge_5d").참고)
-    assert "시간" in 참고
+    assert "매도 조건이 지표가 아니라 **보유기간**" in 참고
