@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__n8n__search_workflows",
+      "mcp__n8n__get_workflow_details",
+      "mcp__n8n__get_workflow_version",
+      "mcp__n8n__get_workflow_history",
+      "mcp__n8n__search_workflow_executions",
+      "mcp__n8n__get_workflow_execution",
+      "mcp__n8n__list_workflow_tags",
+      "mcp__n8n__validate_workflow",
+      "mcp__n8n__get_workflow_sdk_reference",
+      "mcp__n8n__get_workflow_best_practices",
+      "mcp__n8n__search_nodes",
+      "mcp__n8n__get_node_types",
+      "mcp__n8n__execute_workflow"
+    ],
+    "ask": [
+      "mcp__n8n__update_workflow",
+      "mcp__n8n__publish_workflow",
+      "mcp__n8n__unpublish_workflow",
+      "mcp__n8n__archive_workflow",
+      "mcp__n8n__create_workflow_from_code",
+      "mcp__n8n__restore_workflow_version"
+    ]
+  }
+}
