@@ -29,6 +29,8 @@ from pathlib import Path
 from muwon.analysis.period_check import 기간들
 from muwon.dashboard.glossary import TERMS
 from muwon.dashboard.strategy_rules import describe
+from muwon.data.universe import UNIVERSE
+from muwon.sector.catalog import CATALOG
 from muwon.settings.from_sheet import 기준들
 from muwon.strategy.registry import REGISTRY, build_strategy
 
@@ -154,8 +156,34 @@ def 기간설명() -> list[dict]:
     ]
 
 
+def 종목이름() -> list[dict]:
+    """종목코드 → 종목명.
+
+    **화면에 여섯 자리 숫자만 뜨면 안 된다.** 034020을 보고 두산에너빌리티를
+    떠올리는 사람은 없다. 그런데 보유·기록·주문 표가 전부 코드만 그리고
+    있었다. 무엇을 사고팔았는지를 보는 표에서 그것이 제일 중요한 칸이다.
+
+    이름을 창구가 실어 보내면 좋겠지만, 시트의 매매기록·주문기록 탭에는
+    이름 칸이 없다. 그래서 화면이 코드로 찾아 쓴다.
+
+    두 목록을 합친다. 섹터 카탈로그가 실제 매수 대상이고, 시가총액 목록은
+    백테스트와 옛 기록에 남은 종목이다. 코드가 겹치면 섹터 쪽을 쓴다 —
+    그쪽이 지금 쓰는 이름이다.
+
+    **모르는 코드는 지어내지 않는다.** 목록에 없으면 화면이 코드를 그대로
+    그린다. 엉뚱한 이름을 붙이는 것보다 낫다."""
+    이름표: dict[str, str] = {}
+    for ㄱ in UNIVERSE:
+        이름표[ㄱ.symbol] = ㄱ.name
+    for s in CATALOG:
+        for m in s.종목:
+            이름표[m.symbol] = m.name
+    return [{"코드": 코드, "이름": 이름} for 코드, 이름 in sorted(이름표.items())]
+
+
 자료들 = {"용어사전.json": 용어사전, "전략설명.json": 전략설명,
-         "기준설명.json": 기준이름, "기간설명.json": 기간설명}
+         "기준설명.json": 기준이름, "기간설명.json": 기간설명,
+         "종목이름.json": 종목이름}
 
 
 def 글로(값) -> str:
@@ -189,7 +217,7 @@ def main() -> int:
               file=sys.stderr)
         return 1
     if 인자.check:
-        print("뽑아 둔 자료 넷이 파이썬 원본과 같습니다.")
+        print(f"뽑아 둔 자료 {len(자료들)}개가 파이썬 원본과 같습니다.")
     return 0
 
 
