@@ -1,4 +1,4 @@
-# n8n 켜는 법 — 하나씩 따라 하기
+# n8n 켜는 법: 하나씩 따라 하기
 
 *2026-08-20 · 구조 설명은 `docs/설계_n8n.md`*
 
@@ -6,8 +6,8 @@
 
 | 워크플로 | 주소 |
 |---|---|
-| 무원406 — 시계 | https://sondullab.app.n8n.cloud/workflow/t2t8DmJ9d7yB4g4U |
-| 무원406 — 텔레그램 받기 | https://sondullab.app.n8n.cloud/workflow/7tSSThvQIsLiIsLk |
+| 무원406: 시계 | https://sondullab.app.n8n.cloud/workflow/t2t8DmJ9d7yB4g4U |
+| 무원406: 텔레그램 받기 | https://sondullab.app.n8n.cloud/workflow/7tSSThvQIsLiIsLk |
 
 **시계부터 켜세요.** 위험이 없고, 이걸로 GitHub 열쇠가 제대로 됐는지 먼저
 확인할 수 있습니다. 텔레그램 쪽은 순서를 틀리면 뉴스 시스템이 멈춥니다.
@@ -40,7 +40,7 @@ n8n이 GitHub를 부르려면 열쇠가 필요합니다. **제일 좁은 열쇠*
 그다음 **Repository permissions**를 펼치고 **`Actions`** 항목을 찾아
 **`Read and write`**로 바꿉니다.
 
-> **`Actions` 하나만입니다.** `Contents`는 건드리지 마세요 — 그건 저장소
+> **`Actions` 하나만입니다.** `Contents`는 건드리지 마세요. 그건 저장소
 > 코드를 바꿀 수 있는 권한이고, n8n에는 그럴 이유가 없습니다.
 >
 > `Metadata: Read-only`는 저절로 켜집니다. 정상입니다.
@@ -97,7 +97,7 @@ Authentication Template에 넣을 것:
 2. 초록색으로 끝나면 성공입니다
 
 **GitHub에서도 확인하세요**:
-https://github.com/uTaxx/sdlab_trading/actions — `시장·섹터 리포트`가 방금
+https://github.com/uTaxx/sdlab_trading/actions: `시장·섹터 리포트`가 방금
 돌기 시작했으면 열쇠가 제대로 된 겁니다.
 
 | 나오는 말 | 뜻 | 할 일 |
@@ -131,7 +131,7 @@ https://github.com/uTaxx/sdlab_trading/actions — `시장·섹터 리포트`가
 
 ---
 
-# 3부. 텔레그램 켜기 (15분) — **순서가 중요합니다**
+# 3부. 텔레그램 켜기 (15분): **순서가 중요합니다**
 
 ## ⚠️ 먼저 읽어 주세요
 
@@ -163,7 +163,7 @@ https://github.com/uTaxx/sdlab_trading/actions — `시장·섹터 리포트`가
 > **모르겠으면 비워 두셔도 됩니다.** 저장소 쪽 코드가 어차피 저장된
 > chat ID에서 온 것만 듣습니다. 여기 넣는 건 한 겹 더 두는 것뿐입니다.
 
-### 3-3. 자격증명 바꾸기 — **여기가 핵심입니다**
+### 3-3. 자격증명 바꾸기: **여기가 핵심입니다**
 
 https://sondullab.app.n8n.cloud/workflow/7tSSThvQIsLiIsLk
 
@@ -205,12 +205,12 @@ https://sondullab.app.n8n.cloud/workflow/7tSSThvQIsLiIsLk
 - n8n → 왼쪽 **Executions** 에서 그 워크플로가 돌았는지
 - GitHub Actions에서 `텔레그램 (n8n이 넘겨준 것)` 이 돌았는지
 
-### 3-8. 마무리 — 옛 방식 끄기
+### 3-8. 마무리: 옛 방식 끄기
 
 이제 GitHub 쪽 폴링은 아무것도 못 받습니다(한 봇을 두 곳에서 못 받으니까).
 **말씀만 주시면 제가 `텔레그램 명령 받기`의 자동 실행을 꺼 드리겠습니다.**
 
-안 꺼도 사고는 안 납니다 — 웹훅을 감지하면 스스로 물러나게 해 뒀습니다.
+안 꺼도 사고는 안 납니다. 웹훅을 감지하면 스스로 물러나게 해 뒀습니다.
 다만 10분마다 헛도는 실행이 쌓입니다.
 
 ---
@@ -240,7 +240,7 @@ n8n이 GitHub를 못 부르고, 그게 전부입니다.
 **"자격증명을 고쳤는데도 웹훅이 안 걸린다"**
 → **n8n은 Publish 하는 순간에만 웹훅을 등록합니다.** 켜진 상태에서 봇
    토큰만 바꾸면 다시 등록하지 않습니다. **Unpublish 했다가 다시 Publish**
-   하세요. 실제로 이것 때문에 한참 헤맸습니다 — 토큰이 틀린 줄 알았는데
+   하세요. 실제로 이것 때문에 한참 헤맸습니다. 토큰이 틀린 줄 알았는데
    토큰은 맞았고 등록이 안 된 것이었습니다.
 
 **"버튼을 눌러도 반응이 없다"**

@@ -55,7 +55,7 @@ def sells(signals):
 def rising_then_falling(
     flat_days: int = 40, rise_days: int = 60, fall_days: int = 60, start: float = 100.0
 ):
-    """횡보하다 꾸준히 오르고 다시 꾸준히 내리는 시계열 — 추세추종 계열이
+    """횡보하다 꾸준히 오르고 다시 꾸준히 내리는 시계열: 추세추종 계열이
     매수 후 매도 신호를 한 번씩 내야 하는 가장 기본적인 패턴.
 
     앞의 횡보 구간이 반드시 필요하다: 처음부터 상승으로 시작하면 이동평균
@@ -145,7 +145,7 @@ def test_donchian_adx_filter_only_reduces_buys():
 
 
 def test_rsi_reversion_buys_on_bounce_above_long_ma():
-    """장기 이동평균 위에서 급락 후 반등 — 평균회귀가 노리는 전형적 패턴.
+    """장기 이동평균 위에서 급락 후 반등: 평균회귀가 노리는 전형적 패턴.
 
     가파른 상승으로 장기선을 한참 아래 남겨둔 뒤 8일 연속 하락시키면
     RSI가 26까지 떨어지고, 반등일에 30을 다시 넘으면서도 종가는 여전히
@@ -162,7 +162,7 @@ def test_rsi_reversion_buys_on_bounce_above_long_ma():
 
 def test_rsi_reversion_long_ma_filter_blocks_falling_knife():
     """장기 이동평균 아래(=하락 추세)에서는 필터가 켜져 있으면 매수하지
-    않아야 한다 — 계속 흘러내리는 종목을 받아내는 걸 막는 장치."""
+    않아야 한다. 계속 흘러내리는 종목을 받아내는 걸 막는 장치."""
     closes = [200.0 - i * 1.5 for i in range(80)]  # 지속 하락
     closes += [closes[-1] * 1.05] * 5  # 잠깐 반등
     df = make_price_df(closes)
@@ -185,7 +185,7 @@ def test_bollinger_reversion_buys_on_lower_band_recovery():
 
 def test_bollinger_reversion_and_breakout_disagree_on_upper_band():
     """같은 상단 밴드 돌파를 평균회귀는 청산 신호로, 돌파 전략은 매수
-    신호로 해석해야 한다 — 두 해석을 각각 가설로 둔 이유를 고정한다."""
+    신호로 해석해야 한다. 두 해석을 각각 가설로 둔 이유를 고정한다."""
     closes = [100.0] * 40 + [130.0] + [131.0] * 5
     volumes = [100_000] * 40 + [500_000] + [120_000] * 5
     df = make_price_df(closes, volumes)
@@ -245,7 +245,7 @@ def test_volume_surge_declares_time_exit_instead_of_emitting_it():
 def test_volume_surge_no_longer_suppresses_later_entries():
     """자리가 없어 못 산 종목이 이후 기회까지 잃던 결함의 회귀 테스트.
 
-    급등이 두 번 오면 신호도 두 번 나야 한다 — 실제로 살지 말지는 엔진이
+    급등이 두 번 오면 신호도 두 번 나야 한다. 실제로 살지 말지는 엔진이
     보유 현황과 리스크 한도를 보고 정할 일이다."""
     closes = [100.0] * 21 + [110.0, 110.0, 110.0, 125.0] + [125.0] * 5
     volumes = [100_000] * 21 + [500_000, 100_000, 100_000, 500_000] + [100_000] * 5
@@ -324,9 +324,9 @@ def test_get_definition_unknown_key_raises_with_known_keys_listed():
 
 
 def _all_signals(definition_key, df):
-    """등록된 전략이 종목 단위든 유니버스 단위든 같은 방법으로 돌린다.
+    """등록된 전략이 종목 단위든 유니버스 단위든 같은 방법으로 실행한다.
 
-    두 종류가 공존하므로 테스트도 공통 경로(PortfolioStrategy)로 돌려야
+    두 종류가 공존하므로 테스트도 공통 경로(PortfolioStrategy)로 실행해야
     '등록된 전략은 전부 돈다'는 보장이 유지된다."""
     from muwon.strategy.portfolio import MarketContext, as_portfolio_strategy
 
@@ -355,7 +355,7 @@ def test_every_strategy_runs_on_realistic_series_without_error():
 
 def test_strategies_do_not_mutate_input_dataframe():
     """전략이 입력 DataFrame에 지표 컬럼을 덧붙여 버리면, 같은 데이터를
-    여러 전략에 돌리는 스윕에서 서로 오염된다."""
+    여러 전략에 실행하는 스윕에서 서로 오염된다."""
     df = rising_then_falling()
     original_columns = list(df.columns)
     original_len = len(df)

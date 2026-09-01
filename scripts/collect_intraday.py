@@ -1,10 +1,10 @@
 """오늘의 30분봉을 받아 쌓는다.
 
 **이 스크립트가 오늘 안 돌면 오늘치는 영영 없다.** 한국투자증권 API는
-당일 분봉만 주고 과거 날짜는 아예 못 받는다. 그래서 이건 "언젠가 돌리면
+당일 분봉만 주고 과거 날짜는 아예 못 받는다. 그래서 이건 "언젠가 실행하면
 되는 것"이 아니라 매 거래일 장 마감 뒤에 반드시 한 번 도는 것이다.
 
-왜 모으는가 — 장중 모멘텀(첫 30분이 마지막 30분을 예측한다)이 우리가
+왜 모으는가. 장중 모멘텀(첫 30분이 마지막 30분을 예측한다)이 우리가
 조사한 단타 후보 중 한국 시장 증거가 있는 유일한 것인데(JRFM 15:523),
 검증하려면 30분봉이 필요하고 과거 것은 살 수가 없다. 오늘부터 쌓는
 수밖에 없다.
@@ -43,7 +43,7 @@ from muwon.settings.service import build_settings_service
 
 KST = timezone(timedelta(hours=9))
 
-#: 호출 사이 간격(초). KIS는 초당 호출 수를 제한한다 — 60종목 × 13칸이면
+#: 호출 사이 간격(초). KIS는 초당 호출 수를 제한한다. 60종목 × 13칸이면
 #: 780번이라, 아껴 부르는 것보다 안 막히는 게 중요하다.
 CALL_INTERVAL = 0.12
 
@@ -61,7 +61,7 @@ def collect(client: KISClient, symbols: list[str], today: date, *, verbose: bool
             try:
                 분봉 += client.get_minute_bars(symbol, f"{칸}00")
             except requests.RequestException as e:
-                # 종목 하나가 죽어도 나머지는 받아야 한다 — 오늘 못 받으면
+                # 종목 하나가 죽어도 나머지는 받아야 한다. 오늘 못 받으면
                 # 영영 없기 때문이다.
                 실패 += 1
                 print(f"  {symbol} {칸} 실패: {type(e).__name__}", file=sys.stderr)
@@ -84,7 +84,7 @@ def main() -> int:
     today = date.fromisoformat(args.date) if args.date else datetime.now(KST).date()
 
     session_factory = make_session_factory(bootstrap_settings.database_url)
-    # SettingsService에 session_factory를 바로 주면 안 된다 — 사이에
+    # SettingsService에 session_factory를 바로 주면 안 된다. 사이에
     # SettingsStore가 있어야 하고, 그게 비밀값을 푸는 열쇠를 들고 있다.
     # 2026-08-20~25에 이걸 틀려서 30분봉이 일곱 번 내리 실패했다.
     service = build_settings_service()
@@ -92,8 +92,8 @@ def main() -> int:
     # 수집 대상을 바꾸면, 나중에 "그때 무엇을 모았나"를 되짚을 수 없다.
     symbols = [t.symbol for t in active_universe(session_factory, list(UNIVERSE))]
 
-    print(f"■ {today} 30분봉 수집 — {len(symbols)}종목 × {len(SLOT_ENDS)}칸")
-    print(f"  저장 위치: {DEFAULT_PATH} (운영 DB와 분리 — 대시보드가 매번 내려받지 않게)")
+    print(f"■ {today} 30분봉 수집: {len(symbols)}종목 × {len(SLOT_ENDS)}칸")
+    print(f"  저장 위치: {DEFAULT_PATH} (운영 DB와 분리해 둔다. 대시보드가 매번 내려받지 않게)")
     if args.dry_run:
         print(f"  대상: {', '.join(symbols[:10])}{' …' if len(symbols) > 10 else ''}")
         print("  --dry-run이라 실제로 받지는 않았습니다.")

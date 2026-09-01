@@ -1,9 +1,9 @@
-"""종목 하나만 보고 계산하는 Factor들 — Trend / Momentum / Pullback / Volume.
+"""종목 하나만 보고 계산하는 Factor들: Trend / Momentum / Pullback / Volume.
 
 이 넷은 예전 구조에서도 만들 수 있었던 것들이다. 달라진 건 참/거짓이 아니라
 0~100 점수를 돌려준다는 점, 그리고 왜 그 점수인지 문장을 함께 남긴다는 점이다.
 
-성능에 관해 — 백테스트는 evaluate()를 거래일 수만큼(수백~수천 번) 호출한다.
+성능에 관해: 백테스트는 evaluate()를 거래일 수만큼(수백~수천 번) 호출한다.
 날짜마다 이동평균을 처음부터 다시 계산하면 같은 값을 수백 번 구하게 되고,
 실제로 그 방식이 다른 전략보다 25배 느렸다(18종목 730일 기준 30초 vs 1.2초).
 그래서 지표는 warmup()에서 **종목별 시계열로 한 번만** 계산하고, 날짜별
@@ -61,7 +61,7 @@ class TrendFactor(Factor):
         price = float(row["close"])
         mas = {w: float(row[f"ma{w}"]) for w in self.windows}
         checks: list[tuple[bool, str]] = [(price > mas[w], f"종가>{w}일선") for w in self.windows]
-        # 선끼리의 순서(정배열)도 본다 — 가격만 보면 급등 하루로 만점이 나온다
+        # 선끼리의 순서(정배열)도 본다. 가격만 보면 급등 하루로 만점이 나온다
         for short, long in pairwise(self.windows):
             checks.append((mas[short] > mas[long], f"{short}>{long}일선"))
 
@@ -82,7 +82,7 @@ class TrendFactor(Factor):
 
 
 class MomentumFactor(Factor):
-    """이 종목 자체가 오르고 있는가 — 여러 기간을 섞어 본다.
+    """이 종목 자체가 오르고 있는가. 여러 기간을 섞어 본다.
 
     최근 수익률만 보면 하루 급등에 속는다. 인수인계서 8.2항대로 장기
     모멘텀에 더 큰 비중을 둔다. 절대 수익률을 점수로 바꿀 때 임계값을 손으로
@@ -106,7 +106,7 @@ class MomentumFactor(Factor):
             returns = pd.DataFrame(
                 {p: (closes / closes.shift(p) - 1) * 100 for p in self._weights}
             )
-            # 계산된 기간의 가중치만으로 다시 나눈다 — 상장한 지 얼마 안 된
+            # 계산된 기간의 가중치만으로 다시 나눈다. 상장한 지 얼마 안 된
             # 종목이 '장기 수익률 없음' 때문에 무조건 낮은 값을 받으면 안 된다
             used = returns.notna().mul(weight_series, axis=1).sum(axis=1)
             total = returns.fillna(0).mul(weight_series, axis=1).sum(axis=1)
@@ -141,7 +141,7 @@ class PullbackFactor(Factor):
     훼손으로 본다. 장기선 아래로 내려간 종목은 아예 눌림으로 치지 않는다."""
 
     key = "pullback"
-    #: (조정폭 %, 점수) — 오름차순
+    #: (조정폭 %, 점수): 오름차순
     DEFAULT_CURVE: ClassVar[list[tuple[float, float]]] = [
         (-12.0, 10.0),
         (-8.0, 70.0),
@@ -177,7 +177,7 @@ class PullbackFactor(Factor):
             return FactorResult(self.key, None, "데이터 부족")
 
         if row["close"] <= row["long_ma"]:
-            return FactorResult(self.key, 0.0, f"{self.trend_ma}일선 아래 — 눌림이 아니라 하락")
+            return FactorResult(self.key, 0.0, f"{self.trend_ma}일선 아래: 눌림이 아니라 하락")
 
         dip_pct = (row["close"] / row["recent_high"] - 1) * 100
         return FactorResult(
@@ -188,7 +188,7 @@ class PullbackFactor(Factor):
 
 
 class VolumeFactor(Factor):
-    """관심이 몰렸는가 — 평균 거래량 대비 배수.
+    """관심이 몰렸는가. 평균 거래량 대비 배수.
 
     유동성 하한도 여기서 본다. 거래대금이 너무 작은 종목은 신호가 맞아도
     실제로는 원하는 가격에 못 산다(인수인계서 12항)."""

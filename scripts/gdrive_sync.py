@@ -1,6 +1,6 @@
 """muwon.db 상태 파일을 구글드라이브와 주고받는 CLI.
 
-실제 로직은 src/muwon/cloud/gdrive_sync.py에 있다 — 대시보드도 같은 로직을
+실제 로직은 src/muwon/cloud/gdrive_sync.py에 있다. 대시보드도 같은 로직을
 쓰기 때문에 여기 있으면 안 되고(스크립트는 패키지로 import가 안 됨), 이
 파일은 그 로직을 커맨드라인에서 쓰기 위한 얇은 래퍼다.
 

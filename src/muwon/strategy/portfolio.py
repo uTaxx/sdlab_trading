@@ -1,6 +1,6 @@
 """유니버스 전체를 보고 하루치 판단을 내리는 전략 계층.
 
-왜 필요한가 — 기존 Strategy 인터페이스는 종목 하나의 가격 히스토리만 받는다.
+왜 필요한가. 기존 Strategy 인터페이스는 종목 하나의 가격 히스토리만 받는다.
 
     def generate_signals(self, symbol: str, price_history: pd.DataFrame)
 
@@ -12,7 +12,7 @@
 그래서 판단의 단위를 '종목'이 아니라 '하루'로 올린다. PortfolioStrategy는
 그날의 전체 상황(MarketContext)을 받아 종목별 신호를 돌려준다.
 
-기존 전략 21종은 버리지 않는다 — SingleSymbolAdapter로 감싸 같은 경로에 태운다.
+기존 전략 21종은 버리지 않는다. SingleSymbolAdapter로 감싸 같은 경로에 태운다.
 다기간 검증의 기준선이자, 새 엔진이 정말 더 나은지 비교할 대조군이기 때문이다.
 """
 
@@ -34,7 +34,7 @@ class MarketContext:
 
     histories는 as_of까지만 잘라서 넣는 게 원칙이지만, 지표 예열 때문에
     전체 프레임을 그대로 넘기는 구현도 있다(백테스트). 그래서 미래를 보지
-    않을 책임은 Factor/전략 쪽에 있다 — as_of 이후 행을 참조하지 말 것.
+    않을 책임은 Factor/전략 쪽에 있다. as_of 이후 행을 참조하지 말 것.
     """
 
     as_of: date
@@ -48,7 +48,7 @@ class FactorResult:
     """Factor 하나가 한 종목에 매긴 점수.
 
     score는 반드시 0~100으로 정규화한다. 척도가 제각각이면 가중치를 아무리
-    조정해도 의미가 없어진다 — 이 규칙이 점수 합산 방식의 전제다.
+    조정해도 의미가 없어진다. 이 규칙이 점수 합산 방식의 전제다.
     데이터가 모자라 평가할 수 없으면 score=None으로 두고, 그 Factor의
     가중치는 합계에서 빼고 나머지를 재정규화한다.
     """
@@ -60,7 +60,7 @@ class FactorResult:
 
 @dataclass(frozen=True)
 class Evaluation:
-    """한 종목에 대한 최종 평가 — 점수와 '왜'가 항상 함께 다닌다.
+    """한 종목에 대한 최종 평가. 점수와 '왜'가 항상 함께 다닌다.
 
     사람이 판단 근거를 못 보면 전략을 고칠 수가 없다(인수인계서 35항)."""
 
@@ -76,7 +76,7 @@ class PortfolioStrategy(ABC):
     name: str
 
     #: 진입 후 이 거래일 수가 지나면 청산한다(시간 기반 청산). None이면 없음.
-    #: 전략이 아니라 엔진이 실제 보유일 기준으로 집행한다 — 전략이 스스로
+    #: 전략이 아니라 엔진이 실제 보유일 기준으로 집행한다. 전략이 스스로
     #: "내가 보유 중"을 기억하면 엔진의 실제 보유와 어긋나기 때문이다.
     max_holding_days: int | None = None
 
@@ -99,7 +99,7 @@ class SingleSymbolAdapter(PortfolioStrategy):
 
     두 엔진이 PortfolioStrategy 한 가지만 알면 되도록 만드는 다리다. 기존
     전략은 종목별로 독립 계산되므로 prepare()에서 전 종목·전 기간 신호를 한
-    번에 만들어 날짜별로 색인해 둔다 — 기존 엔진들이 하던 것과 똑같은 계산
+    번에 만들어 날짜별로 색인해 둔다. 기존 엔진들이 하던 것과 똑같은 계산
     순서라, 결과가 달라지지 않는다."""
 
     def __init__(self, strategy: Strategy):

@@ -1,12 +1,13 @@
 """KIS 서버에 실제로 붙지 못하는 개발 환경에서, 최소한 요청 구성(URL·헤더·
 TR_ID·바디)과 응답 파싱이 KIS Developers 문서와 어긋나지 않는지를 requests를
-모킹해서 검증한다. 실제 서버 동작 자체는 검증하지 못한다 — 모의투자 계좌로
+모킹해서 검증한다. 실제 서버 동작 자체는 검증하지 못한다. 모의투자 계좌로
 반드시 별도 확인이 필요하다."""
 
 from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from muwon.data.kis_client import (
     _MIN_REQUEST_INTERVAL_PAPER,
@@ -107,7 +108,7 @@ def test_place_cash_order_uses_real_sell_tr_id(mock_post):
 
 
 class FakeClock:
-    """time.time()을 테스트가 제어하는 값으로 대체 — 실제로 잠들지 않고도
+    """time.time()을 테스트가 제어하는 값으로 대체: 실제로 잠들지 않고도
     요청 간격 로직(_throttle)을 검증한다."""
 
     def __init__(self, start: float = 1000.0):
@@ -124,7 +125,7 @@ class FakeClock:
 @patch("muwon.data.kis_client.time.time")
 def test_throttle_waits_between_consecutive_paper_requests(mock_time, mock_get):
     """모의투자 계좌로 유니버스 종목을 연달아 조회하다 9번째 요청부터
-    500이 난 실제 사고를 재현한 회귀 테스트 — 요청 간격이 제한보다 짧으면
+    500이 난 실제 사고를 재현한 회귀 테스트: 요청 간격이 제한보다 짧으면
     다음 요청 전에 부족한 만큼 대기해야 한다."""
     mock_get.return_value = MagicMock(status_code=200, json=lambda: {"output2": []})
     mock_get.return_value.raise_for_status = lambda: None
@@ -137,12 +138,12 @@ def test_throttle_waits_between_consecutive_paper_requests(mock_time, mock_get):
     client._sleep = lambda seconds: (sleeps.append(seconds), clock.advance(seconds))[0]
 
     client.get_daily_ohlcv("005930", date(2024, 1, 2), date(2024, 1, 3))
-    elapsed = 0.1  # 다음 요청 전 아주 조금만 경과 — 제한 간격에 못 미침
+    elapsed = 0.1  # 다음 요청 전 아주 조금만 경과: 제한 간격에 못 미침
     clock.advance(elapsed)
     client.get_daily_ohlcv("000660", date(2024, 1, 2), date(2024, 1, 3))
 
     assert len(sleeps) == 1
-    # 간격 값 자체를 상수에서 읽는다 — 제한을 조정할 때마다 테스트가 깨지면
+    # 간격 값 자체를 상수에서 읽는다. 제한을 조정할 때마다 테스트가 깨지면
     # 정작 검증하려는 "부족한 만큼 기다린다"는 성질이 가려진다.
     assert round(sleeps[0], 4) == round(_MIN_REQUEST_INTERVAL_PAPER - elapsed, 4)
 
@@ -181,7 +182,7 @@ def test_real_trading_uses_shorter_throttle_interval_than_paper(mock_time, mock_
     client._sleep = lambda seconds: (sleeps.append(seconds), clock.advance(seconds))[0]
 
     client.get_daily_ohlcv("005930", date(2024, 1, 2), date(2024, 1, 3))
-    clock.advance(0.1)  # 실전투자 제한(0.05초)보다 지남 — 대기 불필요
+    clock.advance(0.1)  # 실전투자 제한(0.05초)보다 지남: 대기 불필요
     client.get_daily_ohlcv("000660", date(2024, 1, 2), date(2024, 1, 3))
 
     assert sleeps == []
@@ -190,7 +191,7 @@ def test_real_trading_uses_shorter_throttle_interval_than_paper(mock_time, mock_
 @patch("muwon.data.kis_client.requests.get")
 def test_get_daily_ohlcv_retries_on_500_then_succeeds(mock_get):
     """throttle을 둬도 산발적으로 500이 나는 걸 실제로 관찰해서 추가한
-    재시도 로직 — 두 번째 시도에서 성공하면 그 결과를 그대로 써야 한다."""
+    재시도 로직: 두 번째 시도에서 성공하면 그 결과를 그대로 써야 한다."""
     error_response = MagicMock(status_code=500)
     ok_response = MagicMock(status_code=200, json=lambda: {"output2": []})
     ok_response.raise_for_status = lambda: None
@@ -271,7 +272,7 @@ def test_order_rate_limit_arrives_as_http_500_and_is_retried(mock_post):
 
 @patch("muwon.data.kis_client.requests.post")
 def test_order_business_rejection_is_not_retried(mock_post):
-    """잔고 부족처럼 재시도해도 결과가 같은 거부는 다시 보내지 않아야 한다 —
+    """잔고 부족처럼 재시도해도 결과가 같은 거부는 다시 보내지 않아야 한다.
     주문 POST를 불필요하게 반복하면 중복 체결 위험만 커진다."""
     rejected = MagicMock(
         status_code=200,
@@ -290,7 +291,7 @@ def test_order_business_rejection_is_not_retried(mock_post):
 @patch("muwon.data.kis_client.requests.post")
 def test_order_raises_http_error_when_body_is_not_a_kis_response(mock_post):
     """KIS 업무 응답이 아닌 진짜 서버 오류(HTML 오류 페이지 등)는 그대로
-    HTTP 오류로 올려야 한다 — 업무 거부와 뭉뚱그리면 원인을 못 찾는다."""
+    HTTP 오류로 올려야 한다. 업무 거부와 뭉뚱그리면 원인을 못 찾는다."""
     import requests as requests_module
 
     broken = MagicMock(status_code=502, text="<html>Bad Gateway</html>")
@@ -310,7 +311,7 @@ def test_order_raises_http_error_when_body_is_not_a_kis_response(mock_post):
 @patch("muwon.data.kis_client.requests.post")
 def test_order_rejection_exposes_kis_codes_separately_from_network_errors(mock_post):
     """KIS가 업무 규칙으로 거부한 것(요청 형식은 맞음)과 네트워크·인증
-    실패(요청 자체가 틀림)를 호출부가 구분할 수 있어야 한다 — 주문 경로
+    실패(요청 자체가 틀림)를 호출부가 구분할 수 있어야 한다. 주문 경로
     검증 스크립트가 이 구분으로 성공/실패를 판정한다."""
     mock_post.return_value = MagicMock(
         json=lambda: {"rt_cd": "1", "msg_cd": "40570000", "msg1": "장시간이 아닙니다"}
@@ -385,7 +386,7 @@ def test_get_fill_returns_none_when_order_not_found(mock_get):
 
 @patch("muwon.data.kis_client.requests.get")
 def test_get_fill_reports_unfilled_order(mock_get):
-    """접수는 됐지만 아직 체결 전이면 filled_quantity=0으로 알려줘야 한다 —
+    """접수는 됐지만 아직 체결 전이면 filled_quantity=0으로 알려줘야 한다.
     호출부가 이걸 보고 기준가를 유지할지 판단한다."""
     mock_get.return_value = MagicMock(
         status_code=200,
@@ -493,7 +494,7 @@ def test_get_balance_raises_with_kis_reason_on_rejection(mock_get):
         client.get_balance()
 
 
-# 계좌 잔고 조회 — 어떤 필드를 "현금"으로 삼느냐가 대조의 전부다.
+# 계좌 잔고 조회: 어떤 필드를 "현금"으로 삼느냐가 대조의 전부다.
 #
 # 아래 숫자는 2026-08-24에 HPSP 2주(90,100원)를 모의계좌에서 시험 매수한
 # 직후 실제로 받은 응답이다. 예수금 총액은 매수를 아직 반영하지 않는다.
@@ -512,8 +513,8 @@ _잔고응답_매수직후 = {
     ],
     "output2": [
         {
-            "dnca_tot_amt": "10000145",  # 예수금 총액 — 매수가 아직 안 빠졌다
-            "prvs_rcdl_excc_amt": "9910035",  # 가수도정산금액 — 이미 빠졌다
+            "dnca_tot_amt": "10000145",  # 예수금 총액: 매수가 아직 안 빠졌다
+            "prvs_rcdl_excc_amt": "9910035",  # 가수도정산금액: 이미 빠졌다
             "nxdy_excc_amt": "10000145",
             "thdt_buy_amt": "90100",
             "thdt_tlex_amt": "10",
@@ -540,10 +541,93 @@ def test_balance_cash_reflects_todays_buy_not_unsettled_deposit(mock_get):
 
 @patch("muwon.data.kis_client.requests.get")
 def test_balance_keeps_raw_summary_for_eyeballing(mock_get):
-    """어떤 필드가 무엇인지는 응답을 직접 봐야 안다 — 원본을 버리지 않는다."""
+    """어떤 필드가 무엇인지는 응답을 직접 봐야 안다. 원본을 버리지 않는다."""
     mock_get.return_value = MagicMock(status_code=200, json=lambda: _잔고응답_매수직후)
 
     balance = make_client().get_balance()
 
     assert balance.raw_summary["thdt_buy_amt"] == "90100"
     assert balance.holdings[0].symbol == "403870"
+
+
+# ── 응답이 아예 오지 않을 때 ────────────────────────────────────────────────
+#
+# 2026-09-01 장중 손절 감시가 15:00과 15:15 두 차례 실패했다. 증권사가 10초
+# 안에 답을 주지 않았고, requests가 올린 ReadTimeout이 그대로 밖으로 나가
+# 실행 하나가 통째로 끝났다. 상태 코드를 보는 재시도는 응답이 있어야만
+# 동작하므로 이 경우를 못 잡는다.
+
+
+@patch("muwon.data.kis_client.requests.get")
+def test_조회가_시간초과되면_다시_보낸다(mock_get):
+    ok = MagicMock(status_code=200, json=lambda: {"output2": []})
+    ok.raise_for_status = lambda: None
+    mock_get.side_effect = [requests.exceptions.ReadTimeout("read timed out"), ok]
+
+    client = make_client()
+    client._sleep = lambda seconds: None
+
+    df = client.get_daily_ohlcv("005930", date(2024, 1, 2), date(2024, 1, 3))
+
+    assert len(df) == 0
+    assert mock_get.call_count == 2
+
+
+@patch("muwon.data.kis_client.requests.get")
+def test_조회가_연결끊김이어도_다시_보낸다(mock_get):
+    ok = MagicMock(status_code=200, json=lambda: {"output2": []})
+    ok.raise_for_status = lambda: None
+    mock_get.side_effect = [requests.exceptions.ConnectionError("연결이 끊겼습니다"), ok]
+
+    client = make_client()
+    client._sleep = lambda seconds: None
+
+    client.get_daily_ohlcv("005930", date(2024, 1, 2), date(2024, 1, 3))
+
+    assert mock_get.call_count == 2
+
+
+@patch("muwon.data.kis_client.requests.get")
+def test_세_번_다_응답이_없으면_그대로_실패시킨다(mock_get):
+    """조용히 빈 값을 돌려주면 안 된다. 못 받은 것과 없는 것은 다르다."""
+    mock_get.side_effect = requests.exceptions.ReadTimeout("read timed out")
+
+    client = make_client()
+    client._min_request_interval = 0.0  # 호출 간격 대기가 섞이면 값을 못 본다
+    잔 = []
+    client._sleep = 잔.append
+
+    with pytest.raises(requests.exceptions.ReadTimeout):
+        client.get_daily_ohlcv("005930", date(2024, 1, 2), date(2024, 1, 3))
+
+    assert mock_get.call_count == 3  # _MAX_RETRIES
+    assert 잔 == [1.0, 2.0]  # 기다리는 시간이 시도마다 늘어난다
+
+
+@patch("muwon.data.kis_client.requests.get")
+def test_잔고조회도_시간초과를_다시_보낸다(mock_get):
+    """손절 감시가 실제로 부르는 것이 잔고조회다."""
+    ok = MagicMock(status_code=200, json=lambda: _잔고응답_매수직후)
+    mock_get.side_effect = [requests.exceptions.ReadTimeout("read timed out"), ok]
+
+    client = make_client()
+    client._sleep = lambda seconds: None
+
+    balance = client.get_balance()
+
+    assert balance.cash == 9_910_035
+    assert mock_get.call_count == 2
+
+
+@patch("muwon.data.kis_client.requests.post")
+def test_주문은_시간초과를_다시_보내지_않는다(mock_post):
+    """주문이 접수됐는지 알 수 없는 상태다. 다시 보내면 두 번 체결될 수 있다."""
+    mock_post.side_effect = requests.exceptions.ReadTimeout("read timed out")
+
+    client = make_client()
+    client._sleep = lambda seconds: None
+
+    with pytest.raises(requests.exceptions.ReadTimeout):
+        client.place_cash_order("005930", OrderSide.BUY, 10, 71000.0)
+
+    assert mock_post.call_count == 1

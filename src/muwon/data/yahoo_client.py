@@ -1,10 +1,10 @@
-"""백테스트 전용 시세 소스 — Yahoo Finance 공개 차트 API.
+"""백테스트 전용 시세 소스: Yahoo Finance 공개 차트 API.
 
 KIS API는 이 프로젝트의 운영(모의투자/실거래) 시세 소스지만, 비표준 포트
 (9443/29443)를 쓰기 때문에 개발 환경에 따라 접근이 막혀 있을 수 있다.
 백테스트는 굳이 운영 시세 소스와 같을 필요가 없으므로, 표준 443 포트로
 접근 가능한 Yahoo Finance를 개발·백테스트 전용으로 쓴다. 실거래 신호
-생성/주문 실행은 반드시 KISClient를 거친다 — 이 클래스를 쓰지 않는다.
+생성과 주문 실행은 반드시 KISClient를 거친다. 이 클래스는 실거래에 쓰지 않는다.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class YahooFinanceDataSource(MarketDataSource):
         self._timeout = timeout
 
     def get_daily_ohlcv(self, symbol: str, start: date, end: date) -> pd.DataFrame:
-        """symbol은 Yahoo 티커(예: '005930.KS') — universe.py의 yahoo_symbol을 쓴다."""
+        """symbol은 Yahoo 티커다(예: '005930.KS'). universe.py의 yahoo_symbol을 쓴다."""
         period1 = int(datetime(start.year, start.month, start.day, tzinfo=UTC).timestamp())
         period2 = int(datetime(end.year, end.month, end.day, tzinfo=UTC).timestamp()) + 86400
 

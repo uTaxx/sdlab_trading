@@ -5,7 +5,7 @@ name: 전략 실험
 # '유니버스 내 순위'이고 시장 국면은 '유니버스의 Breadth'라 종목 수가 결과를
 # 직접 바꾼다.
 #
-# 결과는 운영 DB에 쓰지 않는다 — 실거래 기록과 섞이면 나중에 리포트를 읽을 때
+# 결과는 운영 DB에 쓰지 않는다. 실거래 기록과 섞이면 나중에 리포트를 읽을 때
 # 헷갈린다. 대신 아티팩트로 올린다. 로그로만 남기던 시절엔 같은 표를 네 번
 # 다시 만들었고, Actions 로그는 만료되므로 결국 아무것도 안 남는다.
 
@@ -41,13 +41,13 @@ on:
         description: "param 모드에서 쓸 값 (쉼표 구분)"
         default: "0,120,200"
       regime_params:
-        description: "국면 Factor 설정 덮어쓰기 JSON — diagnose는 그대로, param 모드는 고정값"
+        description: "국면 Factor 설정 덮어쓰기 JSON: diagnose는 그대로, param 모드는 고정값"
         default: ""
       keys:
         description: "strategies 모드는 비교할 전략 키(쉼표 구분, all이면 전부), diagnose 모드는 전략 하나, split 모드는 '매수키>매도키' (여러 조합은 '|'로 구분)"
         default: "volume_surge_5d,factor_score_v1,macd_cross"
       fill_timing:
-        description: "체결 시점 — close=그날 종가(지금 백테스트) / open=다음 날 시가(실거래와 같은 규칙)"
+        description: "체결 시점: close=그날 종가(지금 백테스트) / open=다음 날 시가(실거래와 같은 규칙)"
         type: choice
         options: ["close", "open"]
         default: "close"
@@ -68,7 +68,7 @@ jobs:
 
       # 시세를 매 실행마다 다시 받으면 실험 하나에 30~60초가 그냥 나간다.
       # 종목 구성이 바뀌면 캐시가 안 맞을 수 있으므로 키에 유니버스 종류를
-      # 넣고, restore-keys로 오래된 캐시도 일단 받아 쓴다 — 안 맞는 종목만
+      # 넣고, restore-keys로 오래된 캐시도 일단 받아 쓴다. 안 맞는 종목만
       # 다시 받으면 되고, 맞는지는 캐시가 구간 기록으로 판단한다.
       - name: 시세 캐시 복원
         uses: actions/cache@v4
@@ -93,7 +93,7 @@ jobs:
       - name: 구간 진단 (mode=diagnose)
         if: github.event.inputs.mode == 'diagnose'
         run: |
-          # `| tee`는 파이썬의 종료 코드를 삼킨다 — 파이프라인의 결과는
+          # `| tee`는 파이썬의 종료 코드를 삼킨다. 파이프라인의 결과는
           # 맨 끝 tee의 것이고 tee는 거의 안 죽는다. 2026-08-25에 매수가
           # KIS 403으로 통째로 터졌는데 워크플로는 초록불로 끝났다.
           # 조용히 성공한 척하는 실패라 여기서 막는다.

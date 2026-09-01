@@ -36,7 +36,7 @@ def test_it_finds_the_peak_and_the_giveback():
 
     assert len(paths) == 1
     path = paths[0]
-    # 부동소수 나눗셈이라 정확히 20.0이 아니다 — approx 없이 쓰면
+    # 부동소수 나눗셈이라 정확히 20.0이 아니다. approx 없이 쓰면
     # 내용은 맞는데 테스트만 깨진다.
     assert path.고점_pct == pytest.approx(20.0)
     assert path.청산_pct == pytest.approx(5.0)
@@ -60,7 +60,7 @@ def test_a_trade_with_no_price_history_is_skipped_not_guessed():
 
 
 def test_the_peak_on_the_entry_day_counts_as_day_zero():
-    """사자마자 고점인 경우가 실제로 가장 많다 — 그걸 1일째로 세면
+    """사자마자 고점인 경우가 실제로 가장 많다. 그걸 1일째로 세면
     '재료가 하루 갔다'는 그림이 잘못 나온다."""
     df = frame("A", date(2024, 1, 1), [100, 95, 90])
     paths = trace(
@@ -75,7 +75,7 @@ def test_empty_input_says_so_instead_of_printing_zeros():
 
 
 def test_the_report_separates_winners_from_losers():
-    """이긴 매매와 진 매매를 섞으면 되돌림 평균이 뜻을 잃는다 —
+    """이긴 매매와 진 매매를 섞으면 되돌림 평균이 뜻을 잃는다.
     진 매매는 애초에 오른 적이 없어 되돌림이 곧 손실폭이다."""
     df = frame("A", date(2024, 1, 1), [100, 120, 110])
     paths = trace(

@@ -14,7 +14,7 @@
 
 **종가만 본다.** 장중 고가(high)를 쓰면 "그 값에 팔 수 있었다"는 가정이
 들어가는데, 이 시스템은 일봉 종가로 판단하고 다음 날 아침에 주문을 낸다.
-장중 고가는 실제로 잡을 수 없는 값이다 — 그걸로 계산하면 익절이 실제보다
+장중 고가는 실제로 잡을 수 없는 값이다. 그걸로 계산하면 익절이 실제보다
 좋아 보인다.
 """
 
@@ -72,7 +72,7 @@ def _median(values: list[float]) -> float:
 
 def format_paths(paths: list[TradePath], label: str = "") -> str:
     """되돌림 분포를 표로. 익절선을 논하기 전에 봐야 할 숫자다."""
-    머리 = f"■ 보유 중 값이 어떻게 움직였나{f' — {label}' if label else ''}"
+    머리 = f"■ 보유 중 값이 어떻게 움직였나{f' ({label})' if label else ''}"
     if not paths:
         return f"{머리}\n\n완결된 매매가 없습니다."
 
@@ -82,7 +82,7 @@ def format_paths(paths: list[TradePath], label: str = "") -> str:
         머리,
         "  고점 = 보유 중 종가가 가장 높았던 지점(진입가 대비)",
         "  되돌림 = 고점에서 실제 청산가까지 도로 뱉은 폭",
-        "  장중 고가가 아니라 종가로 잽니다 — 장중 고가는 실제로 잡을 수 없는 값입니다.",
+        "  장중 고가가 아니라 종가로 계산합니다. 장중 고가는 실제로 잡을 수 없는 값입니다.",
         "",
         f"완결 매매 {len(paths)}건 (이익 {len(이익)} · 손실 {len(손실)})",
         "",
@@ -107,7 +107,7 @@ def format_paths(paths: list[TradePath], label: str = "") -> str:
         몫 = 분포[day] / len(paths) * 100
         lines.append(f"  {day}일째 {분포[day]:>4}건 ({몫:>4.1f}%) {'█' * int(몫 / 2)}")
 
-    lines += ["", "고점이 어디까지 갔었나 — 익절선 후보별로 몇 %가 닿았나"]
+    lines += ["", "고점이 어디까지 갔었나. 익절선 후보별로 몇 %가 닿았나"]
     for 선 in (3, 5, 8, 10, 15, 20, 30):
         닿음 = [p for p in paths if p.고점_pct >= 선]
         if not 닿음:

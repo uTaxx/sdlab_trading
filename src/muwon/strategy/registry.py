@@ -2,21 +2,21 @@
 
 "가설을 검증하고 진화시킨다"는 걸 코드 흐름으로 풀면:
   1. 여기에 새 StrategyDefinition을 하나 추가한다(파라미터만 다르거나,
-     아예 다른 Strategy 구현체일 수도 있다 — 둘 다 지원한다)
+     아예 다른 Strategy 구현체일 수도 있다. 둘 다 지원한다)
   2. scripts/run_hypothesis_sweep.py로 과거 데이터에 대해 백테스트하고
      결과를 DB(backtest_runs 테이블)에 남긴다
   3. 결과가 괜찮으면 대시보드나 configure.py로 "지금 실거래에 쓸 키"만
-     바꾼다 — 코드 배포 없이 설정값 하나로 전환되고, 이 변경 자체가
+     바꾼다. 코드 배포 없이 설정값 하나로 전환되고, 이 변경 자체가
      대시보드 "변경 이력"에 자동으로 남는다
   4. 실거래(TradingEngine/RealtimeTradingEngine)가 만든 매매 기록에도
      strategy_key가 찍혀서(trades 테이블), 나중에 "이 가설이 실전에서
      어떻게 됐는지"를 가설별로 나눠 볼 수 있다
 
-category는 전략의 성격(추세추종/평균회귀/돌파/복합)을 나타낸다 — 계열이
+category는 전략의 성격(추세추종/평균회귀/돌파/복합)을 나타낸다. 계열이
 다르면 잘 맞는 시장 국면도 다르므로, 대시보드에서 계열별로 묶어 보면
 "지금 장에는 어떤 계열이 통하는가"를 읽을 수 있다.
 
-status는 순수 메타데이터(코드가 강제하지 않음) — 사람이나 미래의 AI 제언이
+status는 순수 메타데이터(코드가 강제하지 않음): 사람이나 미래의 AI 제언이
 "이건 아직 실험 중", "이건 검증 끝났다" 같은 걸 구분해 적어두는 용도다."""
 
 from __future__ import annotations
@@ -77,16 +77,16 @@ CATEGORIES = [
 
 @dataclass(frozen=True)
 class StrategyDefinition:
-    key: str  # 고유 식별자 — trades/backtest_runs 테이블에 그대로 저장됨
+    key: str  # 고유 식별자: trades/backtest_runs 테이블에 그대로 저장됨
     display_name: str
     description: str
-    #: PortfolioStrategy를 돌려줘도 된다 — 엔진이 알아서 통일한다
+    #: PortfolioStrategy를 돌려줘도 된다. 엔진이 알아서 통일한다
     factory: Callable[[], Strategy]
     category: str = CATEGORY_HYBRID
     status: str = "hypothesis"  # "hypothesis" | "backtested" | "live" | "retired"
     #: 화면에 쓰는 짧은 한글 이름. display_name은 파라미터까지 달고 있어서
     #: 폰 폭에서 두 줄로 넘치고, 목록에 늘어놓으면 서로 구별이 안 된다.
-    #: 비워 두면 display_name을 쓴다 — 새 전략을 등록할 때 안 적어도
+    #: 비워 두면 display_name을 쓴다. 새 전략을 등록할 때 안 적어도
     #: 화면이 비지는 않는다.
     짧은이름: str = ""
 
@@ -149,7 +149,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="ema_cross_12_26",
         짧은이름="EMA 교차",
         display_name="EMA 교차 (12/26)",
-        description="지수이동평균 교차 — 최근 가격에 가중치를 줘 단순이동평균보다 빠르게 반응.",
+        description="지수이동평균 교차: 최근 가격에 가중치를 줘 단순이동평균보다 빠르게 반응.",
         factory=lambda: EmaCrossStrategy(EmaCrossParams(12, 26), name="ema_cross_12_26"),
         category=CATEGORY_TREND,
     ),
@@ -165,7 +165,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="macd_cross_positive",
         짧은이름="MACD 교차 (0선 위)",
         display_name="MACD 교차 + 0선 위 필터",
-        description="MACD가 0보다 클 때(이미 상승 국면)의 교차만 매수 — 하락장 중 반짝 반등을 걸러낸다.",
+        description="MACD가 0보다 클 때(이미 상승 국면)의 교차만 매수: 하락장 중 반짝 반등을 걸러낸다.",
         factory=lambda: MacdCrossStrategy(
             MacdCrossParams(require_positive_macd=True), name="macd_cross_positive"
         ),
@@ -185,7 +185,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="donchian_adx_filter",
         짧은이름="돈치안 + 추세강도",
         display_name="돈치안 돌파 + 추세강도(ADX) 필터",
-        description="ADX 25 이상(추세장)일 때만 돌파 매수 — 횡보장의 가짜 돌파를 걸러낸다.",
+        description="ADX 25 이상(추세장)일 때만 돌파 매수: 횡보장의 가짜 돌파를 걸러낸다.",
         factory=lambda: DonchianBreakoutStrategy(
             DonchianBreakoutParams(20, 10, adx_filter=25), name="donchian_adx_filter"
         ),
@@ -198,7 +198,7 @@ REGISTRY: list[StrategyDefinition] = [
         display_name="RSI 평균회귀 교과서형 (30/70 + 장기선 필터)",
         description=(
             "RSI 30 반등 매수 + 60일선 위에서만 진입. "
-            "⚠️ 2023~2024 백테스트에서 거래 0건 — RSI가 30까지 빠질 만큼 하락하면 "
+            "⚠️ 2023~2024 백테스트에서 거래 0건: RSI가 30까지 빠질 만큼 하락하면 "
             "이미 60일선 아래인 경우가 대부분이라 두 조건이 사실상 공존하지 않는다. "
             "교과서 조합이 실전에서 왜 안 되는지를 보여주는 대조군으로 남겨 둔다."
         ),
@@ -223,7 +223,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="rsi_reversion_aggressive",
         짧은이름="RSI 반등 공격형",
         display_name="RSI 평균회귀 공격형 (35/65, 필터 없음)",
-        description="기준을 완화하고 장기 이동평균 필터도 뺀 버전 — 진입은 늘지만 하락장에서 물릴 위험이 커진다.",
+        description="기준을 완화하고 장기 이동평균 필터도 뺀 버전: 진입은 늘지만 하락장에서 물릴 위험이 커진다.",
         factory=lambda: RsiReversionStrategy(
             RsiReversionParams(oversold=35, overbought=65, require_above_long_ma=False),
             name="rsi_reversion_aggressive",
@@ -244,7 +244,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="bollinger_reversion_wide",
         짧은이름="볼린저 하단 넓게",
         display_name="볼린저 하단 반등 넓은밴드 (20/2.5σ)",
-        description="밴드를 2.5σ로 넓혀 더 극단적으로 빠졌을 때만 진입 — 빈도는 줄고 한 건당 기대값은 커진다.",
+        description="밴드를 2.5σ로 넓혀 더 극단적으로 빠졌을 때만 진입: 빈도는 줄고 한 건당 기대값은 커진다.",
         factory=lambda: BollingerReversionStrategy(
             BollingerReversionParams(num_std=2.5, exit_at_middle=False),
             name="bollinger_reversion_wide",
@@ -310,7 +310,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="volume_surge_3d",
         짧은이름="거래량 급증 3일",
         display_name="거래량 급증 초단타 (3배, 3일 보유)",
-        description="더 강한 급증(3배)만 잡고 3일 만에 청산 — 재료 소멸 전에 빠지는 걸 노린 가설.",
+        description="더 강한 급증(3배)만 잡고 3일 만에 청산: 재료 소멸 전에 빠지는 걸 노린 가설.",
         factory=lambda: VolumeSurgeStrategy(
             VolumeSurgeParams(volume_surge_ratio=3.0, holding_days=3), name="volume_surge_3d"
         ),
@@ -330,7 +330,7 @@ REGISTRY: list[StrategyDefinition] = [
         key="price_channel_60_strict",
         짧은이름="60일 신고가 돌파",
         display_name="종가 신고가 돌파 장기·엄격 (60일, +1%)",
-        description="60일 신고가를 1% 이상 확실히 뚫어야 진입 — 가짜 돌파를 최대한 걸러낸 버전.",
+        description="60일 신고가를 1% 이상 확실히 뚫어야 진입: 가짜 돌파를 최대한 걸러낸 버전.",
         factory=lambda: PriceChannelBreakoutStrategy(
             PriceChannelParams(lookback=60, breakout_pct=1.0, exit_sma=20),
             name="price_channel_60_strict",
@@ -341,7 +341,7 @@ REGISTRY: list[StrategyDefinition] = [
     #
     # 셋 다 유명한데 근거가 얇다. 변동성 돌파는 동료심사 논문을 하나도
     # 못 찾았고, 갭은 문헌 결론이 반반이다. 그래도 등록하는 이유는 이
-    # 저장소가 기각된 가설을 자산으로 취급하기 때문이다 — 싸게 재서
+    # 저장소가 기각된 가설을 자산으로 취급하기 때문이다. 싸게 재서
     # 기각해 두면 같은 걸 두 번 시험하지 않는다.
     StrategyDefinition(
         key="volatility_breakout_k05",
@@ -350,7 +350,7 @@ REGISTRY: list[StrategyDefinition] = [
         description=(
             "오늘 시가 + (어제 고가−저가)×0.5 를 넘으면 매수, 다음 날 청산. "
             "래리 윌리엄스 규칙으로 한국에서 가장 널리 알려진 단타 공식인데 "
-            "동료심사 논문이 없다. **일봉 근사다** — 돌파선 가격이 아니라 "
+            "동료심사 논문이 없다. **일봉 근사다**. 돌파선 가격이 아니라 "
             "돌파가 일어난 날 종가로 따라 사므로 원 규칙의 성적이 아니다."
         ),
         factory=lambda: VolatilityBreakoutStrategy(
@@ -363,7 +363,7 @@ REGISTRY: list[StrategyDefinition] = [
         짧은이름="갭 상승 따라가기",
         display_name="갭 상승 따라가기 (2% 이상, 1일 보유)",
         description=(
-            "어제 종가보다 2% 이상 높게 시작한 날 매수 — '갭 방향으로 계속 간다'는 쪽. "
+            "어제 종가보다 2% 이상 높게 시작한 날 매수. '갭 방향으로 계속 간다'는 쪽. "
             "문헌은 갭이 이어질 확률과 되돌아올 확률이 비슷하다고 본다."
         ),
         factory=lambda: GapStrategy(GapParams(direction="up"), name="gap_up_go"),
@@ -374,7 +374,7 @@ REGISTRY: list[StrategyDefinition] = [
         짧은이름="갭 하락 메우기",
         display_name="갭 하락 메우기 (2% 이상, 1일 보유)",
         description=(
-            "어제 종가보다 2% 이상 낮게 시작한 날 매수 — '갭은 메워진다'는 쪽. "
+            "어제 종가보다 2% 이상 낮게 시작한 날 매수. '갭은 메워진다'는 쪽. "
             "위와 정반대 가설이라 둘 다 등록한다. 한쪽만 재면 결과를 미리 "
             "정해 놓고 재는 셈이 된다."
         ),
@@ -413,12 +413,12 @@ def build_strategy(key: str) -> Strategy:
 def build_strategies(keys, combine: str = "OR", sell_keys=()):
     """전략 키 여러 개를 하나로 묶어 돌려준다.
 
-    하나뿐이면 그대로 돌려준다 — 굳이 감싸면 기록에 남는 전략 이름이
+    하나뿐이면 그대로 돌려준다. 굳이 감싸면 기록에 남는 전략 이름이
     바뀌어서, 지금까지 쌓인 매매 기록과 이어지지 않는다.
 
     `sell_keys`를 주면 **파는 쪽을 따로 굴린다.** 매수 신호는 `keys`에서만,
     매도 신호는 `sell_keys`에서만 나온다. 안 주면 지금까지와 똑같이 한 묶음이
-    양쪽을 다 맡는다 — 기본값을 바꾸면 지금 돌고 있는 설정의 뜻이 달라진다."""
+    양쪽을 다 맡는다. 기본값을 바꾸면 지금 돌고 있는 설정의 뜻이 달라진다."""
     from muwon.strategy.combined import CombinedStrategy
     from muwon.strategy.split import SplitStrategy
 

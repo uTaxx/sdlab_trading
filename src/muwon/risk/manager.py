@@ -34,12 +34,12 @@ class RiskManager:
         policy = self._policy_provider()
 
         if not policy.trading_enabled:
-            return RiskDecision(approved=False, reason="자동매매가 꺼져 있음 — 신규 진입 중단")
+            return RiskDecision(approved=False, reason="자동매매가 꺼져 있음. 신규 진입 중단")
         if daily_pnl_pct <= policy.daily_loss_limit_pct:
             return RiskDecision(
                 approved=False,
                 reason=f"일일 손실 한도 도달 (daily_pnl={daily_pnl_pct:.2%}, "
-                f"한도={policy.daily_loss_limit_pct:.2%}) — 신규 진입 중단",
+                f"한도={policy.daily_loss_limit_pct:.2%}): 신규 진입 중단",
             )
         if current_open_positions >= policy.max_concurrent_positions:
             return RiskDecision(

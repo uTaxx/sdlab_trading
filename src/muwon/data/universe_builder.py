@@ -1,7 +1,7 @@
 """시가총액 상위 종목으로 매매 대상 목록(유니버스)을 다시 뽑는다.
 
 data/universe.py의 UNIVERSE는 사람이 골라 고정해 둔 18종목이라 시간이
-지나면 낡는다 — 상장폐지되거나, 순위가 뒤집히거나, 새로 커진 종목이
+지나면 낡는다. 상장폐지되거나, 순위가 뒤집히거나, 새로 커진 종목이
 빠져 있게 된다. 여기서는 KIS 시가총액 순위 API로 현재 상위 종목을 받아
 매매에 부적절한 것들을 걸러낸 유니버스를 만든다.
 
@@ -54,7 +54,7 @@ def to_ticker(symbol: str, name: str, market: str) -> Ticker:
 
 
 # 코스닥에 할당할 비율. 시가총액만으로 줄을 세우면 코스닥은 한 종목도 못
-# 남는다 — 실제로 상위 30을 뽑았더니 전부 코스피였고, 기존 유니버스에 있던
+# 남는다. 실제로 상위 30을 뽑았더니 전부 코스피였고, 기존 유니버스에 있던
 # 에코프로비엠·에코프로가 빠졌다. 단타는 변동성이 큰 코스닥에서 기회가
 # 나오는 경우가 많아 통째로 빠지면 전략 자체가 좁아지므로, 시장별로 자리를
 # 따로 할당한다.
@@ -87,7 +87,7 @@ def build_volume_universe(
     """거래가 몰린 상위 종목으로 별도 유니버스를 만든다.
 
     시총 상위와 다른 종목군이 목적이다. 단기 전략(눌림목·거래량 급증)은
-    하루 1~2% 움직이는 대형주에서는 전제가 성립하지 않는다 — 그 전략들을
+    하루 1~2% 움직이는 대형주에서는 전제가 성립하지 않는다. 그 전략들을
     시총 상위에서 시험하는 건 틀린 운동장에서 재는 것이다.
 
     min_price 기본 1000원. 저가주는 호가 단위가 가격 대비 커서(100원짜리의
@@ -114,7 +114,7 @@ def _build_by_ranking(
     kosdaq_ratio=0.3, size=30이면 코스피 21 + 코스닥 9종목이 된다.
     한쪽 시장에서 조건에 맞는 종목이 모자라면 다른 쪽에서 채운다.
 
-    시총 기준과 거래 기준이 이 로직을 공유한다 — 같은 규칙을 두 벌 두면
+    시총 기준과 거래 기준이 이 로직을 공유한다. 같은 규칙을 두 벌 두면
     한쪽만 고쳐져 갈라진다."""
     if not 0.0 <= kosdaq_ratio <= 1.0:
         raise ValueError(f"kosdaq_ratio는 0~1 사이여야 합니다: {kosdaq_ratio}")
@@ -167,7 +167,7 @@ KIND_VOLUME = "volume"
 
 def _kind_filter(kind: str):
     """kind가 붙기 전에 저장된 행은 kind가 NULL이다. 그건 전부 시총 기준이었으니
-    market_cap을 물을 때 함께 잡아 준다 — 안 그러면 컬럼 하나 추가한 순간
+    market_cap을 물을 때 함께 잡아 준다. 안 그러면 컬럼 하나 추가한 순간
     운영 DB의 기존 유니버스가 통째로 안 보이게 된다."""
     if kind == KIND_MARKET_CAP:
         return or_(UniverseSnapshotRow.kind == kind, UniverseSnapshotRow.kind.is_(None))
@@ -182,10 +182,10 @@ def save_snapshot(
 ) -> datetime:
     """유니버스 스냅샷을 저장하고 그 시각을 돌려준다.
 
-    metrics는 kind에 따라 뜻이 다르다 — 시총 기준이면 시가총액(억원),
+    metrics는 kind에 따라 뜻이 다르다. 시총 기준이면 시가총액(억원),
     거래 기준이면 누적거래대금(백만원). 컬럼을 나눠 담아 나중에 표를 읽는
     사람이 어느 쪽 숫자인지 헷갈리지 않게 한다."""
-    snapshot_at = datetime.utcnow()  # noqa: DTZ003 — 기록용, tz 무관
+    snapshot_at = datetime.utcnow()  # noqa: DTZ003 (기록용, tz 무관)
     with session_factory() as session:
         for rank, ticker in enumerate(tickers, start=1):
             value = metrics.get(ticker.symbol, 0)
@@ -226,10 +226,10 @@ def load_latest_universe(session_factory, kind: str = KIND_MARKET_CAP) -> list[T
 def active_universe(
     session_factory, fallback: list[Ticker], kind: str = KIND_MARKET_CAP
 ) -> list[Ticker]:
-    """실제 매매에 쓸 유니버스 — 스냅샷이 있으면 그걸, 없으면 fallback을 쓴다.
+    """실제 매매에 쓸 유니버스: 스냅샷이 있으면 그걸, 없으면 fallback을 쓴다.
 
     kind 기본값이 market_cap인 것이 중요하다. 실험용으로 거래 기준 목록을
-    저장해도 실거래가 그걸 집어 가면 안 된다 — 실계좌의 매매 대상이 실험
+    저장해도 실거래가 그걸 집어 가면 안 된다. 실계좌의 매매 대상이 실험
     한 번에 바뀌는 일은 없어야 한다.
 
     갱신이 한 번도 안 됐거나 실패한 상태에서 매매가 멈추면 안 되므로,

@@ -4,13 +4,13 @@
   - trend: 종가가 단기 이동평균을 상향 돌파 + 거래량이 평균의
     volume_surge_ratio배 이상 + RSI가 rsi_buy_ceiling 미만(과매수 아님)
   - reversion: RSI가 rsi_oversold 밑에서 위로 반등 + 장기 이동평균 위
-    (추세 자체는 살아있는 구간)에서만 — 하락 추세 중 반짝 반등을 잡는 걸
+    (추세 자체는 살아있는 구간)에서만: 하락 추세 중 반짝 반등을 잡는 걸
     피하기 위한 필터
 
 매도 트리거:
   - 단기 이동평균 하향 이탈, 또는 RSI가 rsi_overbought 초과(과매수 청산)
 
-손절/포지션 크기 같은 자금관리는 이 전략이 아니라 RiskManager가 책임진다 —
+손절/포지션 크기 같은 자금관리는 이 전략이 아니라 RiskManager가 책임진다.
 여기서는 방향 신호만 낸다.
 
 파라미터(MovingAverageRsiParams)를 인스턴스마다 다르게 줄 수 있게 만든
@@ -95,7 +95,7 @@ class MovingAverageRsiStrategy(Strategy):
                         strategy_name=self.name,
                         reason="RSI 과매도 반등",
                         # 진입 사유가 둘인 전략이라 강도도 같은 자로 재야
-                        # 서로 비교가 된다 — 거래량 배수로 통일한다.
+                        # 서로 비교가 된다. 거래량 배수로 통일한다.
                         score=volume_ratio(cur),
                     )
                 )

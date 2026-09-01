@@ -41,7 +41,7 @@ def test_rsi_overbought_triggers_sell():
 def test_volume_confirmed_buy_never_fires_without_volume_surge():
     """횡보장에서는 이동평균을 오르내리는 잔가지 크로스가 생길 수 있어도
     (추세추종 전략의 잘 알려진 한계), 거래량 급증이 없으면 고신뢰
-    '골든크로스+거래량' 매수는 절대 나오면 안 된다 — 거래량이 항상 일정한
+    '골든크로스+거래량' 매수는 절대 나오면 안 된다. 거래량이 항상 일정한
     합성 데이터로 이를 확인한다."""
     strategy = MovingAverageRsiStrategy()
     signals = strategy.generate_signals("TEST", range_bound())

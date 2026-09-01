@@ -60,7 +60,7 @@ def test_max_concurrent_positions_limits_entries():
     engine = make_engine(policy)
     result = engine.run({"A": df_a, "B": df_b})
 
-    # 데드크로스가 없는 패턴이라 포지션이 끝까지 열려 있다 — 동시 보유 한도(1)를
+    # 데드크로스가 없는 패턴이라 포지션이 끝까지 열려 있다. 동시 보유 한도(1)를
     # 넘겨 두 종목이 동시에 열리면 안 된다.
     assert len(result.final_positions) == 1
 

@@ -15,7 +15,7 @@ from muwon.settings.service import SettingsService
 
 
 class 곳간:
-    """DB 없이 돌리는 최소 저장소. get/set만 있으면 SettingsService가 돈다."""
+    """DB 없이 실행하는 최소 저장소. get/set만 있으면 SettingsService가 돈다."""
 
     def __init__(self):
         self.값 = {}
@@ -132,7 +132,7 @@ def test_옛_DB에는_매도_키가_아예_없다():
 # ── 섞은 조합의 성적 ──────────────────────────────────────────────
 #
 # 안 재 본 조합을 숫자 없이 내놓으면 재 본 것처럼 읽힌다. 반대로 재 봤는데
-# "안 쟀습니다"라고 하면 사람이 같은 실험을 또 돌린다. 둘 다 막는다.
+# "안 쟀습니다"라고 하면 사람이 같은 실험을 또 실행한다. 둘 다 막는다.
 
 import importlib.util
 import sys
@@ -179,14 +179,14 @@ def test_안_재_본_조합이면_안_쟀다고_적는다(monkeypatch):
     monkeypatch.setattr(rc, "load", lambda *a, **k: _가짜표([_줄("A>B")]))
     글 = switch_strategy._섞은성적("C", "D")
 
-    assert "성적표에 없습니다" in 글
+    assert "전략 평가 결과에 없습니다" in 글
     # 어떻게 재는지까지 적어야 사람이 다음 걸음을 안다.
     assert "mode=split" in 글
     assert "keys=C>D" in 글
 
 
-def test_성적표를_못_읽어도_안_터진다(monkeypatch):
-    """전략을 바꾸는 일이 성적표 파일 하나 때문에 막히면 안 된다."""
+def test_평가결과를_못_읽어도_안_터진다(monkeypatch):
+    """전략을 바꾸는 일이 전략 평가 결과 파일 하나 때문에 막히면 안 된다."""
     import muwon.analysis.report_card as rc
 
     def 터짐(*a, **k):

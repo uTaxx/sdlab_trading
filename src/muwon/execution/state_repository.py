@@ -2,7 +2,7 @@
 포지션/주문/가상현금 저장소.
 
 두 엔진이 같은 DB 상태를 쓰는 건, 이 함수들이 둘 다 재사용되기 때문이지
-두 엔진을 동시에 같은 계좌에 돌리라는 뜻이 아니다 — 배치(GitHub Actions)와
+두 엔진을 동시에 같은 계좌에 돌리라는 뜻이 아니다. 배치(GitHub Actions)와
 장중 상시(VPS)는 서로 다른 운영 모드로, 한 번에 하나만 실제 계좌에 붙여
 쓸 것을 전제로 한다."""
 
@@ -64,11 +64,11 @@ def record_signals(session_factory, signals) -> int:
     """전략이 낸 신호를 그대로 남긴다.
 
     signals 테이블은 스키마에만 있고 아무도 쓰지 않았다. 그래서 "0건"이
-    "신호가 없었다"인지 "기록을 안 했다"인지 알 수 없었다 — 실제로 오늘
+    "신호가 없었다"인지 "기록을 안 했다"인지 알 수 없었다. 실제로 오늘
     그 구분이 안 돼서 한참 헤맸다. 여기서 남기는 건 매수/매도 신호가 실제로
     떴는지이고, 그게 떴는데도 안 샀다면 이유는 run_logs.rejections에 있다.
 
-    같은 날 두 번 돌리면 같은 신호가 두 줄 남는다. 합치지 않는다 —
+    같은 날 두 번 실행하면 같은 신호가 두 줄 남는다. 합치지 않는다.
     실행 자체가 두 번 있었다는 것도 사실이기 때문이다."""
     if not signals:
         return 0
@@ -125,7 +125,7 @@ def record_run(
 def record_trade(session_factory, position: PositionRow, exit_order: OrderResult, exit_reason: str) -> None:
     """진입(position)~청산(exit_order)을 하나로 묶어 손익까지 계산해
     trades 테이블에 남긴다. 이 테이블이 "이 가설이 실전에서 어떻게
-    됐는지"를 판단하는 근거 데이터가 된다 — 사람이 보든, 나중에 AI가
+    됐는지"를 판단하는 근거 데이터가 된다. 사람이 보든, 나중에 AI가
     보든 마찬가지다."""
     entry_value = position.quantity * position.entry_price
     exit_value = exit_order.quantity * exit_order.price
@@ -146,7 +146,7 @@ def record_trade(session_factory, position: PositionRow, exit_order: OrderResult
                 pnl_pct=pnl_pct,
                 is_paper=exit_order.is_paper,
                 entered_at=position.entered_at,
-                exited_at=datetime.utcnow(),  # noqa: DTZ003 — 기록용, tz 무관
+                exited_at=datetime.utcnow(),  # noqa: DTZ003 (기록용, tz 무관)
             )
         )
         session.commit()
@@ -154,7 +154,7 @@ def record_trade(session_factory, position: PositionRow, exit_order: OrderResult
 
 def load_engine_state(session_factory, initial_cash: float) -> tuple[float, float]:
     """(cash, day_start_equity)를 돌려준다. day_start_equity는 '직전 실행이
-    끝난 시점의 평가금액' 기준점 — 상태가 아예 없는 첫 실행이면 남아 있는
+    끝난 시점의 평가금액' 기준점: 상태가 아예 없는 첫 실행이면 남아 있는
     포지션을 진입가로 어림잡아 기준을 만든다."""
     with session_factory() as session:
         cash_row = session.get(EngineStateRow, "cash")

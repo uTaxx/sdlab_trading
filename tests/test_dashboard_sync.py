@@ -1,5 +1,5 @@
 """대시보드가 구글드라이브와 muwon.db를 주고받는 로직(순수 함수 부분)만
-따로 검증한다. Streamlit 위젯 렌더링 자체는 여기서 다루지 않는다 — 그건
+따로 검증한다. Streamlit 위젯 렌더링 자체는 여기서 다루지 않는다. 그건
 streamlit.testing.v1.AppTest로 수동 확인했다(전체 화면이 예외 없이 그려지는지)."""
 
 from unittest.mock import patch

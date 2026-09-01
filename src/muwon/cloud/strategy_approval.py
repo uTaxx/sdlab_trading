@@ -143,7 +143,7 @@ def 누르기(
     if 앞 is not None and 앞.새전략 == 새전략:
         앞.상태 = 취소
         앞.막힌까닭 = "같은 버튼을 다시 눌러 취소되었습니다."
-        앞.바뀐때 = datetime.utcnow()  # noqa: DTZ003 — 기록용, tz 무관
+        앞.바뀐때 = datetime.utcnow()  # noqa: DTZ003 (기록용, tz 무관)
         session.flush()
         return 예약결과(True, "예약을 취소했습니다. 전략은 그대로입니다.", None)
 
@@ -154,8 +154,7 @@ def 누르기(
     if 앞 is not None:
         앞.상태 = 취소
         앞.막힌까닭 = "다른 전략을 새로 선택해 취소되었습니다."
-        앞.바뀐때 = datetime.utcnow()  # noqa: DTZ003 — 기록용, tz 무관
-
+        앞.바뀐때 = datetime.utcnow()  # noqa: DTZ003 (기록용, tz 무관)
     줄 = StrategyChangeRow(
         제안일=제안일,
         상태=확정,
@@ -186,7 +185,7 @@ def 취소하기(session: Session, 까닭: str = "사람이 취소했습니다."
         return 예약결과(False, "취소할 예약이 없습니다.")
     줄.상태 = 취소
     줄.막힌까닭 = 까닭
-    줄.바뀐때 = datetime.utcnow()  # noqa: DTZ003 — 기록용, tz 무관
+    줄.바뀐때 = datetime.utcnow()  # noqa: DTZ003 (기록용, tz 무관)
     session.flush()
     return 예약결과(True, "예약을 취소했습니다. 전략은 그대로입니다.", 줄)
 
@@ -238,7 +237,7 @@ def 반영할것(
 
 def 반영표시(session: Session, 줄: StrategyChangeRow) -> None:
     줄.상태 = 반영
-    줄.반영때 = datetime.utcnow()  # noqa: DTZ003 — 기록용, tz 무관
+    줄.반영때 = datetime.utcnow()  # noqa: DTZ003 (기록용, tz 무관)
     session.flush()
 
 
@@ -252,6 +251,6 @@ def 막힘표시(session: Session, 까닭: str) -> StrategyChangeRow | None:
         return None
     줄.상태 = 막힘
     줄.막힌까닭 = 까닭
-    줄.바뀐때 = datetime.utcnow()  # noqa: DTZ003 — 기록용, tz 무관
+    줄.바뀐때 = datetime.utcnow()  # noqa: DTZ003 (기록용, tz 무관)
     session.flush()
     return 줄

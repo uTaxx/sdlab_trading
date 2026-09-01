@@ -196,7 +196,7 @@ def test_최소_운용기간이_안_지났으면_막는다(ㅅ):
             상태=반영,
             이전전략="macd_cross",
             새전략="volume_surge_5d_ma20",
-            반영때=datetime(2026, 8, 22),  # noqa: DTZ001 — 기록용, tz 무관
+            반영때=datetime(2026, 8, 22),  # noqa: DTZ001 (기록용, tz 무관)
         )
     )
     ㅅ.flush()

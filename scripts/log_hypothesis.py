@@ -73,7 +73,7 @@ def main() -> None:
 
     kwargs = {"title": args.title} if args.title else {}
     url = append(args.folder_id, rows, **kwargs)
-    print(f"✅ {len(rows)}줄 기록 — {url}")
+    print(f"✅ {len(rows)}줄 기록: {url}")
 
 
 def _git_sha() -> str:

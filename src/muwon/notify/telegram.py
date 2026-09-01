@@ -21,7 +21,7 @@ class TelegramNotifier:
     def send(self, message: str, *, 꼬리: bool = True) -> None:
         """글 하나를 보낸다. 맨 아래에 대시보드 링크가 붙는다.
 
-        꼬리=False는 **긴 글을 조각내 보낼 때 마지막이 아닌 조각**에만 쓴다 —
+        꼬리=False는 **긴 글을 조각내 보낼 때 마지막이 아닌 조각**에만 쓴다.
         조각마다 링크가 붙으면 읽는 흐름이 매번 끊긴다."""
         cfg = self._settings_service.get_telegram_config()
         if not cfg.bot_token or not cfg.chat_id:
@@ -41,10 +41,10 @@ class TelegramNotifier:
 
         # 하이퍼링크를 걸려면 HTML 모드를 켜야 하고, 그러면 본문에 <, &가
         # 섞였을 때 텔레그램이 글 전체를 거절한다. 거절당하면 평문으로 한 번
-        # 더 보낸다 — 링크가 없는 것보다 알림이 통째로 안 가는 쪽이 훨씬 나쁘다.
+        # 더 보낸다. 링크가 없는 것보다 알림이 통째로 안 가는 쪽이 훨씬 나쁘다.
         try:
             보내기(footer.하이퍼(message), "HTML")
-        except Exception as e:  # noqa: BLE001 — 무엇이 거절이든 평문으로 되돌린다
+        except Exception as e:  # noqa: BLE001 (무엇이 거절이든 평문으로 되돌린다)
             logger.warning(f"HTML 알림이 거절당해 평문으로 다시 보냅니다: {type(e).__name__}: {e}")
             보내기(footer.평문(message), None)
 

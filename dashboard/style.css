@@ -1,81 +1,104 @@
 /* ─────────────────────────────────────────────────────────────
-   sdlab 대시보드 — 색과 글꼴은 전부 여기 토큰으로만 정한다.
-   MI 수집 대시보드 디자인이 확정되면 이 파일 위쪽 토큰만 갈아 끼운다.
-   컴포넌트 쪽은 토큰만 참조하므로 손댈 일이 없다.
+   sdlab 대시보드. 색과 글꼴은 전부 여기 토큰으로만 정한다.
+
+   ## 왜 명세서 모양인가 (2026-09-01)
+
+   주인이 인보이스 서식을 보여 주면서 이 느낌으로 바꿔 달라고 했다.
+   지키는 것은 넷이다.
+
+   1. 종이 한 장. 회색 바탕 위에 흰 판을 한 장 올리고 그 안에 다 담는다.
+   2. 흑백. 색은 정보를 나를 때만 쓴다. 장식으로는 안 쓴다.
+   3. 실선 대신 머리카락 선. 카드 그림자와 둥근 모서리를 걷어냈다.
+   4. 표가 중심이다. 칸 사이에 세로 선을 넣어 숫자를 눈으로 따라가게 한다.
+
+   ## 색을 남겨 둔 두 자리
+
+   전부 흑백으로 두면 읽을 수 없게 되는 것이 둘 있어서 남겼다.
+
+   - 오름과 내림. 한국 증시 관례로 오르면 빨강, 내리면 파랑이다. 종이
+     색조에 맞춰 채도를 낮췄지만 없애지는 않았다.
+   - 매도 스위치가 꺼진 상태. 이때는 손절이 실행되지 않는다. 회색으로
+     두면 그냥 꺼진 것처럼 보여서 경고색을 그대로 뒀다.
+
+   컴포넌트 규칙은 아래 토큰만 참조한다. 색조를 바꿀 일이 있으면 토큰만
+   갈아 끼운다.
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* 바탕과 글 */
-  --바탕: #F4F6F8;
-  --판: #FFFFFF;
-  --판2: #EDF1F4;
-  --선: #D8E0E6;
-  --선연함: #E7EDF1;
-  --글: #111820;
-  --글2: #3B4854;
-  --흐린글: #6A7783;
+  /* 종이와 글 */
+  --바탕: #E4E3DF;      /* 책상 */
+  --판: #FAFAF8;        /* 종이 한 장 */
+  --판2: #F0EFEB;       /* 표 머리처럼 한 단 눌러 둔 자리 */
+  --선: #C9C7C0;        /* 머리카락 선 */
+  --선연함: #E0DED8;
+  --선진함: #1C1B18;    /* 표 위아래를 닫는 굵은 선 */
+  --글: #14130F;
+  --글2: #45433D;
+  --흐린글: #7C7A72;
 
-  /* 강조 — 한 곳에만 쓴다 */
-  --강조: #1F5F8B;
-  --강조연함: #E3EDF4;
+  /* 강조는 검정이다. 명세서에는 파란 단추가 없다. */
+  --강조: #14130F;
+  --강조연함: #EDEBE5;
 
   /* 한국 증시 관례: 오르면 빨강, 내리면 파랑 */
-  --오름: #D0303A;
-  --내림: #1E64C8;
-  --중립: #6A7783;
+  --오름: #A32A26;
+  --내림: #1F4E86;
+  --중립: #7C7A72;
 
-  /* 상태 — 강조색과 섞이지 않게 따로 */
-  --켜짐: #1B7F5A;
-  --켜짐연함: #E1F1EA;
-  --꺼짐: #A9501F;
-  --꺼짐연함: #F7E9DF;
+  /* 동작 중과 중지 */
+  --켜짐: #14130F;
+  --켜짐연함: #E6E4DD;
+  --꺼짐: #A32A26;
+  --꺼짐연함: #F4E7E4;
 
-  --그림자: 0 1px 2px rgba(17, 24, 32, .05), 0 10px 28px -20px rgba(17, 24, 32, .35);
-  --둥글: 10px;
+  --그림자: 0 1px 0 rgba(20, 19, 15, .04), 0 18px 40px -28px rgba(20, 19, 15, .45);
+  --둥글: 0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --바탕: #0F141A;
-    --판: #171E26;
-    --판2: #1F2831;
-    --선: #2E3A45;
-    --선연함: #263039;
-    --글: #E7EDF2;
-    --글2: #BCC7D1;
-    --흐린글: #8996A3;
-    --강조: #6FAAD0;
-    --강조연함: #1A2A36;
-    --오름: #F06A72;
-    --내림: #6FA3EE;
-    --중립: #8996A3;
-    --켜짐: #58C29A;
-    --켜짐연함: #162C25;
-    --꺼짐: #DE9163;
-    --꺼짐연함: #2F2119;
-    --그림자: 0 1px 2px rgba(0, 0, 0, .35), 0 10px 28px -20px rgba(0, 0, 0, .8);
+    --바탕: #100F0D;
+    --판: #1A1917;
+    --판2: #232220;
+    --선: #383632;
+    --선연함: #2A2926;
+    --선진함: #E8E5DE;
+    --글: #F0EDE6;
+    --글2: #C4C0B8;
+    --흐린글: #8C8981;
+    --강조: #F0EDE6;
+    --강조연함: #2A2926;
+    --오름: #E4736C;
+    --내림: #7BA6E0;
+    --중립: #8C8981;
+    --켜짐: #F0EDE6;
+    --켜짐연함: #2A2926;
+    --꺼짐: #E4736C;
+    --꺼짐연함: #33211F;
+    --그림자: 0 18px 40px -28px rgba(0, 0, 0, .9);
   }
 }
 
 :root[data-theme="dark"] {
-  --바탕: #0F141A;
-  --판: #171E26;
-  --판2: #1F2831;
-  --선: #2E3A45;
-  --선연함: #263039;
-  --글: #E7EDF2;
-  --글2: #BCC7D1;
-  --흐린글: #8996A3;
-  --강조: #6FAAD0;
-  --강조연함: #1A2A36;
-  --오름: #F06A72;
-  --내림: #6FA3EE;
-  --중립: #8996A3;
-  --켜짐: #58C29A;
-  --켜짐연함: #162C25;
-  --꺼짐: #DE9163;
-  --꺼짐연함: #2F2119;
-  --그림자: 0 1px 2px rgba(0, 0, 0, .35), 0 10px 28px -20px rgba(0, 0, 0, .8);
+  --바탕: #100F0D;
+  --판: #1A1917;
+  --판2: #232220;
+  --선: #383632;
+  --선연함: #2A2926;
+  --선진함: #E8E5DE;
+  --글: #F0EDE6;
+  --글2: #C4C0B8;
+  --흐린글: #8C8981;
+  --강조: #F0EDE6;
+  --강조연함: #2A2926;
+  --오름: #E4736C;
+  --내림: #7BA6E0;
+  --중립: #8C8981;
+  --켜짐: #F0EDE6;
+  --켜짐연함: #2A2926;
+  --꺼짐: #E4736C;
+  --꺼짐연함: #33211F;
+  --그림자: 0 18px 40px -28px rgba(0, 0, 0, .9);
 }
 
 * { box-sizing: border-box; }
@@ -87,260 +110,376 @@ body {
   font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
                "Malgun Gothic", "맑은 고딕", sans-serif;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
   word-break: keep-all;
 }
 
-.싸개 { max-width: 900px; margin: 0 auto; padding: 20px 16px 72px; }
+/* 종이 한 장. 책상 위에 놓인 것처럼 위아래로 여백을 준다. */
+.싸개 {
+  max-width: 940px;
+  margin: 28px auto;
+  padding: 40px 44px 64px;
+  background: var(--판);
+  border: 1px solid var(--선);
+  box-shadow: var(--그림자);
+}
 
-/* ── 머리 ───────────────────────────── */
-.머리 { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
-h1 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
-.부제 { color: var(--흐린글); font-size: 13px; margin: 2px 0 0; }
-.머리 .오른쪽 { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* ── 머리 ─────────────────────────────
+   명세서의 제목 자리다. 왼쪽에 이름, 오른쪽에 지금 상태를 둔다. */
+.머리 {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding-bottom: 18px; border-bottom: 2px solid var(--선진함);
+}
+h1 {
+  font-size: 34px; font-weight: 800; margin: 0;
+  letter-spacing: -.035em; line-height: 1.1;
+}
+.부제 {
+  color: var(--흐린글); font-size: 11px; margin: 8px 0 0;
+  letter-spacing: .09em; text-transform: uppercase;
+}
+.머리 .오른쪽 { margin-left: auto; display: flex; align-items: flex-start; gap: 8px; }
 
-/* ── 탭 ─────────────────────────────── */
+/* ── 탭 ───────────────────────────────
+   명세서에는 탭이 없다. 그래서 단추처럼 보이게 하지 않고, 아래 굵은
+   선 위에 얹힌 목차처럼 둔다. */
 .탭줄 {
-  display: flex; gap: 4px; margin: 18px 0 16px;
+  display: flex; gap: 0; margin: 26px 0 22px;
   border-bottom: 1px solid var(--선); overflow-x: auto;
   scrollbar-width: none;
 }
 .탭줄::-webkit-scrollbar { display: none; }
 .탭 {
-  font: inherit; font-size: 14px; font-weight: 500;
+  font: inherit; font-size: 12px; font-weight: 600;
+  letter-spacing: .06em;
   background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--흐린글); padding: 9px 12px; cursor: pointer; white-space: nowrap;
-  margin-bottom: -1px;
+  color: var(--흐린글); padding: 10px 16px 9px; cursor: pointer; white-space: nowrap;
+  margin-bottom: -1px; border-radius: 0;
 }
-.탭:hover { color: var(--글2); }
-.탭[aria-selected="true"] { color: var(--강조); border-bottom-color: var(--강조); }
+.탭:first-child { padding-left: 0; }
+/* 탭도 button이라 아래의 단추 규칙(마우스를 올리면 검게 채움)을 같이 받는다.
+   그대로 두면 탭 하나가 검은 덩어리가 되어 어느 탭이 선택된 것인지 알 수
+   없다. 그래서 여기서 되돌려 준다. */
+.탭:hover:not(:disabled) { background: none; color: var(--글); border-color: transparent; }
+.탭:hover[aria-selected="true"] { border-bottom-color: var(--선진함); }
+.탭[aria-selected="true"] { color: var(--글); border-bottom-color: var(--선진함); }
 
-/* ── 카드 ───────────────────────────── */
-.칸들 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+/* ── 숫자 칸 ──────────────────────────
+   명세서의 SUB TOTAL 묶음처럼 이름표를 작게 위에 올리고 값을 크게
+   아래에 둔다. 칸끼리는 세로 선으로만 가른다. */
+/* 칸 하나만 따로 놓이는 자리가 일곱 군데 있다(일정표, 킬스위치, 그림자
+   추적 요약 등). 그때는 테두리가 있어야 어디까지가 한 덩어리인지 보인다. */
 .칸 {
-  background: var(--판); border: 1px solid var(--선); border-radius: var(--둥글);
-  padding: 14px 16px; box-shadow: var(--그림자);
+  background: transparent; border: 1px solid var(--선); border-radius: 0;
+  padding: 16px 18px 18px; box-shadow: none;
 }
-.칸.넓게 { grid-column: 1 / -1; }
-.이름표 { font-size: 12px; color: var(--흐린글); margin-bottom: 4px; }
-.값 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.칸.넓게 .값 { font-size: 30px; }
-.곁말 { font-size: 12px; color: var(--흐린글); margin-top: 3px; }
+/* 여럿이 나란히 놓일 때는 바깥 테두리를 한 번만 두르고 안쪽은 세로 선으로
+   가른다. 칸마다 테두리를 두르면 선이 두 겹으로 겹쳐 보인다. */
+/* 칸마다 위와 왼쪽에 선을 긋고 1px씩 당겨 겹친다. 바깥으로 삐져나가는
+   첫 줄과 첫 칸의 선은 overflow로 잘라 낸다.
+
+   1px 틈(gap)으로 선을 만드는 방법을 먼저 썼는데, 칸이 셋 들어갈 자리에
+   둘만 있으면 남은 자리가 선 색으로 채워져 어두운 화면에서 빈 블록이
+   보였다. 이 방법은 칸이 있는 자리에만 선이 생긴다. */
+.칸들 {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0; border: 1px solid var(--선); margin-top: 4px; overflow: hidden;
+}
+.칸들 > .칸 {
+  border: none;
+  border-top: 1px solid var(--선연함);
+  border-left: 1px solid var(--선연함);
+  margin-top: -1px; margin-left: -1px;
+}
+.칸들 > .칸.넓게 { grid-column: 1 / -1; }
+.이름표 {
+  font-size: 10.5px; color: var(--흐린글); margin-bottom: 6px;
+  letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+}
+.값 {
+  font-size: 26px; font-weight: 700; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+.칸.넓게 .값 { font-size: 36px; }
+.곁말 { font-size: 12px; color: var(--흐린글); margin-top: 5px; }
 
 .오름 { color: var(--오름); }
 .내림 { color: var(--내림); }
 .중립 { color: var(--중립); }
 
-/* ── 표 ─────────────────────────────── */
+/* ── 표 ───────────────────────────────
+   여기가 이 화면의 중심이다. 명세서 표를 그대로 따른다. 머리 위아래를
+   굵은 선으로 닫고, 줄 사이는 머리카락 선으로 가르고, 숫자 칸 사이에
+   세로 선을 넣는다. 세로 선이 있어야 눈이 한 칸을 따라 내려간다. */
 .표싸개 {
-  margin-top: 14px; overflow-x: auto; background: var(--판);
-  border: 1px solid var(--선); border-radius: var(--둥글); box-shadow: var(--그림자);
+  margin-top: 16px; overflow-x: auto; background: transparent;
+  border: none; border-radius: 0; box-shadow: none;
+  border-top: 2px solid var(--선진함);
+  border-bottom: 2px solid var(--선진함);
 }
 table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
-th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--선연함); white-space: nowrap; }
-th:first-child, td:first-child { text-align: left; }
+th, td {
+  padding: 12px 14px; text-align: right;
+  border-bottom: 1px solid var(--선연함);
+  border-left: 1px solid var(--선연함);
+  white-space: nowrap;
+}
+th:first-child, td:first-child { text-align: left; border-left: none; }
 thead th {
-  font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--흐린글);
-  background: var(--판2); border-bottom: 1px solid var(--선);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--글2);
+  background: transparent; border-bottom: 1px solid var(--선진함);
+  padding-top: 10px; padding-bottom: 10px;
 }
 tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--판2); }
 td { font-variant-numeric: tabular-nums; }
 td.가운데, th.가운데 { text-align: center; }
 
-/* ── 단추 ───────────────────────────── */
+/* ── 단추 ─────────────────────────────
+   명세서에 어울리게 모서리를 세우고 색을 뺐다. 주된 단추만 검정으로
+   채워서 한 화면에 눌러야 할 곳이 하나라는 것을 보여 준다. */
 button {
-  font: inherit; cursor: pointer; border-radius: 8px;
-  border: 1px solid var(--선); background: var(--판); color: var(--글);
-  padding: 8px 14px; font-size: 14px;
+  font: inherit; cursor: pointer; border-radius: 0;
+  border: 1px solid var(--선진함); background: transparent; color: var(--글);
+  padding: 9px 18px; font-size: 12.5px; font-weight: 600; letter-spacing: .03em;
+  transition: background .12s, color .12s;
 }
-button:hover:not(:disabled) { border-color: var(--강조); color: var(--강조); }
-button:disabled { opacity: .5; cursor: default; }
-button.주된 { background: var(--강조); border-color: var(--강조); color: #fff; }
-button.주된:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
-button.작게 { padding: 5px 10px; font-size: 13px; border-radius: 6px; }
+button:hover:not(:disabled) { background: var(--강조); color: var(--판); border-color: var(--강조); }
+button:disabled { opacity: .35; cursor: default; }
+button.주된 { background: var(--강조); border-color: var(--강조); color: var(--판); }
+button.주된:hover:not(:disabled) { background: transparent; color: var(--글); }
+button.작게 { padding: 6px 12px; font-size: 11.5px; }
+/* 단추 글자에 이모지가 섞여 있다(새로고침, 검증 시작). 화면 전체가 흑백인데
+   거기만 색이 튀어서 눈이 먼저 그리로 간다. 글자는 이미 검정과 흰색이라
+   회색으로 눌러도 달라지지 않는다. */
+button { filter: grayscale(1); }
+/* 승인과 거절 단추는 빼 준다. 여기 이모지는 초록 체크와 빨간 가위표라
+   색 자체가 무엇을 누르는지 알려 준다. */
+button.고름, button.거름 { filter: none; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
   outline: 2px solid var(--강조); outline-offset: 2px;
 }
-.줄 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+.줄 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 
-/* 승인 · 거절 */
-button.고름[aria-pressed="true"] { background: var(--켜짐연함); border-color: var(--켜짐); color: var(--켜짐); font-weight: 600; }
-button.거름[aria-pressed="true"] { background: var(--꺼짐연함); border-color: var(--꺼짐); color: var(--꺼짐); font-weight: 600; }
+/* 승인과 거절. 누른 쪽이 채워진다. */
+button.고름[aria-pressed="true"] { background: var(--켜짐); border-color: var(--켜짐); color: var(--판); }
+button.거름[aria-pressed="true"] { background: var(--꺼짐); border-color: var(--꺼짐); color: #FFF; }
 
-/* ── 알림 ───────────────────────────── */
+/* ── 알림 ─────────────────────────────
+   명세서의 Terms & Condition처럼 왼쪽에 굵은 선을 세우고 본문을 붙인다. */
 .알림 {
-  background: var(--꺼짐연함); border: 1px solid var(--꺼짐);
-  border-radius: var(--둥글); padding: 13px 15px; font-size: 14px; color: var(--글2);
+  background: var(--꺼짐연함); border: none; border-left: 3px solid var(--꺼짐);
+  border-radius: 0; padding: 13px 16px; font-size: 13.5px; color: var(--글2);
 }
-.알림.순한 { background: var(--강조연함); border-color: var(--강조); }
+.알림.순한 { background: var(--강조연함); border-left-color: var(--선진함); }
 .알림 strong { color: var(--글); }
-.알림 + * { margin-top: 14px; }
+.알림 + * { margin-top: 16px; }
 
-/* ── 표딱지 ─────────────────────────── */
+/* ── 표딱지 ───────────────────────────
+   둥근 알약을 걷어내고 네모난 도장처럼 둔다. */
 .딱지 {
-  font-size: 11px; font-weight: 600; letter-spacing: .03em;
-  padding: 3px 8px; border-radius: 20px; white-space: nowrap;
+  display: inline-block;
+  font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase;
+  padding: 3px 7px; border-radius: 0; white-space: nowrap;
   border: 1px solid transparent;
 }
-.딱지.켜짐 { background: var(--켜짐연함); color: var(--켜짐); border-color: var(--켜짐); }
-.딱지.꺼짐 { background: var(--꺼짐연함); color: var(--꺼짐); border-color: var(--꺼짐); }
-.딱지.예시 { background: var(--판2); color: var(--흐린글); border-color: var(--선); }
+.딱지.켜짐 { background: var(--켜짐); color: var(--판); border-color: var(--켜짐); }
+.딱지.꺼짐 { background: transparent; color: var(--꺼짐); border-color: var(--꺼짐); }
+.딱지.예시 { background: transparent; color: var(--흐린글); border-color: var(--선); }
 
 /* ── 입력 ───────────────────────────── */
-label { display: block; font-size: 13px; color: var(--흐린글); margin: 14px 0 5px; }
+label {
+  display: block; font-size: 10.5px; color: var(--흐린글); margin: 18px 0 6px;
+  letter-spacing: .09em; text-transform: uppercase; font-weight: 600;
+}
 input, select {
-  font: inherit; width: 100%; padding: 9px 11px;
-  border: 1px solid var(--선); border-radius: 8px;
+  font: inherit; width: 100%; padding: 10px 12px;
+  border: 1px solid var(--선); border-radius: 0;
   background: var(--판); color: var(--글);
 }
-.설명 { font-size: 12.5px; color: var(--흐린글); margin: 5px 0 0; }
-.짝 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 14px; }
+input:focus, select:focus { border-color: var(--선진함); }
+.설명 { font-size: 12.5px; color: var(--흐린글); margin: 6px 0 0; }
+.짝 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 20px; }
 
 /* ── 기타 ───────────────────────────── */
 .숨김 { display: none !important; }
-.때 { color: var(--흐린글); font-size: 12px; margin-top: 12px; }
-details { margin-top: 16px; font-size: 13px; color: var(--흐린글); }
+.때 { color: var(--흐린글); font-size: 11px; margin-top: 14px; letter-spacing: .04em; }
+details { margin-top: 18px; font-size: 13px; color: var(--흐린글); }
 summary { cursor: pointer; }
-.빔 { text-align: center; color: var(--흐린글); padding: 26px 12px; }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em;
-       background: var(--판2); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
-h2 { font-size: 16px; font-weight: 700; margin: 22px 0 2px; }
+.빔 { text-align: center; color: var(--흐린글); padding: 30px 12px; font-size: 13.5px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em;
+       background: var(--판2); padding: 1px 5px; border-radius: 0;
+       overflow-wrap: anywhere; }
+
+/* 제목은 명세서의 구역 이름처럼 작고 넓게 벌린다. 큰 글씨는 맨 위
+   제목 하나로 충분하고, 여러 개면 어디가 중요한지 알 수 없다. */
+h2 {
+  font-size: 12px; font-weight: 700; margin: 34px 0 4px;
+  letter-spacing: .11em; text-transform: uppercase;
+  padding-bottom: 7px; border-bottom: 1px solid var(--선);
+}
 h2:first-child { margin-top: 0; }
-.h2곁말 { font-size: 13px; color: var(--흐린글); margin: 0 0 12px; }
+.h2곁말 { font-size: 12.5px; color: var(--흐린글); margin: 9px 0 14px; }
 /* 한 화면 안에서 사는 쪽과 파는 쪽을 가르는 제목. h2보다 한 단 작게 두어
    '쓰는 전략' 아래에 속한 것으로 읽히게 한다. */
-.쪽제목 { font-size: 14px; font-weight: 700; margin: 18px 0 6px; }
+.쪽제목 {
+  font-size: 11px; font-weight: 700; margin: 24px 0 8px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--글2);
+}
 
-/* ── 승인 후보 카드 ──────────────────────────────────
-   표로 두면 폰에서 버튼이 가로 스크롤 뒤로 숨는다. 하루 중 유일하게
-   손대는 자리라 어떤 폭에서도 바로 보여야 한다. */
-.후보들 { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+/* ── 승인 후보 줄 ────────────────────────────────────
+   표로 두면 폰에서 단추가 가로 스크롤 뒤로 숨는다. 하루 중 유일하게
+   손대는 자리라 어떤 폭에서도 바로 보여야 한다. 명세서의 품목 줄처럼
+   위아래를 선으로만 가른다. */
+.후보들 {
+  display: flex; flex-direction: column; gap: 0; margin-top: 16px;
+  border-top: 2px solid var(--선진함); border-bottom: 2px solid var(--선진함);
+}
 .후보 {
-  background: var(--판); border: 1px solid var(--선); border-radius: var(--둥글);
-  padding: 14px 16px; box-shadow: var(--그림자);
+  background: transparent; border: none; border-radius: 0;
+  border-bottom: 1px solid var(--선연함);
+  padding: 14px 2px; box-shadow: none;
   display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
 }
+.후보들 > .후보:last-child { border-bottom: none; }
 .후보 .누구 { flex: 1 1 190px; min-width: 0; }
-.후보 .이름 { font-weight: 600; font-size: 15px; }
-.후보 .잔글 { font-size: 12.5px; color: var(--흐린글); margin-top: 1px;
+.후보 .이름 { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+.후보 .잔글 { font-size: 12.5px; color: var(--흐린글); margin-top: 2px;
               font-variant-numeric: tabular-nums; }
 .후보 .고르기 { display: flex; gap: 6px; margin-left: auto; }
-.후보.정해짐 { border-color: var(--강조); }
+.후보.정해짐 { background: var(--판2); }
 .후보 .빔 { padding: 0; }
 
 /* ── 용어 사전 ───────────────────────────────────────
    65개를 다 펼치면 폰에서 서른 화면이 넘는다. 이름만 훑다가 궁금한
    것만 연다. details는 브라우저가 접기를 맡아 줘서 코드가 없다. */
-.낱말 { display: block; margin-top: 0; padding: 12px 16px; }
+.낱말 { display: block; margin-top: 0; padding: 13px 2px; }
 .낱말 > summary {
   list-style: none; cursor: pointer;
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
 .낱말 > summary::-webkit-details-marker { display: none; }
 .낱말 > summary::after {
-  content: "＋"; margin-left: auto; color: var(--흐린글); font-size: 13px;
+  content: "＋"; margin-left: auto; color: var(--흐린글); font-size: 12px;
 }
 .낱말[open] > summary::after { content: "－"; }
-.낱말[open] { border-color: var(--강조); }
+.낱말[open] { background: var(--판2); padding-left: 12px; padding-right: 12px; }
 .낱말 .잔글 { margin-top: 0; }
-.낱말 p { font-size: 14.5px; line-height: 1.65; }
+.낱말 p { font-size: 14px; line-height: 1.68; }
 #용어찾기 { margin-top: 4px; }
 
 /* ── 머리의 매수·매도 스위치 ─────────────────────────
    하루 중 제일 급할 때 찾는 것이라 어느 탭에서도 늘 보인다.
    세로 두 줄로 두는 이유는 폰 폭(390px)에서 가로로 놓으면 제목과
    부딪혀 줄이 넘치기 때문이다. */
-.스위치들 { display: flex; flex-direction: column; gap: 6px; }
+.스위치들 { display: flex; flex-direction: column; gap: 7px; }
 
 .스위치 {
   display: grid;
   grid-template-columns: auto 34px auto;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   margin: 0;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--글2);
   user-select: none;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
-.스위치 .이름 { font-weight: 600; letter-spacing: -.01em; }
+.스위치 .이름 { font-weight: 700; }
 
-/* 진짜 체크박스는 숨기지 않고 투명하게 겹쳐 둔다 — 안 그러면 키보드로
+/* 진짜 체크박스는 숨기지 않고 투명하게 겹쳐 둔다. 안 그러면 키보드로
    못 옮기고 화면낭독기가 못 읽는다. */
 .스위치 input {
   grid-column: 2; grid-row: 1;
-  width: 34px; height: 20px; margin: 0; padding: 0;
+  width: 34px; height: 18px; margin: 0; padding: 0;
   opacity: 0; cursor: pointer;
 }
+/* 홈도 둥근 알약이 아니라 네모다. 화면 전체가 각진 명세서라 여기만
+   둥글면 따로 논다. */
 .스위치 .홈 {
   grid-column: 2; grid-row: 1;
-  width: 34px; height: 20px; border-radius: 20px;
-  background: var(--선); border: 1px solid var(--선);
+  width: 34px; height: 18px; border-radius: 0;
+  background: transparent; border: 1px solid var(--선진함);
   transition: background .15s, border-color .15s;
   pointer-events: none;
 }
 .스위치 .홈::after {
   content: ""; display: block;
-  width: 14px; height: 14px; margin: 2px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25);
-  transition: transform .15s;
+  width: 12px; height: 12px; margin: 2px; border-radius: 0;
+  background: var(--선진함);
+  transition: transform .15s, background .15s;
 }
 .스위치 input:checked + .홈 { background: var(--켜짐); border-color: var(--켜짐); }
-.스위치 input:checked + .홈::after { transform: translateX(14px); }
+.스위치 input:checked + .홈::after { transform: translateX(16px); background: var(--판); }
 .스위치 input:focus-visible + .홈 { outline: 2px solid var(--강조); outline-offset: 2px; }
-.스위치 input:disabled + .홈 { opacity: .45; }
-.스위치 input:disabled ~ .상태 { opacity: .55; }
+.스위치 input:disabled + .홈 { opacity: .4; }
+.스위치 input:disabled ~ .상태 { opacity: .5; }
 
-.스위치 .상태 { font-variant-numeric: tabular-nums; min-width: 26px; }
-.스위치 input:checked ~ .상태 { color: var(--켜짐); font-weight: 600; }
+.스위치 .상태 { font-variant-numeric: tabular-nums; min-width: 36px; font-weight: 600; }
+.스위치 input:checked ~ .상태 { color: var(--글); font-weight: 700; }
 
-/* 매도가 꺼진 것은 매수가 꺼진 것보다 위험하다 — 손절이 안 걸린다.
-   꺼진 상태를 회색이 아니라 경고색으로 세게 보여 준다. */
+/* 매도가 꺼진 것은 매수가 꺼진 것보다 위험하다. 손절이 실행되지 않는다.
+   꺼진 상태를 회색이 아니라 경고색으로 세게 보여 준다. 화면에서 색을
+   쓰는 자리가 여기와 손익 둘뿐이라 오히려 눈에 잘 띈다. */
 .스위치.위험 .홈 { background: var(--꺼짐); border-color: var(--꺼짐); }
-.스위치.위험 .상태 { color: var(--꺼짐); font-weight: 700; }
+.스위치.위험 .홈::after { background: #FFF; }
+.스위치.위험 .상태 { color: var(--꺼짐); font-weight: 800; }
 
-/* ── 지금 걸린 전략 띠 ────────────────────────────────
-   스위치 바로 밑, 어느 탭에서든 보인다. 스위치는 켜졌는지만 말하고
-   무엇이 켜졌는지는 말하지 않는다.
+/* ── 지금 설정된 전략 띠 ──────────────────────────────
+   스위치 바로 밑, 어느 탭에서든 보인다. 스위치는 동작 중인지만 말하고
+   무엇이 동작 중인지는 말하지 않는다.
 
-   사는 쪽과 파는 쪽을 색으로 갈라 둔다 — 둘이 다른 전략일 수 있고,
-   그 사실이 한눈에 안 보이면 "사는 전략의 규칙으로 팔고 있다"고
-   잘못 읽는다. */
+   사는 쪽과 파는 쪽을 갈라 둔다. 둘이 다른 전략일 수 있고, 그 사실이
+   한눈에 안 보이면 "사는 전략의 규칙으로 팔고 있다"고 잘못 읽는다. */
 .전략띠 {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 18px;
-  margin-top: 10px;
-  padding: 8px 12px;
-  border: 1px solid var(--선연함);
-  border-radius: var(--둥글);
-  background: var(--판2);
-  font-size: 12.5px;
+  gap: 4px 28px;
+  margin-top: 0;
+  padding: 12px 0 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 10.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
   color: var(--흐린글);
 }
-.전략띠 b { color: var(--글); font-weight: 600; }
-.전략띠 .쪽::before { margin-right: 5px; }
-.전략띠 .사는쪽::before { content: "🟢"; }
-.전략띠 .파는쪽::before { content: "🔴"; }
+.전략띠 b {
+  color: var(--글); font-weight: 700; font-size: 13px;
+  letter-spacing: -.01em; text-transform: none; margin-left: 6px;
+}
+.전략띠 .쪽::before { margin-right: 7px; font-size: 9px; }
+.전략띠 .사는쪽::before { content: "●"; }
+.전략띠 .파는쪽::before { content: "○"; }
 
 /* 폰 폭에서는 한 줄에 둘을 넣으면 전략 이름이 잘린다. 이름이 잘리면
    "거래량 급증 + 20…"이 되어 무엇인지 알 수 없다. 한 줄에 하나씩. */
 @media (max-width: 420px) {
-  .전략띠 { font-size: 12px; gap: 3px; }
+  .전략띠 { gap: 5px; }
   .전략띠 .쪽 { width: 100%; }
 }
 
 /* 폰 폭에서도 **두 줄 그대로** 오른쪽에 붙어 있는다.
    가로로 눕히면 한 줄에 들어가긴 하는데, 두 스위치가 나란히 있으면
-   급할 때 엉뚱한 쪽을 누른다 — 하나는 기회를 놓치는 것이고 다른 하나는
+   급할 때 엉뚱한 쪽을 누른다. 하나는 기회를 놓치는 것이고 다른 하나는
    손절이 멈추는 것이라, 헷갈리는 값이 서로 너무 다르다. */
-@media (max-width: 420px) {
-  .싸개 { padding-left: 14px; padding-right: 14px; }
-  h1 { font-size: 18px; }
-  .부제 { font-size: 12px; }
-  .스위치 { grid-template-columns: auto 30px auto; gap: 5px; font-size: 11.5px; }
-  .스위치 input, .스위치 .홈 { width: 30px; height: 18px; }
-  .스위치 .홈::after { width: 12px; height: 12px; }
-  .스위치 input:checked + .홈::after { transform: translateX(12px); }
+@media (max-width: 560px) {
+  .싸개 { margin: 0; padding: 26px 18px 52px; border-left: none; border-right: none; }
+  h1 { font-size: 26px; }
+  .부제 { font-size: 10px; }
+  .머리 { padding-bottom: 14px; }
+  .탭 { padding: 9px 12px 8px; }
+  .칸 { padding: 14px 15px 15px; }
+  .칸.넓게 .값 { font-size: 30px; }
+  .값 { font-size: 23px; }
+  .스위치 { grid-template-columns: auto 30px auto; gap: 6px; font-size: 9.5px; }
+  .스위치 input, .스위치 .홈 { width: 30px; height: 17px; }
+  .스위치 .홈::after { width: 11px; height: 11px; }
+  .스위치 input:checked + .홈::after { transform: translateX(13px); }
 }

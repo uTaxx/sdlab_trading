@@ -157,7 +157,7 @@ def test_모르는_사유는_그대로_두고_안_터진다():
 
 
 def test_텔레그램에_안_먹는_기호를_안_쓴다():
-    """send_message에 parse_mode를 안 준다 — `**굵게**`가 그대로 도착한다."""
+    """send_message에 parse_mode를 안 준다. `**굵게**`가 그대로 도착한다."""
     assert "**" not in 매수알림("A", "1", _주문(), "이유", 손절비율=-0.05)
     assert "**" not in 매도알림("A", "1", _주문(OrderSide.SELL), "손절", 진입가=100.0)
 

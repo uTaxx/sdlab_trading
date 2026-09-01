@@ -23,7 +23,7 @@ def make_price_df(closes: list[float], volumes: list[int] | None = None, start: 
 
 
 def _noisy_flat(days: int, base_price: float) -> list[float]:
-    """상승/하락이 번갈아 섞인 횡보 구간 — RSI 계산식은 하락이 아예 없으면
+    """상승/하락이 번갈아 섞인 횡보 구간: RSI 계산식은 하락이 아예 없으면
     100에 붙어버리므로(0/0 처리 관례), 완전한 상수 가격은 현실적인 '횡보'를
     표현하지 못한다. 작은 진동을 섞어 RSI가 중립권에 머물게 한다."""
     prices = []
@@ -63,7 +63,7 @@ def breakout_entry_then_dead_cross_exit(
     tail_days: int = 5,
 ) -> pd.DataFrame:
     """거래량 급증 골든크로스로 진입한 뒤, 한동안 유지되다 20일선 아래로
-    데드크로스하며 청산되는 온전한 왕복 시나리오 — 백테스트 엔진의
+    데드크로스하며 청산되는 온전한 왕복 시나리오. 백테스트 엔진의
     진입→청산 전체 흐름을 검증하는 데 쓴다."""
     closes = (
         _noisy_flat(flat_days, flat_price)

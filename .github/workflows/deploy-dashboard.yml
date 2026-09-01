@@ -4,7 +4,7 @@ name: 대시보드 배포
 #
 # ## 빌드가 없다
 #
-# 정적 파일 셋(html·css·js)이라 npm도 번들러도 없다. 일부러 그렇게 했다 —
+# 정적 파일 셋(html·css·js)이라 npm도 번들러도 없다. 일부러 그렇게 했다.
 # 이 저장소가 스트림릿에서 겪은 것이 **"배포가 밀려서 다른 화면을 본다"**
 # 였고, 빌드 단계는 그런 밀림이 생기는 자리다. 올릴 것이 그대로 올라가면
 # 어긋날 구석이 없다.
@@ -30,7 +30,7 @@ permissions:
   pages: write
   id-token: write
 
-# 배포가 겹치면 나중 것만 살아남으면 된다 — 화면은 늘 최신 하나뿐이다.
+# 배포가 겹치면 나중 것만 살아남으면 된다. 화면은 늘 최신 하나뿐이다.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -48,7 +48,7 @@ jobs:
       name: github-pages
       # id와 표현식은 영문으로 둔다. GitHub Actions 표현식 파서가 한글
       # 식별자를 못 읽어서, steps.배포.outputs...로 쓰면 워크플로 파일이
-      # 통째로 파싱에 실패한다 — 잡이 하나도 안 잡힌 채 0초 만에 끝난다.
+      # 통째로 파싱에 실패한다. 잡이 하나도 안 잡힌 채 0초 만에 끝난다.
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
             echo "::error::화면 파일에 계좌 숫자로 보이는 것이 있다. 올리지 않는다."
             exit 1
           fi
-          echo "확인됨 — 화면 파일에 계좌 숫자가 없다."
+          echo "확인됨: 화면 파일에 계좌 숫자가 없다."
 
       - uses: actions/setup-python@v5
         with:
@@ -72,7 +72,7 @@ jobs:
       - name: 설명이 파이썬 원본과 어긋나지 않았는지 본다
         # 용어 사전과 전략 설명의 원본은 파이썬이고, dashboard/자료/*.json은
         # 거기서 뽑아 둔 사본이다. 원본만 고치고 다시 안 뽑으면 화면이 옛
-        # 설명을 계속 보여 준다 — 조용히 틀리는 쪽이라 올리기 전에 막는다.
+        # 설명을 계속 보여 준다. 조용히 틀리는 쪽이라 올리기 전에 막는다.
         run: |
           pip install -e ".[dev]" --quiet
           python scripts/export_dashboard_data.py --check

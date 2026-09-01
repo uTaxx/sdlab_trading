@@ -6,7 +6,7 @@ name: 30분봉 수집
 # 없고, 국내 증권사들이 대체로 장기 과거 분봉을 API로 주지 않는다. 그래서
 # 30분봉은 "필요해지면 받는 것"이 아니라 매 거래일 한 번씩 쌓아 두는 것이다.
 #
-# 왜 30분봉인가 — 장중 모멘텀(첫 30분이 마지막 30분을 예측한다)이 우리가
+# 왜 30분봉인가. 장중 모멘텀(첫 30분이 마지막 30분을 예측한다)이 우리가
 # 조사한 단타 후보 중 한국 시장 증거가 있는 유일한 것인데(JRFM 15:523),
 # 검증하려면 30분봉이 있어야 한다. 자세한 것은 docs/단타전략조사.md.
 #
@@ -16,7 +16,7 @@ name: 30분봉 수집
 #
 # **주문은 내지 않는다.** 시세 조회만 한다.
 #
-# 저장은 intraday.db에 하고 muwon.db와 분리한다 — 대시보드가 muwon.db를
+# 저장은 intraday.db에 하고 muwon.db와 분리한다. 대시보드가 muwon.db를
 # 30초마다 통째로 내려받기 때문에, 여기에 섞으면 화면 볼 때마다 수십 MB를
 # 받게 된다.
 
@@ -44,7 +44,7 @@ jobs:
     # 시트에 같은 줄을 두 번 쌓는다.
     #
     # n8n 시계가 아직 muwon406을 부르므로 그쪽이 운영이다. n8n을 옮기는
-    # 날 이 이름을 sdlab_trading으로 바꾼다 — **양쪽 저장소에서 같이.**
+    # 날 이 이름을 sdlab_trading으로 바꾼다. **양쪽 저장소에서 같이.**
     # 손으로 부르는 것(workflow_dispatch)은 어느 쪽에서든 그대로 된다.
     if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
     runs-on: ubuntu-latest
@@ -84,18 +84,18 @@ jobs:
         run: python scripts/collect_intraday.py --date "${{ github.event.inputs.date }}"
 
       - name: 수집분 구글드라이브에 업로드
-        # 도중에 실패해도 받은 만큼은 올린다 — 오늘치는 다시 받을 수 없다.
+        # 도중에 실패해도 받은 만큼은 올린다. 오늘치는 다시 받을 수 없다.
         if: always()
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
         run: |
           # 수집이 시작도 못 했으면 올릴 파일이 없다. 그때 그냥 올리려 들면
           # FileNotFoundError로 죽으면서 **진짜 원인을 로그 맨 아래에서
-          # 밀어낸다.** 2026-08-25에 실제로 그랬다 — 메일에 찍힌 것은
+          # 밀어낸다.** 2026-08-25에 실제로 그랬다. 메일에 찍힌 것은
           # 업로드 실패였고, 진짜 원인(설정 객체를 잘못 만든 것)은 그 위에
           # 묻혀 있었다.
           if [ ! -f ./intraday.db ]; then
-            echo "::warning::intraday.db가 없습니다 — 수집이 시작도 못 한 것입니다."
+            echo "::warning::intraday.db가 없습니다. 수집이 시작도 못 한 것입니다."
             echo "올릴 것이 없어 건너뜁니다. 위쪽 '30분봉 수집' 단계의 오류를 보세요."
             exit 0
           fi

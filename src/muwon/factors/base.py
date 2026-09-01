@@ -1,7 +1,7 @@
 """Factor 공통 인터페이스와 정규화 도우미.
 
 Factor는 "이 종목이 이 관점에서 얼마나 좋은가"를 **0~100**으로 답한다.
-척도를 통일하는 게 이 구조 전체의 전제다 — 어떤 Factor는 배수(1.5배),
+척도를 통일하는 게 이 구조 전체의 전제다. 어떤 Factor는 배수(1.5배),
 어떤 Factor는 퍼센트(-6%)로 답하면 가중치를 아무리 조정해도 의미가 없다.
 
 평가할 수 없으면 None을 돌려준다. 데이터가 모자란 초반 구간이나 소스가
@@ -29,7 +29,7 @@ class Factor(ABC):
         self.params = params or {}
         # 빈 데이터로 한 번 예열해 내부 표를 만들어 둔다. warmup을 안 부르고
         # score부터 호출해도 알 수 없는 AttributeError 대신 "데이터 부족"으로
-        # 떨어지게 하려는 것 — 잘못 쓴 쪽이 원인을 바로 알 수 있어야 한다.
+        # 떨어지게 하려는 것: 잘못 쓴 쪽이 원인을 바로 알 수 있어야 한다.
         self.warmup({})
 
     def warmup(self, histories: dict[str, pd.DataFrame]) -> None:
@@ -68,7 +68,7 @@ def piecewise(value: float, points: list[tuple[float, float]]) -> float:
     """구간별 선형 보간. points는 (입력, 점수)를 입력 오름차순으로 준다.
 
     예: [(-10, 20), (-6, 100), (-4, 60), (-2, 20)] 처럼 '너무 깊으면 오히려
-    감점'인 비단조 관계도 표현할 수 있다 — 단순히 많이 떨어졌다고 좋은 게
+    감점'인 비단조 관계도 표현할 수 있다. 단순히 많이 떨어졌다고 좋은 게
     아니라는 인수인계서 10항의 요구가 이 형태를 필요로 한다."""
     if not points:
         return 0.0
@@ -90,13 +90,13 @@ def percentile_scores(values: dict[str, float]) -> dict[str, float]:
 
     절대값을 점수로 바꿀 때 임계값을 손으로 정하면(예: 수익률 20% 이상이면
     100점) 시장 국면에 따라 전 종목이 100점이거나 0점이 된다. 순위로 바꾸면
-    그 문제가 사라진다 — 대신 '다 같이 나쁜 날'에도 1등은 100점이 되므로,
+    그 문제가 사라진다. 대신 '다 같이 나쁜 날'에도 1등은 100점이 되므로,
     시장 자체의 좋고 나쁨은 Market Regime이 따로 본다."""
     if not values:
         return {}
     if len(values) == 1:
         return {next(iter(values)): 50.0}
-    # 같은 값이면 같은 점수여야 한다 — 정렬 순서로 등수를 매기면 완전히
+    # 같은 값이면 같은 점수여야 한다. 정렬 순서로 등수를 매기면 완전히
     # 동일한 두 종목이 다른 점수를 받아 선택이 임의로 갈린다.
     ranked = pd.Series(values).rank(pct=True, method="average") * 100
     return {symbol: float(score) for symbol, score in ranked.items()}

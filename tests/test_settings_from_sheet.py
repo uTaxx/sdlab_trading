@@ -53,7 +53,7 @@ def test_비중상한이_범위를_벗어나면_거부한다():
 
 
 def test_손절선을_양수로_적으면_거부한다():
-    """'5% 빠지면 판다'를 5로 적는 실수를 잡는다 — 그대로 두면 손절이 안 걸린다."""
+    """'5% 빠지면 판다'를 5로 적는 실수를 잡는다. 그대로 두면 손절이 안 걸린다."""
     with pytest.raises(SettingsError, match="-5처럼"):
         parse_settings(기본설정(stop_loss_pct="5"))
 
@@ -73,7 +73,7 @@ def test_모르는_이름은_막지_않되_알린다():
 
 
 def test_빈칸은_덮지_않는다():
-    """빈 칸은 '0으로 하라'가 아니라 '안 적었다'다 — DB 값이 살아야 한다."""
+    """빈 칸은 '0으로 하라'가 아니라 '안 적었다'다. DB 값이 살아야 한다."""
     결과 = parse_settings(기본설정(max_position_weight=""))
     assert "max_position_weight" not in 결과.덮개
 
@@ -111,7 +111,7 @@ def test_설명에_출처와_경고가_보인다():
 
 def test_시트를_못_읽으면_매수는_끄고_매도는_켠다():
     """방향이 반대다. 매수를 못 하면 기회를 놓칠 뿐이지만 **매도를 못 하면
-    손실이 그대로 자란다** — 모를 때 기울 쪽이 서로 반대다."""
+    손실이 그대로 자란다**. 모를 때 기울 쪽이 서로 반대다."""
     정책, 출처 = apply(RiskPolicy(), None)
 
     assert 정책.trading_enabled is False
@@ -218,7 +218,7 @@ def test_제공자는_시트값이_틀리면도_매매를_끈다():
 
 
 def test_킬스위치는_둘_다_켜져야_켜진다():
-    """시트가 DB의 킬스위치를 무력화하면 안 된다 — 끄는 쪽은 어디서 눌러도 먹어야 한다."""
+    """시트가 DB의 킬스위치를 무력화하면 안 된다. 끄는 쪽은 어디서 눌러도 먹어야 한다."""
     켠시트 = parse_settings(기본설정(trading_enabled="Y"))
     끈시트 = parse_settings(기본설정(trading_enabled="N"))
 
@@ -292,7 +292,7 @@ def test_매수는_반대로_한쪽만_꺼도_꺼진다():
 
 
 def test_매도가_꺼져_있으면_설명이_크게_말한다():
-    """조용히 꺼져 있으면 안 된다 — 손절이 안 걸리는 상태다."""
+    """조용히 꺼져 있으면 안 된다. 손절이 안 걸리는 상태다."""
     정책, 출처 = apply(
         RiskPolicy(sell_enabled=False), parse_settings(기본설정(sell_enabled="false"))
     )

@@ -1,8 +1,8 @@
-"""전략 실험을 돌리고 비교하는 실행기.
+"""전략 실험을 실행하고 비교하는 실행기.
 
 지금까지 가설 하나를 확인할 때마다 스크립트를 새로 짰다. 그러다 보니 조건이
 조금씩 달라져(예열을 줬는지, 어느 유니버스인지) 결과끼리 비교가 안 되는 일이
-생겼다 — 실제로 예열 없는 벤치마크와 예열 있는 검증이 다른 숫자를 내서 한참
+생겼다. 실제로 예열 없는 벤치마크와 예열 있는 검증이 다른 숫자를 내서 한참
 헤맸다.
 
 그래서 실험을 한 곳으로 모은다. 세 가지를 지킨다.
@@ -11,7 +11,7 @@
    비교 자체가 성립하지 않고, 매번 받으면 실험이 느려 실험을 안 하게 된다.
 2. 항상 예열 구간을 준다. 지표가 덜 채워진 채 시작하면 그 차이가 결과로
    증폭된다.
-3. 구간별로 나눠 돌린다. 한 구간 결과는 우연일 수 있다 — donchian_20_10이
+3. 구간별로 나눠 실행한다. 한 구간 결과는 우연일 수 있다. donchian_20_10이
    +59%로 1등이었다가 다기간 검증에서 뒤집힌 적이 있다.
 """
 
@@ -51,7 +51,7 @@ class PeriodResult:
 
 @dataclass(frozen=True)
 class ExperimentResult:
-    """한 설정을 여러 구간에 돌린 결과."""
+    """한 설정을 여러 구간에 실행한 결과."""
 
     name: str
     periods: list[PeriodResult] = field(default_factory=list)
@@ -62,7 +62,7 @@ class ExperimentResult:
 
     @property
     def worst_return_pct(self) -> float:
-        """가장 나빴던 구간. 이 시스템의 1순위 판단 기준이다 —
+        """가장 나빴던 구간. 이 시스템의 1순위 판단 기준이다.
         잘 벌 때보다 못 버티는 구간이 있느냐가 먼저다."""
         return min(self.returns) if self.periods else 0.0
 
@@ -117,9 +117,9 @@ def run_experiment(
     exit_at_open: bool = False,
     entry_at_open: bool = False,
 ) -> ExperimentResult:
-    """같은 설정을 연도별로 각각 돌린다.
+    """같은 설정을 연도별로 각각 실행한다.
 
-    strategy_factory는 매번 새 전략을 만들어야 한다 — 전략이 예열 결과를
+    strategy_factory는 매번 새 전략을 만들어야 한다. 전략이 예열 결과를
     내부에 들고 있어서, 같은 객체를 여러 구간에 재사용하면 앞 구간 데이터가
     남는다."""
     policy = policy or RiskPolicy()
@@ -183,7 +183,7 @@ def weight_sweep(
     years: list[int],
     policy: RiskPolicy | None = None,
 ) -> list[ExperimentResult]:
-    """한 Factor의 가중치만 바꿔 가며 돌린다.
+    """한 Factor의 가중치만 바꿔 가며 실행한다.
 
     나머지 가중치는 그대로 두지만, 합계가 100이 아니어도 점수 엔진이
     재정규화하므로 '이 Factor의 상대 비중'만 달라지는 효과가 된다."""
@@ -216,14 +216,14 @@ def slippage_sweep(
     years: list[int],
     policy: RiskPolicy | None = None,
 ) -> list[ExperimentResult]:
-    """체결가 가정만 바꿔 가며 돌린다.
+    """체결가 가정만 바꿔 가며 실행한다.
 
     지금까지 낸 모든 숫자는 "종가에 원하는 만큼 체결됐다"는 가정 위에 있다.
-    회전율이 높은 전략일수록 이 가정이 결과를 크게 부풀린다 — 1년에 250번
+    회전율이 높은 전략일수록 이 가정이 결과를 크게 부풀린다. 1년에 250번
     사고파는 전략은 편도 0.1%만 잡아도 연 수 %가 사라진다.
 
     어느 값이 맞는지는 실거래로만 알 수 있다. 그래서 하나를 고르지 않고
-    민감도를 본다 — 0.1%에서 결론이 뒤집히는 전략이면 그 결론은 원래
+    민감도를 본다. 0.1%에서 결론이 뒤집히는 전략이면 그 결론은 원래
     없던 것이다."""
     return [
         run_experiment(
@@ -246,11 +246,11 @@ def take_profit_sweep(
     years: list[int],
     policy: RiskPolicy | None = None,
 ) -> list[ExperimentResult]:
-    """익절선만 바꿔 가며 돌린다.
+    """익절선만 바꿔 가며 실행한다.
 
     이 시스템에는 익절이 아예 없었다. 오르는 중이면 손절이나 보유 기간에
     걸릴 때까지 그대로 들고 갔다. volume_surge_5d는 파는 조건이 시간이라
-    특히 크게 작용한다 — 3일째 +15%가 나 있어도 5일째까지 기다린다.
+    특히 크게 작용한다. 3일째 +15%가 나 있어도 5일째까지 기다린다.
 
     다만 익절은 공짜가 아니다. 추세추종 계열은 **몇 번 크게 먹는 것**으로
     먹고 사는데 익절이 그 꼬리를 자른다. 그래서 "넣을까 말까"가 아니라
@@ -280,13 +280,13 @@ def param_sweep(
     policy: RiskPolicy | None = None,
     base_params: dict | None = None,
 ) -> list[ExperimentResult]:
-    """한 Factor의 파라미터 하나만 바꿔 가며 돌린다.
+    """한 Factor의 파라미터 하나만 바꿔 가며 실행한다.
 
     가중치 스윕(weight_sweep)이 '이 변수를 얼마나 믿을 것인가'를 묻는다면,
     이건 '이 변수를 어떻게 계산할 것인가'를 묻는다. 국면 판정 기준을 바꾸는
     실험처럼 가중치로는 표현할 수 없는 가설이 여기에 들어간다."""
     results = []
-    # 조건 두 개가 맞물려야 뜻이 생기는 경우가 있다 — 시장 필터는 '평균선 위'
+    # 조건 두 개가 맞물려야 뜻이 생기는 경우가 있다. 시장 필터는 '평균선 위'
     # 없이 '평균선 기울기'만 보면 의미가 없다. 고정할 값은 base_params로 받고,
     # 이름표에 함께 찍어 어떤 조건에서 잰 결과인지 표에 남게 한다.
     base = base_params or {}
@@ -322,7 +322,7 @@ def daily_returns_by_strategy(
 ) -> tuple[dict[str, pd.Series], dict[str, float]]:
     """전략별 일간 수익률과 노출도를 낸다.
 
-    구간 경계에서는 자금이 초기값으로 되돌아가므로 그날의 수익률은 버린다 —
+    구간 경계에서는 자금이 초기값으로 되돌아가므로 그날의 수익률은 버린다.
     안 버리면 '리셋'이 급등락으로 잡혀 상관계수가 오염된다.
 
     노출도를 함께 내는 이유가 있다. 상관이 낮은 게 **정말 다른 때에 벌어서**
@@ -462,13 +462,13 @@ def format_correlation(matrix: pd.DataFrame, exposure: dict[str, float] | None =
     ]
     if exposure:
         lines.append("")
-        lines.append("노출도 — 전체 기간 중 종목을 들고 있던 날의 비율")
+        lines.append("노출도: 전체 기간 중 종목을 들고 있던 날의 비율")
         lines.append("  낮으면 '다른 때에 벌어서'가 아니라 '그냥 안 사서' 상관이 낮은 것이다")
         for name, value in sorted(exposure.items(), key=lambda kv: -kv[1]):
             lines.append(f"  {name:<24}{value:>6.1f}%")
     if pairs:
         lines.append("")
-        lines.append("낮은 순 — 분산 효과가 큰 조합부터")
+        lines.append("낮은 순: 분산 효과가 큰 조합부터")
         for value, a, b in sorted(pairs)[:8]:
             verdict = "나눌 가치 큼" if value < 0.4 else ("보통" if value < 0.7 else "거의 같이 움직임")
             lines.append(f"  {a:<20} × {b:<20} {value:>6.2f}   {verdict}")
@@ -485,13 +485,13 @@ def run_header(
     """결과 위에 붙일 실행 조건.
 
     오늘 낸 표가 내일 다시 필요할 때, 어떤 조건에서 나온 숫자인지 표 안에
-    없으면 재현할 수가 없다 — 실제로 58종목 기준선을 네 번 다시 만들었다.
+    없으면 재현할 수가 없다. 실제로 58종목 기준선을 네 번 다시 만들었다.
     유니버스 종류·종목 수·기간·커밋을 숫자와 같은 파일에 남긴다.
 
     종목 목록 전체를 적는 이유는, 유니버스 스냅샷이 나중에 갱신되면 '그때
     그 58종목'을 되살릴 방법이 이것뿐이기 때문이다."""
     lines = [
-        f"# 실험 결과 — {mode}",
+        f"# 실험 결과: {mode}",
         "",
         f"- 실행: {datetime.now(UTC).isoformat(timespec='seconds')}",
         f"- 커밋: {_git_sha()}",
@@ -505,7 +505,7 @@ def run_header(
 
 
 def _git_sha() -> str:
-    """어느 코드로 낸 숫자인지. git이 없으면 조용히 넘어간다 — 결과를 못
+    """어느 코드로 낸 숫자인지. git이 없으면 조용히 넘어간다. 결과를 못
     남기는 것보다 낫다."""
     try:
         return subprocess.run(
@@ -520,7 +520,7 @@ def _git_sha() -> str:
 
 
 def format_comparison(results: list[ExperimentResult], years: list[int]) -> str:
-    """실험 결과를 한 표로. 정렬은 최악 구간 기준이 아니라 입력 순서를 지킨다 —
+    """실험 결과를 한 표로. 정렬은 최악 구간 기준이 아니라 입력 순서를 지킨다.
     Factor 기여도는 기준선과의 차이를 봐야 하므로 순서가 뜻을 가진다."""
     if not results:
         return "결과 없음"

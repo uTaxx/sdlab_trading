@@ -1,8 +1,8 @@
-# 집 윈도우 PC로 장중 실시간 매매 돌리기
+# 집 윈도우 PC로 장중 실시간 매매 실행하기
 
 VPS 대신 집 PC를 상시 서버로 쓰는 방법이다. 비용은 0원이지만, VPS와 달리
 **PC가 계속 켜져 있고 인터넷이 끊기지 않아야** 하는 책임이 사용자에게
-있다 — 절전모드/재부팅/정전에 대비한 설정이 핵심이다.
+있다. 절전모드/재부팅/정전에 대비한 설정이 핵심이다.
 
 이 스크립트는 KIS 서버로 **나가는(outbound)** 연결만 하므로 (웹소켓 접속,
 주문 API 호출), 공유기 포트포워딩이나 고정 공인IP는 필요 없다.
@@ -59,7 +59,7 @@ python scripts\configure.py telegram --bot-token "봇토큰" --chat-id "챗ID"
 python scripts\run_realtime_trading.py
 ```
 
-장중에 실행해서 로그를 지켜본다 — 웹소켓 연결/구독 단계 에러, 매매 체결
+장중에 실행해서 로그를 지켜본다. 웹소켓 연결/구독 단계 에러, 매매 체결
 로그 등을 확인한다. `src/muwon/data/kis_websocket.py`는 이 프로젝트를
 개발한 환경(KIS 포트가 막힌 샌드박스)에서 실제 접속 검증을 못 했으니,
 여기서 처음으로 진짜 검증하게 된다.
@@ -80,7 +80,7 @@ cd /d "%~dp0"
 :loop
 call .venv\Scripts\activate.bat
 python scripts\run_realtime_trading.py
-echo [%date% %time%] 프로세스 종료됨 — 10초 후 재시작
+echo [%date% %time%] 프로세스 종료됨: 10초 후 재시작
 timeout /t 10
 goto loop
 ```
@@ -96,14 +96,14 @@ goto loop
 
 ### 정전·재부팅 후에도 자동으로 돌게 하려면 (선택)
 
-기본적으로 윈도우는 재부팅되면 로그인 화면에서 멈춘다 — 자동 로그인을
+기본적으로 윈도우는 재부팅되면 로그인 화면에서 멈춘다. 자동 로그인을
 설정해야 사람 개입 없이 다시 매매가 시작된다.
 
 1. `Win + R` → `netplwiz` 입력 → 엔터
 2. 본인 계정 선택 → **"사용자가 이 컴퓨터를 사용하려면 사용자 이름과
    암호를 입력해야 합니다"** 체크 해제 → 확인 → 비밀번호 입력
 
-**주의**: 이렇게 하면 PC 부팅 시 비밀번호 없이 바로 로그인된다 — 집에
+**주의**: 이렇게 하면 PC 부팅 시 비밀번호 없이 바로 로그인된다. 집에
 다른 사람도 쓰는 PC거나 도난 위험이 있으면 보안 트레이드오프를 감안할 것.
 
 ## 7. 리스크 정책 확인/조정
@@ -117,6 +117,6 @@ streamlit run src\muwon\dashboard\app.py
 
 ## 참고: GitHub Actions 배치 모드와는 별개
 
-이 PC로 실시간 모드를 돌리는 동안은 GitHub Actions 배치
-(`docs/deploy_github_actions.md`)를 같은 KIS 계좌에 동시에 돌리지 말 것 —
+이 PC로 실시간 모드를 실행하는 동안은 GitHub Actions 배치
+(`docs/deploy_github_actions.md`)를 같은 KIS 계좌에 동시에 실행하지 말 것:
 운영 모드는 하나만 고른다.

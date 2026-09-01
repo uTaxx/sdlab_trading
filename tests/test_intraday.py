@@ -22,7 +22,7 @@ def test_the_day_is_cut_into_thirteen_slots():
 
 def test_the_opening_auction_print_lands_in_the_first_slot():
     """09:00 정각 체결을 빼면 그날 시가가 사라진다. 첫 30분 수익률을
-    재려면 그게 있어야 한다 — 이 수집의 목적이 바로 그것이다."""
+    재려면 그게 있어야 한다. 이 수집의 목적이 바로 그것이다."""
     assert slot_for("0900") == "0930"
 
 
@@ -41,7 +41,7 @@ def test_each_minute_lands_in_the_slot_that_ends_after_it():
 
 def test_a_slot_takes_its_open_and_close_from_the_ends_in_time_order():
     """KIS는 최신 것부터 거꾸로 주고, 여러 번 나눠 받으면 더 섞인다.
-    시가·종가는 순서가 틀리면 조용히 바뀌는 값이다 — 고가·저가와 달리
+    시가·종가는 순서가 틀리면 조용히 바뀌는 값이다. 고가·저가와 달리
     티가 안 나서 더 위험하다."""
     섞인것 = [_분("0910", 5, 6, 4, 5), _분("0901", 1, 2, 1, 2), _분("0930", 9, 10, 8, 9)]
     (칸,) = aggregate("005930", date(2026, 8, 19), 섞인것)
@@ -100,7 +100,7 @@ def test_the_parser_handles_an_empty_response():
 
 
 def test_saving_the_same_day_twice_does_not_double_the_rows(tmp_path):
-    """수집이 도중에 끊겨 다시 돌리는 일이 잦을 텐데, 그때마다 줄이 두 배로
+    """수집이 도중에 끊겨 다시 실행하는 일이 잦을 텐데, 그때마다 줄이 두 배로
     늘면 나중에 쓸 수가 없다."""
     db = tmp_path / "intraday.db"
     칸들 = aggregate("005930", date(2026, 8, 19), [_분("0901", 1, 2, 1, 2)])

@@ -78,7 +78,7 @@ class SettingsStore:
             return decrypt(stored_value, self._master_key)
         except InvalidToken:
             # MUWON_MASTER_KEY를 새로 발급했는데 DB에는 옛 키로 암호화된 값이
-            # 남아 있는 상황 — 실제로 겪었다. 여기서 예외를 그대로 올리면
+            # 남아 있는 상황: 실제로 겪었다. 여기서 예외를 그대로 올리면
             # 대시보드 전체가 죽고 다른 정상 설정까지 못 보게 되므로, 못 읽는
             # 값 하나로 처리하고 넘어간다(경고는 남긴다). 어느 키가 안 열리는지는
             # undecryptable_secret_keys()로 조회할 수 있고, 해당 값을 다시
@@ -90,7 +90,7 @@ class SettingsStore:
             return default
 
     def undecryptable_secret_keys(self) -> list[str]:
-        """지금 마스터키로 열리지 않는 비밀값 키 목록 — 화면에 "이 값들은 다시
+        """지금 마스터키로 열리지 않는 비밀값 키 목록: 화면에 "이 값들은 다시
         입력해야 한다"고 알려주기 위한 용도."""
         self._refresh_cache_if_stale()
         if not self._master_key:

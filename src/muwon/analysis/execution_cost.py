@@ -7,7 +7,7 @@
 2. 주문은 **오늘 아침 09:05**에 나간다
 3. 체결가는 그 시점 호가에 달렸다
 
-그래서 '결정가 대비 체결가'에는 두 가지가 섞여 있다 — 밤 사이 갭과 호가
+그래서 '결정가 대비 체결가'에는 두 가지가 섞여 있다. 밤 사이 갭과 호가
 스프레드. 백테스트가 무시하는 것은 이 둘의 합이고, 그래서 여기서도 둘을
 합쳐서 잰다. 나누려면 시가 데이터가 더 필요한데, 지금 필요한 답('백테스트
 가정이 얼마나 낙관적인가')에는 합계로 충분하다.
@@ -57,7 +57,7 @@ class CostReport:
 
     @property
     def median_pct(self) -> float:
-        """중앙값을 대표값으로 쓴다 — 갭 한 번에 평균이 끌려가지 않게."""
+        """중앙값을 대표값으로 쓴다. 갭 한 번에 평균이 끌려가지 않게."""
         return statistics.median(s.cost_pct for s in self.samples) if self.samples else 0.0
 
     @property
@@ -70,7 +70,7 @@ class CostReport:
     def suggested_slippage_pct(self) -> float:
         """백테스트에 넣을 값 후보. 편도 기준이라 그대로 slippage_pct에 쓴다.
 
-        표본이 적으면 쓰지 말아야 한다 — 판단은 부르는 쪽에 맡기고 여기서는
+        표본이 적으면 쓰지 말아야 한다. 판단은 부르는 쪽에 맡기고 여기서는
         숫자만 낸다."""
         return max(self.median_pct, 0.0) / 100
 
@@ -101,7 +101,7 @@ def collect(session_factory) -> CostReport:
 
 def format_report(report: CostReport) -> str:
     lines = [
-        "■ 결정가 대비 체결가 — 백테스트가 무시하는 비용",
+        "■ 결정가 대비 체결가. 백테스트가 무시하는 비용",
         "  신호는 어제 종가로 내고 주문은 오늘 아침에 나간다.",
         "  그 사이의 갭과 호가 스프레드가 여기 함께 잡힌다.",
         "",
@@ -115,7 +115,7 @@ def format_report(report: CostReport) -> str:
         lines += [
             "",
             "아직 잴 수 있는 표본이 없습니다.",
-            "모의투자 주문이 쌓여야 실제 값을 알 수 있습니다 — 그때까지",
+            "모의투자 주문이 쌓여야 실제 값을 알 수 있습니다. 그때까지",
             "백테스트의 슬리피지는 추정값으로만 쓰세요.",
         ]
         return "\n".join(lines)
@@ -141,6 +141,6 @@ def format_report(report: CostReport) -> str:
     ]
     if report.count < 20:
         lines.append(
-            "다만 표본이 20건 미만이라 이 값을 믿기엔 이릅니다 — 방향만 참고하세요."
+            "다만 표본이 20건 미만이라 이 값을 믿기엔 이릅니다. 방향만 참고하세요."
         )
     return "\n".join(lines)

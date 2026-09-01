@@ -71,7 +71,7 @@ def test_stop_loss_triggers_below_threshold():
 
 def test_policy_change_takes_effect_without_recreating_manager():
     """대시보드/CLI에서 정책을 바꾸면 RiskManager를 새로 만들지 않아도
-    다음 호출부터 바로 반영되어야 한다 — SettingsService 연동의 핵심 전제."""
+    다음 호출부터 바로 반영되어야 한다. SettingsService 연동의 핵심 전제."""
     current_policy = RiskPolicy(max_position_weight=0.15, stop_loss_pct=-0.05,
                                  daily_loss_limit_pct=-0.03, max_concurrent_positions=8)
     rm = RiskManager(policy_provider=lambda: current_policy)

@@ -55,7 +55,7 @@ def test_backfill_file_parses_and_keeps_the_rejections():
 
 def test_header_is_written_whenever_the_sheet_is_empty():
     """시트 생성은 성공하고 값 쓰기만 실패하면, 다음 실행이 '시트가 이미
-    있다'고 보고 머리글 없이 데이터부터 채운다 — 실제로 그 상태가 됐다.
+    있다'고 보고 머리글 없이 데이터부터 채운다. 실제로 그 상태가 됐다.
     칸 이름 없는 표는 아무도 못 읽는다."""
     from muwon.cloud.hypothesis_log import needs_header
 
@@ -65,7 +65,7 @@ def test_header_is_written_whenever_the_sheet_is_empty():
 
 
 def test_updated_row_count_reads_an_int_not_a_list():
-    """구글은 updatedRows를 정수로 준다. len()을 씌워 터뜨린 적이 있다 —
+    """구글은 updatedRows를 정수로 준다. len()을 씌워 터뜨린 적이 있다.
     없을 때의 기본값에 타입이 다른 값을 넣은 게 원인이었다."""
     from muwon.cloud.hypothesis_log import updated_row_count
 

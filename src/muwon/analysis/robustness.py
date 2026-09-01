@@ -2,12 +2,12 @@
 
 한 구간에서 +59%가 나왔다고 그 전략이 좋은 게 아니다. 과거 데이터에 우연히
 맞아떨어진 것일 수 있고(과최적화), 그런 전략은 앞으로는 통하지 않는다.
-같은 전략을 여러 기간에 각각 돌려서 결과가 들쭉날쭉한지 꾸준한지를 봐야
+같은 전략을 여러 기간에 각각 실행해서 결과가 들쭉날쭉한지 꾸준한지를 봐야
 "운"과 "실력"을 구분할 수 있다.
 
 판단 기준을 평균 수익률 하나로 두지 않는 이유: 한 구간 +100%, 다른 구간
 -60%인 전략은 평균이 +20%라도 실전에서 못 버틴다. 그래서 최악 구간 수익률과
-플러스 구간 비율을 함께 본다 — 살아남는 것이 먼저다.
+플러스 구간 비율을 함께 본다. 살아남는 것이 먼저다.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ class PeriodWindow:
 
 
 def yearly_windows(start_year: int, end_year: int) -> list[PeriodWindow]:
-    """연 단위 구간 — 상승장/하락장이 해마다 다르므로 가장 읽기 쉬운 분할이다."""
+    """연 단위 구간: 상승장/하락장이 해마다 다르므로 가장 읽기 쉬운 분할이다."""
     return [
         PeriodWindow(label=str(year), trade_from=date(year, 1, 1), end=date(year, 12, 31))
         for year in range(start_year, end_year + 1)
@@ -49,7 +49,7 @@ def yearly_windows(start_year: int, end_year: int) -> list[PeriodWindow]:
 
 
 def half_year_windows(start_year: int, end_year: int) -> list[PeriodWindow]:
-    """반기 단위 — 구간을 더 잘게 쪼개 우연히 맞은 경우를 더 잘 드러낸다."""
+    """반기 단위: 구간을 더 잘게 나눠 우연히 맞은 경우를 더 잘 드러낸다."""
     windows = []
     for year in range(start_year, end_year + 1):
         windows.append(
@@ -87,7 +87,7 @@ class RobustnessResult:
 
     @property
     def worst_return_pct(self) -> float:
-        """최악 구간의 수익률 — 실전에서 버틸 수 있는지를 가르는 값."""
+        """최악 구간의 수익률: 실전에서 버틸 수 있는지를 가르는 값."""
         return min(self.returns) if self.returns else 0.0
 
     @property
@@ -140,7 +140,7 @@ def evaluate_robustness(
     """각 전략을 각 구간에서 따로 백테스트한다.
 
     price_histories는 전체 기간(예열 포함)을 한 번에 받아 두고, 구간마다
-    잘라 쓴다 — 같은 데이터를 구간 수만큼 다시 내려받으면 느리기만 하다.
+    잘라 쓴다. 같은 데이터를 구간 수만큼 다시 내려받으면 느리기만 하다.
     구간마다 새 BacktestEngine을 만들어 초기 자금부터 다시 시작하므로,
     앞 구간의 성과가 뒤 구간에 섞이지 않는다."""
     results = []

@@ -107,7 +107,7 @@ def _일봉모으기(종목들: list[str], 정책) -> dict:
         나온것 = load_histories(
             YahooFinanceDataSource(), 받을것, 시작, 끝, cache=PriceCache()
         )
-    except Exception as e:  # noqa: BLE001 — 일봉을 못 받아도 손절은 걸려야 한다
+    except Exception as e:  # noqa: BLE001 (일봉을 못 받아도 손절은 걸려야 한다)
         print(f"⚠ 일봉을 못 받았습니다: {type(e).__name__}: {e}")
         return {}
     return dict(_종목코드로(나온것, 받을것))

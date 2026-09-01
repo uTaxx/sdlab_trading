@@ -1,6 +1,6 @@
 """변동성 기반 청산(ATR 손절·트레일링) 검증.
 
-기본값은 꺼져 있다 — 실측에서 고정 -5%보다 나쁘게 나왔기 때문이다(커밋 메시지
+기본값은 꺼져 있다. 실측에서 고정 -5%보다 나쁘게 나왔기 때문이다(커밋 메시지
 참고). 그래도 코드를 남긴 이유는 종목 구성이나 시장이 달라지면 다시 후보가
 되기 때문이고, 남기는 이상 동작은 검증돼 있어야 한다."""
 
@@ -28,7 +28,7 @@ def frame(closes, highs=None, lows=None, start=date(2024, 1, 2)):
 
 
 def flat_atr(days=40, price=100.0, daily_range=4.0):
-    """하루에 daily_range만큼 움직이는 종목 — ATR이 대략 그 값이 된다."""
+    """하루에 daily_range만큼 움직이는 종목: ATR이 대략 그 값이 된다."""
     closes = [price] * days
     highs = [price + daily_range / 2] * days
     lows = [price - daily_range / 2] * days
@@ -97,7 +97,7 @@ def test_falls_back_to_fixed_stop_when_atr_missing():
 
 
 def test_disabled_policy_uses_fixed_stop_only():
-    policy = RiskPolicy()  # 기본값 — ATR 꺼짐
+    policy = RiskPolicy()  # 기본값: ATR 꺼짐
     df = flat_atr()
     common = {
         "entry_price": 100.0,
@@ -113,7 +113,7 @@ def test_disabled_policy_uses_fixed_stop_only():
 
 
 def test_trailing_stop_measures_from_peak_not_entry():
-    """트레일링은 고점 대비로 재야 한다 — 진입가 기준이면 이익을 못 지킨다."""
+    """트레일링은 고점 대비로 재야 한다. 진입가 기준이면 이익을 못 지킨다."""
     closes = [100.0] * 20 + [130.0] * 5 + [120.0]
     df = frame(closes, [c * 1.02 for c in closes], [c * 0.98 for c in closes])
     policy = RiskPolicy(trailing_stop_enabled=True, trailing_stop_multiple=1.0)
@@ -162,7 +162,7 @@ def test_highest_close_since_ignores_outside_window():
 
 
 def test_take_profit_sells_when_the_target_is_reached():
-    """익절이 이 시스템에 아예 없었다. 넣되 기본값은 끔이다 —
+    """익절이 이 시스템에 아예 없었다. 넣되 기본값은 끔이다.
     유리한지 아직 재지 않았기 때문이다."""
     from datetime import date
 

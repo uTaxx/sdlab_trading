@@ -33,7 +33,7 @@ TIMEOUT = 30
 def call(token: str, method: str, raise_on_error: bool = True, **몸통: Any) -> dict:
     """텔레그램 API 한 번. 돌려주는 것은 `result` 부분이다."""
     보낼것 = {k: v for k, v in 몸통.items() if v is not None}
-    # 사전·목록은 JSON 글자로 넣어야 한다 — 텔레그램은 폼 값만 받는다.
+    # 사전·목록은 JSON 글자로 넣어야 한다. 텔레그램은 폼 값만 받는다.
     for k, v in list(보낼것.items()):
         if isinstance(v, dict | list):
             보낼것[k] = json.dumps(v, ensure_ascii=False)
@@ -58,7 +58,7 @@ def call(token: str, method: str, raise_on_error: bool = True, **몸통: Any) ->
 def get_updates(token: str, offset: int) -> list[dict]:
     """새 메시지와 **누른 버튼**을 받아 온다.
 
-    ## 함정 하나 — `allowed_updates`는 텔레그램이 기억한다
+    ## 함정 하나. `allowed_updates`는 텔레그램이 기억한다
 
     여기 안 적은 종류는 **도착하는 즉시 버려진다.** 그리고 이 값은 요청
     하나에만 적용되는 게 아니라 **다음에 바꿀 때까지 서버가 기억한다.**
@@ -67,7 +67,7 @@ def get_updates(token: str, offset: int) -> list[dict]:
     버튼은 전부 버려졌다. 버튼은 도는 표시만 내다 풀리고, 로그에는 "새
     메시지 0개"만 남아서 **무엇이 잘못됐는지 알 방법이 없었다.**
 
-    고친 뒤에도 **고치기 전에 누른 것은 돌아오지 않는다** — 이미 버려졌다.
+    고친 뒤에도 **고치기 전에 누른 것은 돌아오지 않는다**. 이미 버려졌다.
     다시 눌러야 한다."""
     return call(token, "getUpdates", offset=offset, timeout=0, allowed_updates=받을것)
 
@@ -104,7 +104,7 @@ def answer_callback(token: str, callback_query_id: str, text: str = "",
                     show_alert: bool = False) -> None:
     """버튼을 누른 사람 화면에 잠깐 뜨는 한 줄.
 
-    **이걸 안 보내면 버튼이 계속 도는 표시로 남는다** — 먹었는지 아닌지
+    **이걸 안 보내면 버튼이 계속 도는 표시로 남는다**. 먹었는지 아닌지
     알 수가 없어서 또 누르게 된다."""
     call(token, "answerCallbackQuery", raise_on_error=False,
          callback_query_id=callback_query_id, text=text[:200], show_alert=show_alert)

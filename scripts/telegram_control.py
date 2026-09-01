@@ -5,7 +5,7 @@
 
 ## 서버 없이 어떻게 받나
 
-웹훅을 걸지 않는다 — 받으려면 상시 도는 서버가 필요한데 이 저장소에는
+웹훅을 걸지 않는다. 받으려면 상시 도는 서버가 필요한데 이 저장소에는
 그런 게 없다. 대신 워크플로가 주기적으로 `getUpdates`로 **물어보러 간다.**
 늦어야 몇 분이고, 설정을 바꾸는 일에 몇 분은 늦어도 된다.
 
@@ -20,7 +20,7 @@
 - 저장된 chat_id에서 온 것만 듣는다 (봇 이름은 누구나 알 수 있다)
 - **매매를 켜는 것은 여기서 못 한다.** 끄는 것만 된다
 - 값 검증은 시트에서 읽을 때와 같은 규칙을 쓴다
-- 모르는 말에는 안내만 한다 — 추측해서 실행하지 않는다
+- 모르는 말에는 안내만 한다. 추측해서 실행하지 않는다
 
 사용 예:
     python scripts/telegram_control.py
@@ -85,7 +85,7 @@ def main() -> int:
     service = build_settings_service()
     cfg = service.get_telegram_config()
     if not cfg.bot_token:
-        print("텔레그램 봇 토큰이 없습니다 — 할 일이 없습니다.", file=sys.stderr)
+        print("텔레그램 봇 토큰이 없습니다. 할 일이 없습니다.", file=sys.stderr)
         return 0
     if not cfg.chat_id:
         print("chat_id가 없습니다. **누구 말을 들을지 모르면 아무 말도 듣지 않습니다.**",
@@ -107,7 +107,7 @@ def main() -> int:
         # 것이므로, 여기서 또 getUpdates를 부르면 웹훅과 충돌해 터진다.
         업데이트 = _payload_updates(args.from_payload)
         print(f"■ n8n이 넘겨준 것 {len(업데이트)}개")
-        # 읽은 위치는 안 건드린다 — 폴링으로 되돌아갈 때 쓸 값이다.
+        # 읽은 위치는 안 건드린다. 폴링으로 되돌아갈 때 쓸 값이다.
         마지막_고정 = True
     else:
         # ── 우리가 물어보러 갈 때 ─────────────────────────────────
@@ -118,15 +118,15 @@ def main() -> int:
         # 때가 똑같이 조용하면, 조용한 것이 무슨 뜻인지 알 수가 없다.
         # 이 진단을 만든 이유가 바로 그 모호함을 없애는 것이었다.
         if 정보.get("ok") is False:
-            print(f"■ 봇 상태를 못 물어봤습니다 — {정보.get('description')}")
+            print(f"■ 봇 상태를 못 물어봤습니다. {정보.get('description')}")
         elif 정보.get("url"):
             print(f"■ 이 봇은 **웹훅으로 받고 있습니다**: {정보['url']}")
-            print("  n8n이 받아 넘겨주는 구조입니다 — 여기서 물어보러 가면 충돌합니다.")
+            print("  n8n이 받아 넘겨주는 구조입니다. 여기서 물어보러 가면 충돌합니다.")
             print("  이 워크플로의 schedule은 꺼 두는 것이 맞습니다.")
             return 0
         else:
             밀린것 = 정보.get("pending_update_count", 0)
-            print(f"■ 이 봇에 **웹훅이 없습니다** — 물어보러 가는 방식으로 돕니다"
+            print(f"■ 이 봇에 **웹훅이 없습니다**. 물어보러 가는 방식으로 돕니다"
                   f" (밀려 있는 것 {밀린것}개)")
         업데이트 = get_updates(cfg.bot_token, offset)
         print(f"■ 새 메시지 {len(업데이트)}개 (offset {offset})")
@@ -150,7 +150,7 @@ def main() -> int:
                 continue
             try:
                 _버튼처리(누른것, sheet_id, cfg)
-            except Exception as e:  # noqa: BLE001 — 하나가 터져도 나머지는 처리한다
+            except Exception as e:  # noqa: BLE001 (하나가 터져도 나머지는 처리한다)
                 print(f"    터짐: {type(e).__name__}: {e}", file=sys.stderr)
                 answer_callback(cfg.bot_token, 누른것["id"], f"문제가 생겼습니다: {type(e).__name__}")
             continue
@@ -174,7 +174,7 @@ def main() -> int:
             continue
         try:
             보내기(_처리(글, sheet_id, service))
-        except Exception as e:  # noqa: BLE001 — 한 명령이 터져도 나머지는 처리한다
+        except Exception as e:  # noqa: BLE001 (한 명령이 터져도 나머지는 처리한다)
             print(f"    터짐: {type(e).__name__}: {e}", file=sys.stderr)
             보내기(f"⚠️ 그 명령을 처리하다 문제가 생겼습니다.\n{type(e).__name__}: {e}")
 
@@ -200,11 +200,11 @@ def _payload_updates(글: str) -> list[dict]:
     """n8n이 넘겨준 글 → 업데이트 목록.
 
     n8n의 텔레그램 트리거는 **업데이트 하나**를 넘긴다. 목록으로 와도
-    받아 준다 — 나중에 여러 개를 묶어 보내게 바꿔도 여기가 안 깨진다."""
+    받아 준다. 나중에 여러 개를 묶어 보내게 바꿔도 여기가 안 깨진다."""
     것 = json.loads(글)
     if isinstance(것, dict):
         # 텔레그램 트리거가 update를 통째로 주기도 하고, 그 안의 body만
-        # 주기도 한다. 둘 다 받는다 — n8n 설정 하나 때문에 안 먹으면
+        # 주기도 한다. 둘 다 받는다. n8n 설정 하나 때문에 안 먹으면
         # 원인을 찾기 어렵다.
         if "message" in 것 or "callback_query" in 것:
             return [것]
@@ -227,7 +227,7 @@ _DB고쳤나 = False
 def _전략이름(키: str) -> str:
     try:
         return get_definition(키).화면이름
-    except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 버튼이 죽으면 안 된다
+    except Exception:  # noqa: BLE001 (이름을 못 찾는다고 버튼이 죽으면 안 된다)
         return 키
 
 
@@ -316,7 +316,7 @@ def _버튼처리(누른것: dict, sheet_id: str, cfg) -> None:
     오늘 = datetime.now(KST).date()
 
     # 전략 버튼은 매수 승인과 길이 다르다. 시트가 아니라 상태 DB를 보고,
-    # 날짜 검사도 저쪽에서 한다 — 어제 버튼을 눌렀을 때 돌려줄 말이 다르다.
+    # 날짜 검사도 저쪽에서 한다. 어제 버튼을 눌렀을 때 돌려줄 말이 다르다.
     if c.종류 in ("전략고름", "전략확정", "전략취소"):
         _전략버튼처리(c, 누른것, cfg, 오늘)
         return
@@ -345,7 +345,7 @@ def _버튼처리(누른것: dict, sheet_id: str, cfg) -> None:
     후보, 지금결정 = read_today(sheet_id, 오늘)
 
     # 버튼 글자만 바꾸면 나중에 대화를 훑을 때 무슨 일이 있었는지 안 보인다.
-    # 글에도 지금 상태를 적어 둔다 — 버튼은 지금 누르는 것이고 글은 남는다.
+    # 글에도 지금 상태를 적어 둔다. 버튼은 지금 누르는 것이고 글은 남는다.
     if message_id:
         새글 = 글에_상태붙이기(메시지.get("text", ""), 후보, 지금결정)
         edit_text(토큰, chat_id, message_id, 새글, keyboard(후보, 오늘, 지금결정))
@@ -374,7 +374,7 @@ def _처리(글: str, sheet_id: str, service) -> str:
         옛것 = update_setting(sheet_id, "trading_enabled", "false")
         return (
             f"🛑 **매매를 껐습니다.** (시트 값 {옛것 or '(빈칸)'} → false)\n\n"
-            "이미 들고 있는 종목의 손절은 그대로 작동합니다 — '더 안 산다'이지 "
+            "이미 들고 있는 종목의 손절은 그대로 작동합니다. '더 안 산다'이지 "
             "'방치한다'가 아닙니다."
         )
 

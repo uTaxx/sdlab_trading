@@ -82,7 +82,7 @@ def test_sharpe_prefers_the_smoother_path_to_the_same_place():
 
 
 def test_sortino_does_not_punish_upside_spikes():
-    """위로 튀는 건 벌하지 않아야 한다 — 투자자가 싫어하는 건 손실 쪽 변동이다."""
+    """위로 튀는 건 벌하지 않아야 한다. 투자자가 싫어하는 건 손실 쪽 변동이다."""
     def equity_from(returns):
         value, values = 100.0, [100.0]
         for r in returns:
@@ -96,7 +96,7 @@ def test_sortino_does_not_punish_upside_spikes():
     spiked[30] = 0.15
 
     # 튄 날은 Sharpe의 분모(전체 변동성)는 키우지만 Sortino의 분모(하락
-    # 변동성)는 안 키운다 — 그래서 같은 곡선에서 Sortino가 더 높아야 한다.
+    # 변동성)는 안 키운다. 그래서 같은 곡선에서 Sortino가 더 높아야 한다.
     assert sortino(equity_from(spiked)) > sharpe(equity_from(spiked))
     assert sortino(equity_from(base_returns)) > 0
 

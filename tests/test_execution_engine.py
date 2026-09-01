@@ -84,7 +84,7 @@ def test_buy_signal_executes_order_persists_position_and_notifies():
     글 = notifier.messages[0]
     assert "🟢 매수체결" in 글
     assert TEST_TICKER.name in 글
-    # 처음 쓰는 사람이 제일 먼저 묻는 둘 — 얼마를 썼고, 언제 팔리나.
+    # 처음 쓰는 사람이 제일 먼저 묻는 둘: 얼마를 썼고, 언제 팔리나.
     assert "매수총액 : " in 글, "총액이 없으면 얼마 나갔는지 암산해야 한다"
     assert "매도전략" in 글, "언제 팔리는지 안 적으면 사람이 알 방법이 없다"
     assert "손절" in 글
@@ -158,7 +158,7 @@ def test_stop_loss_sells_before_dead_cross_signal():
 
 
 class ScriptedStrategy:
-    """종목별로 지정한 점수의 매수 신호만 내는 전략 — 선택 순서 검증용."""
+    """종목별로 지정한 점수의 매수 신호만 내는 전략: 선택 순서 검증용."""
 
     name = "scripted"
 
@@ -222,7 +222,7 @@ def test_buys_strongest_signal_when_slots_are_scarce():
 
 
 def test_equal_scores_keep_universe_order():
-    """점수가 같으면 기존 순서를 유지해야 한다 — 정렬 도입으로 기존 동작이
+    """점수가 같으면 기존 순서를 유지해야 한다. 정렬 도입으로 기존 동작이
     엉뚱하게 바뀌지 않는지 확인한다."""
     from tests.price_series import make_price_df
 
@@ -329,10 +329,10 @@ def test_engine_enforces_time_exit_from_actual_entry_date():
     entry_summary = engine.run_once(as_of=dates[5])
     assert [a.side for a in entry_summary.actions] == [OrderSide.BUY]
 
-    # 2거래일 경과 — 아직 청산 안 됨
+    # 2거래일 경과: 아직 청산 안 됨
     assert engine.run_once(as_of=dates[7]).actions == []
 
-    # 3거래일 경과 — 청산
+    # 3거래일 경과: 청산
     exit_summary = engine.run_once(as_of=dates[8])
     assert [a.side for a in exit_summary.actions] == [OrderSide.SELL]
     assert "보유 3일 경과" in exit_summary.actions[0].reason
@@ -382,7 +382,7 @@ def test_no_price_data_is_recorded_as_such_not_as_silence():
 
 
 def test_signals_are_persisted_so_we_can_ask_why_nothing_was_bought():
-    """signals 테이블은 스키마에만 있고 아무도 쓰지 않았다 — 그래서 '0건'이
+    """signals 테이블은 스키마에만 있고 아무도 쓰지 않았다. 그래서 '0건'이
     신호가 없었다는 뜻인지 기록을 안 했다는 뜻인지 알 수 없었다."""
     from sqlalchemy import select
 
@@ -401,7 +401,7 @@ def test_signals_are_persisted_so_we_can_ask_why_nothing_was_bought():
 
 
 def test_a_blocked_signal_records_the_reason():
-    """신호는 났는데 주문이 없으면 이유가 어딘가 남아야 한다 — 안 그러면
+    """신호는 났는데 주문이 없으면 이유가 어딘가 남아야 한다. 안 그러면
     '신호가 없었다'와 구분이 안 된다."""
     df = flat_then_breakout(tail_days=0)
     engine, session_factory, _ = make_engine(
@@ -420,7 +420,7 @@ def test_a_blocked_signal_records_the_reason():
 # ── 매도 스위치 (2026-08-25) ──────────────────────────────────
 #
 # 대시보드에서 매수와 매도를 따로 끌 수 있게 됐다. 매도를 끄면 손절도
-# 익절도 보유일수 청산도 전부 멈춘다 — **값이 반토막 나도 아무 일도
+# 익절도 보유일수 청산도 전부 멈춘다. **값이 반토막 나도 아무 일도
 # 안 일어난다.** 이 저장소가 최악으로 꼽는 모양이라 시험으로 못 박는다.
 
 
@@ -465,7 +465,7 @@ def test_매도가_꺼지면_보유가_있을_때_크게_알린다():
 
 
 def test_매도가_꺼져도_보유가_없으면_안_시끄럽다():
-    """들고 있는 것이 없으면 손절이 멈춰도 잃을 것이 없다 — 알림을 아낀다."""
+    """들고 있는 것이 없으면 손절이 멈춰도 잃을 것이 없다. 알림을 아낀다."""
     data_source = FakeDataSource({TEST_TICKER.symbol: flat_then_breakout(tail_days=0)})
     policy = RiskPolicy(sell_enabled=False)
     engine, _, notifier = make_engine(data_source, policy=policy)

@@ -1,17 +1,17 @@
 """**기준을 이렇게 바꾸는 게 어떻겠냐고 제안한다.** 아무것도 안 바꾼다.
 
-제안은 텔레그램으로 가고, 답도 텔레그램으로 `/설정 <이름> <값>` 하면 된다 —
+제안은 텔레그램으로 가고, 답도 텔레그램으로 `/설정 <이름> <값>` 하면 된다.
 제안과 고치는 수단이 같은 곳에 있어야 실제로 고쳐진다.
 
 ## 근거 없는 제안은 하지 않는다
 
 제안하는 것은 두 종류뿐이다.
 
-- **산수로 확인되는 것** — 한 종목 15% × 8종목 = 120%인데 현금은 100%다
-- **세어 보면 나오는 것** — 유니버스 45종목 중 몇이 거래대금 문턱에 걸리나
+- **산수로 확인되는 것**. 한 종목 15% × 8종목 = 120%인데 현금은 100%다
+- **세어 보면 나오는 것**. 유니버스 45종목 중 몇이 거래대금 문턱에 걸리나
 
 손절선을 얼마로 할지, 익절을 켤지 같은 것은 **모의투자 표본이 쌓여야**
-말할 수 있다. 그때까지는 "모른다"고 말한다 — 그게 정확한 상태다.
+말할 수 있다. 그때까지는 "모른다"고 말한다. 그게 정확한 상태다.
 
 사용 예:
     python scripts/propose_settings.py               # 화면 + 텔레그램
@@ -40,9 +40,9 @@ from muwon.settings.from_sheet import parse_settings
 from muwon.settings.proposals import (
     도달할_수_없는_수인가,
     모아서,
-    문턱에_걸린_종목,
     아직_모르는것,
     완전자동인가,
+    최소기준에_걸린_종목,
     현금이_모자라나,
 )
 from muwon.settings.service import build_settings_service
@@ -53,7 +53,7 @@ TURNOVER_DAYS = 20
 
 
 def _거래대금_억(cache, source, 섹터들) -> tuple[dict[str, float], dict[str, str]]:
-    """종목별 최근 20일 평균 거래대금(억원). 못 받은 것은 뺀다 — **0으로
+    """종목별 최근 20일 평균 거래대금(억원). 못 받은 것은 뺀다. **0으로
     채우면 '거래가 없다'로 읽혀 멀쩡한 종목을 끄라고 제안하게 된다.**"""
     오늘 = datetime.now(KST).date()
     시작 = 오늘 - timedelta(days=120)
@@ -112,7 +112,7 @@ def main() -> int:
     if not args.skip_turnover:
         print("■ 거래대금 세는 중…", file=sys.stderr)
         억, 이름표 = _거래대금_억(PriceCache(), YahooFinanceDataSource(), 내용.섹터)
-        제안들.append(문턱에_걸린_종목(문턱, 억, 이름표))
+        제안들.append(최소기준에_걸린_종목(문턱, 억, 이름표))
 
     글 = 모아서(제안들)
     print(글)
@@ -123,7 +123,7 @@ def main() -> int:
 
             TelegramNotifier(build_settings_service()).send(글)
             print("\n텔레그램으로 보냈습니다.", file=sys.stderr)
-        except Exception as e:  # noqa: BLE001 — 알림 실패가 제안을 지우면 안 된다
+        except Exception as e:  # noqa: BLE001 (알림 실패가 제안을 지우면 안 된다)
             print(f"\n텔레그램 전송 실패: {type(e).__name__}: {e}", file=sys.stderr)
     return 0
 

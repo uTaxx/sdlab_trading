@@ -1,12 +1,12 @@
 """가설과 검증 결과를 구글 시트에 한 줄씩 쌓는다.
 
-왜 시트인가 — 지금 실험 기록은 세 군데에 흩어져 있다. 숫자는 GitHub Actions
+왜 시트인가. 지금 실험 기록은 세 군데에 흩어져 있다. 숫자는 GitHub Actions
 로그(만료됨)와 아티팩트에, 판단은 커밋 메시지와 설계안 문서에. 그래서
 "그때 그 가설이 왜 기각됐더라"를 찾으려면 세 곳을 다 뒤져야 하고, 코드를
 안 보는 사람은 아예 접근할 수가 없다.
 
 시트 한 장에 한 줄씩 쌓으면 브라우저만 있으면 읽힌다. 그리고 append이므로
-과거 줄이 덮이지 않는다 — 기각된 가설이 남아 있는 게 이 기록의 핵심이다.
+과거 줄이 덮이지 않는다. 기각된 가설이 남아 있는 게 이 기록의 핵심이다.
 같은 걸 두 번 시험하지 않으려면 실패가 보여야 한다.
 
 **자동으로 채울 수 있는 칸과 없는 칸이 갈린다.** 실행 조건·커밋·링크는
@@ -16,7 +16,7 @@
 
 인증은 muwon.db 동기화와 같은 서비스 계정을 쓴다. 다만 스코프에
 spreadsheets가 추가로 필요하고, GCP 프로젝트에서 Sheets API가 켜져 있어야
-한다 — 안 켜져 있으면 명확한 오류로 알려 준다.
+한다. 안 켜져 있으면 명확한 오류로 알려 준다.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ DEFAULT_TITLE = "muwon406 가설·검증 기록"
 
 @dataclass
 class HypothesisRow:
-    """시트 한 줄. 칸 이름을 그대로 사람 말로 둔다 — 이 기록을 읽는 사람이
+    """시트 한 줄. 칸 이름을 그대로 사람 말로 둔다. 이 기록을 읽는 사람이
     코드를 안 볼 수도 있다."""
 
     날짜: str = ""
@@ -105,7 +105,7 @@ def find_or_create_sheet(folder_id: str, title: str = DEFAULT_TITLE) -> str:
 
 
 def needs_header(existing: dict) -> bool:
-    """머리글을 넣어야 하는가 — 첫 칸이 비어 있으면 넣는다.
+    """머리글을 넣어야 하는가. 첫 칸이 비어 있으면 넣는다.
 
     시트를 만들 때 한 번만 넣으면 안 된다. 실제로 시트 생성(Drive API)은
     성공하고 값 쓰기(Sheets API)만 실패한 적이 있는데, 그러면 다음 실행은
@@ -129,7 +129,7 @@ def _ensure_header(creds, sheet_id: str) -> None:
 def updated_row_count(result: dict, values: list) -> int:
     """구글 응답에서 실제로 들어간 줄 수를 꺼낸다.
 
-    updatedRows는 정수다. 여기에 len()을 씌워서 터뜨린 적이 있다 — 응답
+    updatedRows는 정수다. 여기에 len()을 씌워서 터뜨린 적이 있다. 응답
     모양을 확인하지 않고 '없으면 values를 쓰자'는 기본값을 넣은 게 원인이다.
     타입이 섞이는 기본값은 넣지 않는다."""
     return int(result.get("updates", {}).get("updatedRows", len(values)))
@@ -192,13 +192,13 @@ def _explain(error: HttpError) -> str:
 
 
 def rows_from_json(path: str) -> list[HypothesisRow]:
-    """JSON 파일에서 여러 줄을 읽는다 — 지난 기록을 한 번에 채워 넣을 때 쓴다."""
+    """JSON 파일에서 여러 줄을 읽는다. 지난 기록을 한 번에 채워 넣을 때 쓴다."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     known = {f.name for f in fields(HypothesisRow)}
     rows = []
     for item in data:
-        # 모르는 키는 조용히 버리지 않고 알려 준다 — 오타 하나로 내용이
+        # 모르는 키는 조용히 버리지 않고 알려 준다. 오타 하나로 내용이
         # 통째로 빠지면 기록의 뜻이 없다.
         unknown = set(item) - known
         if unknown:

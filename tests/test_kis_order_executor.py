@@ -45,7 +45,7 @@ def test_records_actual_fill_price_instead_of_reference_price():
 
 
 def test_partial_fill_records_only_filled_quantity():
-    """부분 체결이면 주문 수량이 아니라 실제 체결 수량으로 기록해야 한다 —
+    """부분 체결이면 주문 수량이 아니라 실제 체결 수량으로 기록해야 한다.
     안 그러면 보유하지도 않은 수량을 들고 있다고 착각한다."""
     client = MagicMock()
     client.place_cash_order.return_value = make_order(quantity=10)
@@ -64,7 +64,7 @@ def test_partial_fill_records_only_filled_quantity():
 
 
 def test_retries_then_falls_back_to_reference_price_when_never_filled():
-    """조회할 때마다 미체결이면 몇 번 재시도한 뒤 기준가로 기록하고 넘어간다 —
+    """조회할 때마다 미체결이면 몇 번 재시도한 뒤 기준가로 기록하고 넘어간다.
     여기서 매매를 멈추면 나머지 종목까지 처리가 밀린다."""
     client = MagicMock()
     client.place_cash_order.return_value = make_order(price=70_000.0)
@@ -90,7 +90,7 @@ def test_unfilled_result_is_treated_as_not_yet_filled():
 
     result = make_executor(client).submit_order("005930", OrderSide.BUY, 10, 70_000.0)
 
-    # 체결가 0원으로 기록되면 손익이 완전히 망가진다 — 기준가를 유지해야 한다
+    # 체결가 0원으로 기록되면 손익이 완전히 망가진다. 기준가를 유지해야 한다
     assert result.price == 70_000.0
 
 

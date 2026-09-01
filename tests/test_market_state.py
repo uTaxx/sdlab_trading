@@ -1,7 +1,7 @@
 """시장 상태 지표 검증.
 
 **여기서 미래를 한 번이라도 보면 그 뒤 모든 숫자가 거짓이 된다.** 그리고
-그 사실은 화면에 아무 표시도 안 남는다 — 그냥 성적이 좋아 보일 뿐이다."""
+그 사실은 화면에 아무 표시도 안 남는다. 그냥 성적이 좋아 보일 뿐이다."""
 
 from datetime import date, timedelta
 
@@ -96,7 +96,7 @@ def test_a_flat_stretch_gets_no_score_instead_of_a_wrong_one():
     평평한것 = pd.DataFrame({"x": [1.0] * n})
     z = rolling_z(평평한것)
     assert z["x"].dropna().empty
-    # 자료형이 숫자로 남아 있어야 clip이 동작한다 — 실제로 여기서 한 번 깨졌다.
+    # 자료형이 숫자로 남아 있어야 clip이 동작한다. 실제로 여기서 한 번 깨졌다.
     assert str(z["x"].dtype).startswith("float")
 
 

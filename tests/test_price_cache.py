@@ -1,6 +1,6 @@
 """시세 캐시 검증.
 
-캐시는 조용히 틀리면 최악이다 — 백테스트가 다른 데이터를 보고 다른 숫자를
+캐시는 조용히 틀리면 최악이다. 백테스트가 다른 데이터를 보고 다른 숫자를
 내는데 아무도 모른다. 그래서 '같은 값이 나오는가'와 '언제 안 맞다고
 판단하는가'를 둘 다 못 박는다."""
 
@@ -13,7 +13,7 @@ from muwon.data.price_cache import PriceCache
 
 
 def frame(start: date, days: int) -> pd.DataFrame:
-    """주말을 건너뛴 봉 — 실제 시세처럼 요청 구간 경계에 봉이 없을 수 있다."""
+    """주말을 건너뛴 봉: 실제 시세처럼 요청 구간 경계에 봉이 없을 수 있다."""
     rows = []
     day = start
     while len(rows) < days:
@@ -66,7 +66,7 @@ def test_boundary_on_a_weekend_still_counts_as_covered(cache):
 
     처음엔 저장된 봉의 최초/최종 날짜로 '다 받았는가'를 판단했다. 요청 구간의
     시작·끝이 주말이면 그 날짜의 봉이 있을 수 없으므로 항상 '덜 받았다'가 되어
-    캐시가 한 번도 안 맞았다 — 18종목 중 0종목 재사용이었다."""
+    캐시가 한 번도 안 맞았다. 18종목 중 0종목 재사용이었다."""
     saturday, sunday = date(2024, 1, 6), date(2024, 3, 3)
     assert saturday.weekday() == 5
     assert sunday.weekday() == 6
@@ -90,7 +90,7 @@ def test_a_wider_range_is_refetched(cache):
 
 def test_empty_result_is_remembered_so_we_stop_asking(cache):
     """상장 전 구간은 봉이 없다. 기록을 안 남기면 매번 다시 물어보고
-    매번 빈손으로 돌아온다 — 오늘 실제로 2종목이 그랬다."""
+    매번 빈손으로 돌아온다. 오늘 실제로 2종목이 그랬다."""
     source = CountingSource(pd.DataFrame(columns=["trade_date", "open", "high", "low", "close", "volume"]))
 
     cache.fetch(source, "440110", "440110.KQ", date(2022, 1, 1), date(2022, 12, 31))
@@ -176,7 +176,7 @@ def test_짧게_온것이_캐시에_굳지_않는다(tmp_path):
 
 
 def test_끝내_짧으면_그대로_쓴다(tmp_path):
-    """정말 최근에 상장한 종목일 수 있다 — 그건 데이터 오류가 아니라 사실이다."""
+    """정말 최근에 상장한 종목일 수 있다. 그건 데이터 오류가 아니라 사실이다."""
     cache = PriceCache(tmp_path / "c.sqlite")
     소스 = 들쭉날쭉소스(_바(20), _바(20), 짧게줄횟수=99)
     df = cache.fetch(소스, "999999", "999999.KQ", date(2026, 1, 1), date(2026, 8, 19), 최소일수=60)

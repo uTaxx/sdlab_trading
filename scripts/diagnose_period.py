@@ -188,7 +188,7 @@ def main() -> None:
         print("\n청산된 거래가 없습니다.")
         return
 
-    # 손실이 어느 국면에서 산 종목에서 났는지 — 이게 핵심 질문이다.
+    # 손실이 어느 국면에서 산 종목에서 났는지. 이게 핵심 질문이다.
     # 진입을 못 막은 것과, 진입은 막았지만 이미 산 걸 못 지킨 것은 다른 문제다.
     by_regime: dict[str, list] = defaultdict(list)
     for trade in result.closed_trades:

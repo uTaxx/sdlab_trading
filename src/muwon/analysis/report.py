@@ -3,10 +3,10 @@
 용도가 분명하다: **이 텍스트를 통째로 복사해 Claude에게 붙여넣으면 전략
 진단을 받을 수 있게** 하는 것. 그래서 두 가지를 지킨다.
 
-1. 자기완결성 — 리포트만 보고도 판단할 수 있어야 한다. "승률 33%"만 던지면
+1. 자기완결성: 리포트만 보고도 판단할 수 있어야 한다. "승률 33%"만 던지면
    그게 좋은지 나쁜지 알 수 없으므로, 어떤 전략을 어떤 리스크 설정으로
-   돌렸고 청산 사유가 무엇이었는지까지 같이 넣는다.
-2. 압축 — 텔레그램은 한 메시지에 4096자 제한이 있고, 사람이 눈으로도 읽을
+   실행했고 청산 사유가 무엇이었는지까지 같이 넣는다.
+2. 압축: 텔레그램은 한 메시지에 4096자 제한이 있고, 사람이 눈으로도 읽을
    수 있어야 한다. 원본 데이터를 다 붙이지 않고 집계와 최근 사례만 담는다.
 
 LLM API를 직접 호출하지 않는 이유: 키 관리·비용·장애 요소가 늘어나는 데
@@ -25,7 +25,7 @@ from sqlalchemy import select
 from muwon.db.models import BacktestRunRow, PositionRow, TradeRow
 from muwon.settings.schema import RiskPolicy
 
-TELEGRAM_LIMIT = 4000  # 실제 제한은 4096 — 헤더·여유분을 빼고 잡는다
+TELEGRAM_LIMIT = 4000  # 실제 제한은 4096이고, 헤더와 여유분을 뺀 값이다
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,7 @@ class TradeStats:
     def profit_factor(self) -> float:
         """이긴 거래의 평균 이익 ÷ 진 거래의 평균 손실.
 
-        승률만 보면 오해한다 — 승률 33%라도 이길 때 3배로 벌면 본전 이상이다.
+        승률만 보면 오해한다. 승률 33%라도 이길 때 3배로 벌면 본전 이상이다.
         이 값이 1보다 크면 "적게 맞아도 크게 먹는" 구조라는 뜻."""
         if self.avg_loss_pct == 0:
             return 0.0
@@ -156,7 +156,7 @@ def _section_positions(positions: list[PositionRow]) -> list[str]:
 
 
 def _section_robustness(runs: list[BacktestRunRow]) -> list[str]:
-    """다기간 검증 결과 — 전략별로 구간별 수익률을 한 줄에 모은다."""
+    """다기간 검증 결과: 전략별로 구간별 수익률을 한 줄에 모은다."""
     if not runs:
         return []
     by_strategy: dict[str, list[BacktestRunRow]] = {}
@@ -179,7 +179,7 @@ def _section_robustness(runs: list[BacktestRunRow]) -> list[str]:
 
 
 def _section_recent_review(runs: list[BacktestRunRow], active_key: str) -> list[str]:
-    """최근 일일 리뷰 — 지금 전략이 다른 전략 대비 어디쯤인지."""
+    """최근 일일 리뷰: 지금 전략이 다른 전략 대비 어디쯤인지."""
     if not runs:
         return []
     ranked = sorted(runs, key=lambda r: r.total_return_pct, reverse=True)
@@ -208,8 +208,7 @@ def build_analysis_report(
     account_summary: list[str] | None = None,
 ) -> str:
     """진단에 필요한 모든 것을 한 덩어리 텍스트로 만든다."""
-    since = datetime.utcnow() - timedelta(days=days)  # noqa: DTZ003 — 기록 시각과 같은 기준
-
+    since = datetime.utcnow() - timedelta(days=days)  # noqa: DTZ003 (기록 시각과 같은 기준)
     with session_factory() as session:
         trades = list(
             session.scalars(
@@ -234,7 +233,7 @@ def build_analysis_report(
     latest_review = _latest_batch(review_runs)
 
     lines = [
-        f"📊 muwon406 분석 리포트 ({datetime.now():%Y-%m-%d %H:%M})",  # noqa: DTZ005 — 표시용
+        f"📊 muwon406 분석 리포트 ({datetime.now():%Y-%m-%d %H:%M})",  # noqa: DTZ005 (표시용)
         "이 내용을 Claude에게 그대로 붙여넣으면 전략 진단을 받을 수 있습니다.",
         "",
     ]

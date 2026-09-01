@@ -1,6 +1,6 @@
 """매매 기준 설명 검증.
 
-설명이 코드와 어긋나면 아무 설명도 없는 것보다 나쁘다 — 화면을 믿고
+설명이 코드와 어긋나면 아무 설명도 없는 것보다 나쁘다. 화면을 믿고
 판단하게 되기 때문이다."""
 
 import pytest
@@ -88,7 +88,7 @@ def test_common_rules_carry_the_actual_policy_numbers():
 
 
 def test_the_kill_switch_wording_says_stops_do_still_run():
-    """'꺼짐'을 '방치'로 읽으면 안 된다 — 보유분 손절은 계속 작동한다."""
+    """'꺼짐'을 '방치'로 읽으면 안 된다. 보유분 손절은 계속 작동한다."""
     off = " ".join(common_rules(RiskPolicy(trading_enabled=False), 60, "market_cap"))
     assert "손절은 계속 동작합니다" in off
 
@@ -145,7 +145,7 @@ def test_a_combined_strategy_shows_each_members_conditions():
     """묶음 이름만 보여 주면 무엇을 보고 사는지 알 수 없다.
 
     특히 묶음 안의 전략은 어댑터로 감싸여 들어와서, 껍데기만 보면
-    '설명 없음'이 뜬다 — 실제로 그렇게 나왔다."""
+    '설명 없음'이 뜬다. 실제로 그렇게 나왔다."""
     from muwon.strategy.registry import build_strategies
 
     묶음 = build_strategies(["volume_surge_5d", "golden_cross_20_60"], "AND")

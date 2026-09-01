@@ -68,13 +68,13 @@ def test_saving_twice_does_not_duplicate(tmp_path):
 
 
 def test_rerunning_never_erases_an_actual_result(tmp_path):
-    """다시 돌렸다고 답이 사라지면 적중 기록이 통째로 날아간다."""
+    """다시 실행했다고 답이 사라지면 적중 기록이 통째로 날아간다."""
     db = tmp_path / "f.db"
     save([_줄()], db)
     fill_actuals(lambda 대상, 기준일, 지평: 3.5, db, today=date(2026, 2, 5))
     save([_줄()], db)  # 같은 날 전망을 다시 계산해 덮어씀
     (되읽은것,) = load(db)
-    assert 되읽은것.실제수익 == 3.5, "다시 돌리자 실제 결과가 지워졌다"
+    assert 되읽은것.실제수익 == 3.5, "다시 실행하자 실제 결과가 지워졌다"
 
 
 def test_actuals_are_only_filled_when_the_horizon_has_passed(tmp_path):
@@ -145,7 +145,7 @@ def test_underestimated_risk_is_the_loudest_warning():
 
 
 def test_a_well_calibrated_tail_is_not_warned_about():
-    """열 건 중 한 건쯤 뚫리는 것이 정상이다 — 그게 '하위 10%'의 뜻이다."""
+    """열 건 중 한 건쯤 뚫리는 것이 정상이다. 그게 '하위 10%'의 뜻이다."""
     줄들 = [
         _줄(기준일=f"2026-01-{i:02d}", 하위10=-8.0, 실제수익=-20.0 if i % 10 == 0 else 2.0)
         for i in range(1, MIN_SCORED + 5)
@@ -166,7 +166,7 @@ def test_loading_can_be_narrowed_to_one_target(tmp_path):
 def test_calibration_tells_inverted_apart_from_random():
     """뒤죽박죽인 것과 **거꾸로**인 것은 전혀 다른 이야기다. 뒤죽박죽이면
     정보가 없는 것이고, 거꾸로면 정보는 있는데 부호가 반대인 것이다.
-    실제 데이터가 거꾸로였다 — 그걸 '뒤죽박죽'으로 적으면 무엇을 고칠지 모른다."""
+    실제 데이터가 거꾸로였다. 그걸 '뒤죽박죽'으로 적으면 무엇을 고칠지 모른다."""
     from muwon.market.forecast_log import calibration
 
     def _묶음(하위10, 실제, n=40, 시작=1):
@@ -205,7 +205,7 @@ def test_calibration_needs_enough_per_bucket():
 
 def test_the_aggregate_tail_number_points_to_the_breakdown():
     """전체로는 14.9%라 괜찮아 보였는데 구간을 나눠 보니 6%에서 33%까지
-    벌어져 있었다. 평균이 문제를 가린 것이다 — 실제로 그렇게 속았다."""
+    벌어져 있었다. 평균이 문제를 가린 것이다. 실제로 그렇게 속았다."""
     줄들 = [
         _줄(기준일=f"2026-01-{i:02d}", 하위10=-8.0, 실제수익=-20.0 if i % 10 == 0 else 2.0)
         for i in range(1, MIN_SCORED + 5)

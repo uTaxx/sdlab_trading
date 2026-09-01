@@ -15,7 +15,7 @@ src/muwon/dashboard/app.py`)에서 재시작 없이 조정할 수 있습니다 (
 | 일일 최대 손실 한도 | -3% | 당일 계좌 전체 손실이 이 수준에 도달하면 신규 진입 중단 (서킷브레이커) |
 | 동시 보유 종목 수 | 8개 | 분산을 위한 최대 동시 보유 종목 수 |
 
-구현: `src/muwon/risk/manager.py`의 `RiskManager` — 주문 실행 전 반드시
+구현: `src/muwon/risk/manager.py`의 `RiskManager`: 주문 실행 전 반드시
 `check_new_position()`을 통과해야 하며, 보유 중 포지션은 매 틱마다
 `should_stop_loss()`로 점검합니다. 두 메서드 모두 호출될 때마다
 `SettingsService`에서 최신 정책을 읽으므로, 값이 바뀌면 다음 호출부터 바로

@@ -78,7 +78,7 @@ def test_and_works_with_more_than_two():
 
 
 def test_one_strategy_signalling_twice_is_still_one_vote():
-    """같은 전략이 한 종목에 신호를 두 번 내도 AND가 통과되면 안 된다 —
+    """같은 전략이 한 종목에 신호를 두 번 내도 AND가 통과되면 안 된다.
     '두 전략이 동의했다'와 구분이 안 되기 때문이다."""
     combined = CombinedStrategy(
         [정해진신호("갑", [매수("갑", "A"), 매수("갑", "A")]), 정해진신호("을", [])],

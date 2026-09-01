@@ -34,12 +34,12 @@ Pages 배포도 그대로 돈다.
 
 ---
 
-## 순서 — 끊기는 시간 없이
+## 순서: 끊기는 시간 없이
 
 옛 저장소를 **계속 살려 둔 채로** 새 쪽을 세우고, 다 되면 n8n만 옮긴다.
 그래서 중간에 매매가 멈추는 구간이 없다.
 
-### 1단계 · 사람 — 빈 저장소 만들기
+### 1단계 · 사람: 빈 저장소 만들기
 
 github.com → **New repository**
 
@@ -56,7 +56,7 @@ github.com → **New repository**
 **왜 사람이 하나**: GitHub 연동이 저장소 만들기 권한을 안 준다(403).
 이 한 단계만 사람 손이 필요하다.
 
-### 2단계 · 내가 — 코드 밀어 넣기
+### 2단계 · 내가. 코드 밀어 넣기
 
 ```
 git push sondul main:main
@@ -65,7 +65,7 @@ git push sondul main:main
 커밋 177개가 이력째로 간다. **복사가 아니라 이동이라 "언제 왜 이렇게
 됐는지"가 새 저장소에서도 그대로 보인다.**
 
-### 3단계 · 사람 — 비밀값 8개 넣기
+### 3단계 · 사람: 비밀값 8개 넣기
 
 새 저장소 → **Settings → Secrets and variables → Actions → New repository secret**
 
@@ -86,7 +86,7 @@ git push sondul main:main
 **왜 사람이 하나**: 비밀값은 내가 만들 수도, 읽을 수도 없다. GitHub API도
 기존 값을 안 돌려준다.
 
-### 4단계 · 사람 — n8n이 쓸 GitHub 열쇠에 새 저장소 붙이기
+### 4단계 · 사람: n8n이 쓸 GitHub 열쇠에 새 저장소 붙이기
 
 지금 PAT(개인 접근 토큰)는 `muwon406` **하나만** 가리키게 만들어져 있다.
 
@@ -97,13 +97,13 @@ Fine-grained tokens** → 쓰던 토큰 → **Repository access**에 `sdlab_trad
 > 새로 만들지 말고 **기존 토큰에 저장소를 추가**하는 편이 낫다. 새로 만들면
 > n8n 자격증명도 같이 바꿔야 한다.
 
-### 5단계 · 내가 — 새 저장소에서 검증 ✅ (2026-08-25 07:42 KST)
+### 5단계 · 내가. 새 저장소에서 검증 ✅ (2026-08-25 07:42 KST)
 
 **비밀값 8개 전부 통과했다.**
 
 | 무엇 | 어떻게 확인했나 |
 |---|---|
-| 드라이브 2개 + 마스터 열쇠 | `운영 상태 점검` — 장부를 실제로 받아 열어 읽었다 |
+| 드라이브 2개 + 마스터 열쇠 | `운영 상태 점검`: 장부를 실제로 받아 열어 읽었다 |
 | 텔레그램 2개 | `승인된 것만 매수`의 `configure.py telegram`이 통과 |
 | KIS 3개 | 아래 A/B |
 
@@ -122,15 +122,15 @@ Fine-grained tokens** → 쓰던 토큰 → **Repository access**에 `sdlab_trad
 되돌리는 길(옛 저장소에서 같은 워크플로 실행)을 미리 확보해 뒀다.
 
 > **KIS는 밤에 응답하지 않는다.** 전날 23:05·23:09·23:12에 세 번 다
-> `ReadTimeout`이 났는데 **옛 저장소도 똑같았다** — 이관과 무관하다.
+> `ReadTimeout`이 났는데 **옛 저장소도 똑같았다**. 이관과 무관하다.
 > 아침 07:32에는 `보유 종목: 1개 모두 일치`로 통과했다.
 
 ### 5단계는 이렇게 했다
 
-워크플로를 손으로 한 번씩 돌려 본다. 여기서 걸리면 아직 n8n은 옛 저장소를
+워크플로를 손으로 한 번씩 실행해 본다. 여기서 걸리면 아직 n8n은 옛 저장소를
 보고 있으므로 **매매에는 영향이 없다.**
 
-### 6단계 — 미뤘다. 그리고 미뤄도 되게 만들었다 (2026-08-25)
+### 6단계: 미뤘다. 그리고 미뤄도 되게 만들었다 (2026-08-25)
 
 **n8n을 바꾸는 도구 호출이 이 세션에서 네 번 다 막혔다.** 읽기와 실행은
 되는데 쓰기만 안 된다. 사람에게 노드 일곱 곳을 손으로 고치라고 넘기려다
@@ -154,13 +154,13 @@ if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
 예약일 때만 운영 저장소인지 본다. 손으로 부르는 것과 n8n이 부르는 것은
 어느 쪽에서든 그대로 되므로, 새 저장소에서 시험을 계속할 수 있다.
 
-배포 워크플로에는 반대 방향 자물쇠를 걸었다 — `sdlab_trading`이 아니면
+배포 워크플로에는 반대 방향 자물쇠를 걸었다. `sdlab_trading`이 아니면
 안 돈다. muwon406의 Pages 자리는 맛집·카페 대시보드가 쓰고 있어서,
 거기서 한 번만 불려도 그 화면이 통째로 갈아치워진다.
 
 **두 저장소는 이제 글자 하나까지 같다.** 사람이 할 일은 없다.
 
-### n8n을 옮기는 날 — 급하지 않다
+### n8n을 옮기는 날: 급하지 않다
 
 옮기고 싶어지면 그때 이 순서로 한다. 지금 안 해도 아무것도 안 깨진다.
 
@@ -174,7 +174,7 @@ if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
 
 #### 바꿀 일곱 곳
 
-#### `AutoTrading_계좌조회` — 1곳
+#### `AutoTrading_계좌조회`: 1곳
 
 「저장소에서 화면 가져오기」 노드의 URL
 
@@ -183,7 +183,7 @@ if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
 바꾼 뒤    https://raw.githubusercontent.com/uTaxx/sdlab_trading/main/site/index.html
 ```
 
-#### `AutoTrading_Schedule` — 5곳
+#### `AutoTrading_Schedule`: 5곳
 
 다섯 노드 전부. URL의 `uTaxx/sdlab_trading` → `uTaxx/sdlab_trading`,
 본문(JSON)의 `"ref"` → `"main"`.
@@ -204,7 +204,7 @@ if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
            { "ref": "main", ... }
 ```
 
-#### `AutoTrading_Telegram` — 1곳
+#### `AutoTrading_Telegram`: 1곳
 
 「깃허브로 넘기기」 노드. 위와 같은 모양(`telegram-n8n.yml`).
 
@@ -216,10 +216,10 @@ if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
 
 ### 옛 저장소의 Actions는 끄지 않는다
 
-처음엔 컷오버 직후 끄라고 적었다. 이제 **끄면 안 된다** — 지금 매매가
+처음엔 컷오버 직후 끄라고 적었다. 이제 **끄면 안 된다**. 지금 매매가
 거기서 돌기 때문이다. 예약 중복은 위 `if`가 막는다.
 
-### 7단계 · 사람 — 스트림릿 옮기기 (급하지 않다)
+### 7단계 · 사람: 스트림릿 옮기기 (급하지 않다)
 
 share.streamlit.io → 앱 설정 → Repository를 `uTaxx/sdlab_trading`,
 Branch를 `main`으로.
@@ -234,7 +234,7 @@ Branch를 `main`으로.
 6단계까지 갔다가 문제가 생기면, **n8n의 일곱 곳을 옛 주소로 되돌리면
 끝난다.** 옛 저장소와 브랜치를 지우지 않고 두는 이유가 이것이다.
 
-새 저장소를 지울 필요도 없다 — n8n이 안 부르면 아무 일도 안 한다.
+새 저장소를 지울 필요도 없다. n8n이 안 부르면 아무 일도 안 한다.
 
 옛 저장소는 **새 쪽에서 매매가 며칠 정상으로 돈 뒤에** 정리한다.
 
@@ -245,9 +245,9 @@ Branch를 `main`으로.
 ```
 uTaxx/sdlab_trading  (공개)
   └─ main
-      ├─ 파이썬 — 판단·주문. 안전장치가 여기 있다
-      ├─ .github/workflows — 19개
-      └─ 대시보드 — Pages 자리가 비어 있다 ★
+      ├─ 파이썬: 판단·주문. 안전장치가 여기 있다
+      ├─ .github/workflows: 19개
+      └─ 대시보드: Pages 자리가 비어 있다 ★
 ```
 
 ★ 이 자리가 이번 이관의 진짜 이유다. 여기에 화면 하나를 올려 스트림릿·

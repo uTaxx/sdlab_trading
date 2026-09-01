@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
 class AppSettingRow(Base):
     """KIS 인증정보/텔레그램/리스크 정책 등, 재시작 없이 바꿀 수 있어야 하는
     설정값 저장소. muwon.settings.store.SettingsStore가 이 테이블을 통해
-    읽고 쓴다 — CLI와 (Phase 2+) 대시보드가 공유하는 단일 소스."""
+    읽고 쓴다. CLI와 (Phase 2+) 대시보드가 공유하는 단일 소스."""
 
     __tablename__ = "app_settings"
 
@@ -75,7 +75,7 @@ class OrderRow(Base):
     reason: Mapped[str] = mapped_column(String(100), default="")
     #: 판단 근거가 된 가격(전략이 본 마지막 종가). price와 함께 있어야
     #: "결정한 가격과 실제로 산 가격이 얼마나 벌어졌나"를 잴 수 있다.
-    #: 나중에 추가된 컬럼이라 nullable — 이전 주문에는 값이 없다.
+    #: 나중에 추가된 컬럼이라 nullable: 이전 주문에는 값이 없다.
     reference_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     #: price가 실제 체결가인지(True), 조회 실패로 기준가를 쓴 것인지(False).
     #: 구분이 없으면 슬리피지 통계에 '차이 0'인 가짜 표본이 섞인다.
@@ -111,11 +111,11 @@ class PositionRow(Base):
 
 
 class TradeRow(Base):
-    """진입~청산이 하나로 묶인 '완결된 매매' 기록 — OrderRow는 체결 하나하나를
+    """진입~청산이 하나로 묶인 '완결된 매매' 기록: OrderRow는 체결 하나하나를
     남기지만(매수/매도가 서로 안 엮여 있음), 이건 손익까지 계산된 라운드트립
     이라 "이 전략/가설이 실전에서 어떻게 됐는지"를 바로 분석할 수 있다.
     사람이든, 나중에 붙을 AI 제언 로직이든, 전략을 고치자는 판단은 결국 이
-    테이블을 근거로 한다 — 그래서 strategy_key를 반드시 채워서 가설별로
+    테이블을 근거로 한다. 그래서 strategy_key를 반드시 채워서 가설별로
     묶어 볼 수 있게 한다."""
 
     __tablename__ = "trades"
@@ -138,7 +138,7 @@ class TradeRow(Base):
 class BacktestRunRow(Base):
     """가설 스윕(scripts/run_hypothesis_sweep.py)이 남기는 백테스트 실행
     기록. 콘솔에 찍고 끝나면 다음 실행과 비교할 방법이 없어서, 같은 스키마로
-    누적 저장해 시간이 지나도(파라미터를 바꿔가며 여러 번 돌려도) 가설별
+    누적 저장해 시간이 지나도(파라미터를 바꿔가며 여러 번 실행해도) 가설별
     성과를 추적할 수 있게 한다."""
 
     __tablename__ = "backtest_runs"
@@ -160,7 +160,7 @@ class UniverseSnapshotRow(Base):
     """유니버스(매매 대상 종목 목록)를 갱신할 때마다 남기는 스냅샷.
 
     손으로 고른 고정 목록은 시간이 지나면 낡는다(상장폐지·순위 역전 등).
-    시가총액 상위로 주기적으로 다시 뽑되, 덮어쓰지 않고 스냅샷으로 쌓는다 —
+    시가총액 상위로 주기적으로 다시 뽑되, 덮어쓰지 않고 스냅샷으로 쌓는다.
     "어제와 오늘 종목이 뭐가 달라졌는지"를 볼 수 있어야 성과 변화를 종목
     교체 탓인지 전략 탓인지 구분할 수 있기 때문이다."""
 
@@ -173,14 +173,14 @@ class UniverseSnapshotRow(Base):
     market: Mapped[str] = mapped_column(String(20))  # KOSPI | KOSDAQ
     market_cap: Mapped[int] = mapped_column(Integer, default=0)  # 억원
     #: 거래대금 상위로 뽑은 스냅샷일 때의 누적거래대금(백만원). 시총 스냅샷은 0.
-    #: market_cap 컬럼에 뜻이 다른 값을 같이 담지 않는다 — 나중에 표를 읽는
+    #: market_cap 컬럼에 뜻이 다른 값을 같이 담지 않는다. 나중에 표를 읽는
     #: 사람이 어느 쪽 숫자인지 알 수 없게 된다.
     #: 나중에 추가된 컬럼이라 nullable이다. _add_missing_columns가 기존 DB에
-    #: ALTER TABLE ADD COLUMN으로 붙이면 기존 행은 NULL이 된다 — 새로 만든
+    #: ALTER TABLE ADD COLUMN으로 붙이면 기존 행은 NULL이 된다. 새로 만든
     #: 스키마만 NOT NULL로 두면 테스트가 운영 DB 상태를 재현하지 못한다.
     turnover: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
     rank: Mapped[int] = mapped_column(Integer, default=0)
-    #: "market_cap" | "volume" — 어떤 기준으로 뽑은 목록인지.
+    #: "market_cap"과 "volume" 중 어떤 기준으로 뽑은 목록인지.
     #: 이게 없으면 거래량 유니버스를 저장하는 순간 실거래가 그걸 집어 간다.
     #: 실험용 목록 하나가 실계좌의 매매 대상을 바꾸는 일은 없어야 한다.
     kind: Mapped[str | None] = mapped_column(
@@ -191,17 +191,17 @@ class UniverseSnapshotRow(Base):
 class RunLogRow(Base):
     """엔진이 한 번 돌 때마다 남기는 '무엇을 보고 무엇을 했나' 한 줄.
 
-    이게 없으면 빈 대시보드가 서로 다른 두 가지를 동시에 뜻한다 — "오늘은
+    이게 없으면 빈 대시보드가 서로 다른 두 가지를 동시에 뜻한다. "오늘은
     살 게 없었다"와 "오늘은 아예 안 돌았다". 둘은 고치는 방법이 정반대다.
     그래서 체결이 없어도 한 줄은 남긴다.
 
-    같은 날 손으로 여러 번 돌리면 줄도 여러 개 남는다. 합치지 않는다 —
+    같은 날 손으로 여러 번 실행하면 줄도 여러 개 남는다. 합치지 않는다.
     "몇 번 돌았나"도 알아야 할 정보다."""
 
     __tablename__ = "run_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    #: 판단에 쓴 마지막 '완성된' 일봉의 날짜. 시세를 하나도 못 받으면 NULL —
+    #: 판단에 쓴 마지막 '완성된' 일봉의 날짜. 시세를 하나도 못 받으면 NULL:
     #: 그 자체가 "데이터 공급이 끊겼다"는 신호다.
     run_date: Mapped[date | None] = mapped_column(Date, index=True, nullable=True)
     strategy_key: Mapped[str] = mapped_column(String(50), default="")
@@ -213,7 +213,7 @@ class RunLogRow(Base):
     sell_signals: Mapped[int] = mapped_column(Integer, default=0)
     orders: Mapped[int] = mapped_column(Integer, default=0)
     #: 리스크 매니저가 막은 이유들(줄바꿈 구분). 신호는 났는데 주문이 없으면
-    #: 여기에 이유가 있다 — 없으면 애초에 신호가 안 난 것이다.
+    #: 여기에 이유가 있다. 없으면 애초에 신호가 안 난 것이다.
     rejections: Mapped[str] = mapped_column(Text, default="")
     cash: Mapped[float] = mapped_column(Float, default=0.0)
     equity: Mapped[float] = mapped_column(Float, default=0.0)
@@ -286,9 +286,9 @@ class StrategyShadowRow(Base):
 
     ## 한 줄은 전략 하나다
 
-    같은 날 같은 구간에서 여러 줄이 나온다. 그때 걸려 있던 전략 한 줄과,
-    그날 순위 위쪽 몇 줄이다. 견주는 일은 읽을 때 한다 — 저장할 때 미리
-    빼 두면 나중에 다른 방식으로 견주고 싶을 때 다시 잴 수가 없다.
+    같은 날 같은 구간에서 여러 줄이 나온다. 그때 설정돼 있던 전략 한 줄과,
+    그날 순위 위쪽 몇 줄이다. 비교하는 일은 읽을 때 한다. 저장할 때 미리
+    빼 두면 나중에 다른 방식으로 비교하고 싶을 때 다시 잴 수가 없다.
 
     ## 상태
 
@@ -310,7 +310,7 @@ class StrategyShadowRow(Base):
     전략: Mapped[str] = mapped_column(String(50), index=True)
     #: 그날 그 구간 순위에서 몇 번째였나. 1이 제일 좋았던 것이다.
     자리: Mapped[int] = mapped_column(Integer, default=0)
-    #: 그때 실제로 걸려 있던 전략인가.
+    #: 그때 실제로 설정돼 있던 전략인가.
     지금것: Mapped[bool] = mapped_column(Boolean, default=False)
     #: 그날 버튼으로 내보낸 후보인가.
     제안것: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -324,7 +324,7 @@ class StrategyShadowRow(Base):
     #: 뒤 수익률을 잰 날. 제안일부터 이 날까지를 잰다.
     잰날: Mapped[date | None] = mapped_column(Date, nullable=True)
     지난날수: Mapped[int] = mapped_column(Integer, default=0)
-    #: 제안일부터 잰날까지 이 전략을 걸었다면 나왔을 수익률.
+    #: 제안일부터 잰날까지 이 전략을 설정하었다면 나왔을 수익률.
     뒤수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
     뒤거래수: Mapped[int] = mapped_column(Integer, default=0)
     뒤최대낙폭: Mapped[float | None] = mapped_column(Float, nullable=True)

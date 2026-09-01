@@ -175,7 +175,7 @@ def test_short_rows_are_padded_instead_of_crashing():
         ["042700", "한미반도체", "KOSPI", "SEMI"],
     )
     내용 = parse(기본섹터, 짧은줄, _설정())
-    # 활성 칸이 비면 켜진 것으로 본다 — 시트에서 새 줄을 추가할 때
+    # 활성 칸이 비면 켜진 것으로 본다. 시트에서 새 줄을 추가할 때
     # 매번 Y를 적게 하면 실수로 안 적어 조용히 빠지는 일이 생긴다.
     assert all(m.활성 for m in 내용.섹터찾기("SEMI").종목)
 

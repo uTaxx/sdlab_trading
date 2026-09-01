@@ -3,7 +3,7 @@
 ## 왜 필요한가
 
 검증 스크립트나 손매매로 산 종목은 증권사 계좌에만 있고 우리 DB엔 없다.
-그런데 **엔진은 자기가 모르는 종목을 팔지 않는다** — 손절도, 보유일수
+그런데 **엔진은 자기가 모르는 종목을 팔지 않는다**. 손절도, 보유일수
 청산도, 매도 신호도 전부 `positions` 테이블에 있는 종목에만 걸린다.
 그래서 그 주식은 아무도 안 지키는 채로 남는다. 값이 반토막 나도 아무 일도
 일어나지 않는다.
@@ -17,7 +17,7 @@
 
 **진입일은 우리가 줘야 한다.** 잔고조회는 "언제 샀는지"를 안 알려주는데,
 보유일수 청산이 그 날짜를 센다. 기본값은 오늘이고, 오늘 산 게 아니면
-`--entry-date`로 실제 매수일을 줘야 한다 — 안 그러면 보유일수가 짧게
+`--entry-date`로 실제 매수일을 줘야 한다. 안 그러면 보유일수가 짧게
 잡혀서 청산이 늦어진다.
 
 **현금도 같이 맞춘다.** 종목만 들이고 현금을 그대로 두면 엔진이 없는 돈을
@@ -34,7 +34,7 @@
 
 - 미리보기가 기본이다. `--apply` 없이는 **아무것도 쓰지 않는다.**
 - 실거래 계좌면 실행을 거부한다.
-- 이미 DB에 있는 종목은 건드리지 않는다(수량이 달라도 덮어쓰지 않는다 —
+- 이미 DB에 있는 종목은 건드리지 않는다(수량이 달라도 덮어쓰지 않는다.
   그건 부분 체결일 수도 있어서 사람이 봐야 한다).
 
 사용 예:
@@ -69,13 +69,13 @@ def main() -> int:
     parser.add_argument(
         "--fix-quantity", action="append", default=[], metavar="SYMBOL",
         help="이 종목의 수량을 **계좌 값으로 덮는다.** 여러 번 줄 수 있다. "
-             "원인을 확인한 뒤에만 쓸 것 — 부분 체결·손매매·버그가 겉모습이 같다.",
+             "원인을 확인한 뒤에만 쓸 것: 부분 체결·손매매·버그가 겉모습이 같다.",
     )
     parser.add_argument(
         "--entry-date",
         type=date.fromisoformat,
         default=None,
-        help="매수일 (YYYY-MM-DD). 기본은 오늘 — 보유일수 청산이 이 날짜부터 센다.",
+        help="매수일 (YYYY-MM-DD). 기본은 오늘: 보유일수 청산이 이 날짜부터 센다.",
     )
     args = parser.parse_args()
 
@@ -108,20 +108,20 @@ def main() -> int:
     for 다름 in 계획.수량다른것:
         if 다름.symbol in 맞출심볼:
             continue
-        # 덮어쓰지 않는다 — 부분 체결일 수도 있고 우리 버그일 수도 있다.
-        print(f"⚠️ {다름.name}({다름.symbol}) 수량이 다릅니다 — "
+        # 덮어쓰지 않는다. 부분 체결일 수도 있고 우리 버그일 수도 있다.
+        print(f"⚠️ {다름.name}({다름.symbol}) 수량이 다릅니다. "
               f"DB {다름.db_quantity}주 vs 계좌 {다름.account_quantity}주")
         print("   자동으로 고치지 않습니다. 원인을 확인하고 --fix-quantity로 이름을 주세요.")
 
     for pos in 맞출것:
         옛것 = 보유[pos.symbol].quantity
-        print(f"■ {pos.symbol} 수량을 계좌 값으로 맞춥니다 — DB {옛것}주 → {pos.quantity}주")
+        print(f"■ {pos.symbol} 수량을 계좌 값으로 맞춥니다. DB {옛것}주 → {pos.quantity}주")
         print(f"   진입가 {pos.entry_price:,.0f}원·진입일 {pos.entry_date}는 그대로 둡니다")
         print("   (계좌 평균매입가는 예전 매수까지 섞인 값이라 이번 회차의 슬리피지를 못 되짚습니다)")
         print()
 
     if not 계획.할일있나 and not 맞출것:
-        print("들일 종목이 없습니다 — 증권사 보유가 전부 DB에도 있습니다.")
+        print("들일 종목이 없습니다. 증권사 보유가 전부 DB에도 있습니다.")
         return 0
 
     현재가 = {h.symbol: h for h in 잔고.holdings}
@@ -144,7 +144,7 @@ def main() -> int:
     print()
 
     if not args.apply:
-        print("미리보기입니다 — 아무것도 쓰지 않았습니다.")
+        print("미리보기입니다. 아무것도 쓰지 않았습니다.")
         print("실제로 들이려면 --apply 를 붙여 다시 실행하세요.")
         return 0
 
@@ -158,7 +158,7 @@ def main() -> int:
         print("   계좌 대조(state-check)를 다시 돌려 맞춰졌는지 확인하세요.")
         return 0
     print(f"✅ {len(계획.들일것)}종목을 들였습니다. **다음 실행부터 손절 대상이 됩니다.**")
-    print(f"   전략은 '{ADOPTED}'로 남깁니다 — 우리가 산 게 아니니 어느 가설의")
+    print(f"   전략은 '{ADOPTED}'로 남깁니다. 우리가 산 게 아니니 어느 가설의")
     print("   성적으로도 잡히면 안 됩니다.")
     return 0
 

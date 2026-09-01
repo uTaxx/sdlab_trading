@@ -64,7 +64,7 @@ async def test_backoff_grows_on_consecutive_empty_failures():
         nonlocal call_count
         call_count += 1
         raise ConnectionError("연결 실패")
-        yield  # pragma: no cover — async generator 문법상 필요
+        yield  # pragma: no cover: async generator 문법상 필요
 
     engine = FakeEngine()
     with pytest.raises(asyncio.CancelledError):

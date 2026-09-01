@@ -1,6 +1,6 @@
 """다음에 무엇이 언제 자동으로 도는지.
 
-왜 필요한가 — 화면을 봐도 "이게 언제 또 도는지"를 알 수 없었다. 그래서
+왜 필요한가. 화면을 봐도 "이게 언제 또 도는지"를 알 수 없었다. 그래서
 아무 일도 안 일어난 화면을 보고 고장인지 아직 시간이 안 된 건지 판단할 수
 없었다.
 
@@ -8,7 +8,7 @@
 계산한다. 스케줄을 바꿨는데 화면이 옛 시각을 말하면, 그건 안내가 아니라
 거짓말이다. 실제로 오늘 cron을 한 번 바꿨다.
 
-cron은 UTC 기준이라 한국시간으로 바꿔서 보여 준다 — 09:05 KST를 00:05 UTC로
+cron은 UTC 기준이라 한국시간으로 바꿔서 보여 준다. 09:05 KST를 00:05 UTC로
 적어 둔 것을 그대로 화면에 띄우면 아무도 못 읽는다.
 """
 
@@ -83,7 +83,7 @@ def next_fire(cron: str, after: datetime) -> datetime | None:
 
     분 단위로 최대 40일을 앞으로 훑는다. 주 1회(일요일)까지 잡으려면 최소
     8일이 필요하고, 월 단위 스케줄까지 여유를 뒀다. 라이브러리를 하나 더
-    들이는 것보다 이 40줄이 낫다고 봤다 — 우리가 쓰는 cron은 다섯 칸의
+    들이는 것보다 이 40줄이 낫다고 봤다. 우리가 쓰는 cron은 다섯 칸의
     기본 문법뿐이다."""
     parts = cron.split()
     if len(parts) != 5:
@@ -93,7 +93,7 @@ def next_fire(cron: str, after: datetime) -> datetime | None:
     days = _parse_field(parts[2], 1, 31)
     months = _parse_field(parts[3], 1, 12)
     # cron의 요일은 일요일이 0이다. 파이썬 weekday()는 월요일이 0이라
-    # 그대로 비교하면 하루씩 밀린다 — 실제로 이걸 놓치면 '내일 아침'이
+    # 그대로 비교하면 하루씩 밀린다. 실제로 이걸 놓치면 '내일 아침'이
     # '오늘 저녁'으로 나온다.
     weekdays = _parse_field(parts[4], 0, 7)
     if 7 in weekdays:
@@ -144,7 +144,7 @@ def _crons_in(text: str) -> list[str]:
     """워크플로 글에서 **살아 있는** cron만 뽑는다.
 
     주석 처리된 cron까지 세면, 자동 실행을 꺼 둔 뒤에도 화면은 "내일 09:05에
-    돕니다"라고 말한다. 안내가 아니라 거짓말이 된다 — 실제로 오늘 자동
+    돕니다"라고 말한다. 안내가 아니라 거짓말이 된다. 실제로 오늘 자동
     실행을 멈추면서 이걸 잡았다."""
     found = []
     for line in text.splitlines():
@@ -175,7 +175,7 @@ def upcoming(now: datetime | None = None, workflow_dir: Path | None = None) -> l
                     설명문=describe_cron(cron),
                 )
             )
-    # 가까운 것부터. 예정을 못 구한 건 뒤로 — 화면 맨 위는 '다음에 일어날 일'이어야 한다.
+    # 가까운 것부터. 예정을 못 구한 건 뒤로: 화면 맨 위는 '다음에 일어날 일'이어야 한다.
     jobs.sort(key=lambda j: (j.다음실행 is None, j.다음실행 or now))
     return jobs
 
@@ -189,7 +189,7 @@ def automation_state(policy, now: datetime | None = None) -> tuple[str, str, str
     - **킬스위치**(trading_enabled): 실행되면 매수를 하는가
 
     스케줄을 꺼 놨는데 킬스위치만 보고 'LIVE'라고 띄우면 화면이 거짓말을
-    한다 — 실제로 오늘 그렇게 떴다. 둘 중 하나라도 꺼져 있으면 자동매매는
+    한다. 실제로 오늘 그렇게 떴다. 둘 중 하나라도 꺼져 있으면 자동매매는
     일어나지 않는다."""
     now = now or datetime.now(KST)
     예약됨 = any(j.이름 == "자동매매" and j.다음실행 for j in upcoming(now))
@@ -198,7 +198,7 @@ def automation_state(policy, now: datetime | None = None) -> tuple[str, str, str
         return (
             "자동 실행 꺼짐",
             "orange",
-            "자동 실행 일정이 꺼져 있습니다. 손으로 돌리지 않는 한 아무 일도 일어나지 않습니다.",
+            "자동 실행 일정이 꺼져 있습니다. 손으로 실행하지 않는 한 아무 일도 일어나지 않습니다.",
         )
     if not policy.trading_enabled:
         return (

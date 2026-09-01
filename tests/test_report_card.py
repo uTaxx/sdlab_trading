@@ -1,6 +1,6 @@
-"""전략 성적표 검증.
+"""전략 전략 평가 결과 검증.
 
-이 표는 다시 계산하지 않는 기록이다. 그래서 틀리면 조용히 틀린다 —
+이 표는 다시 계산하지 않는 기록이다. 그래서 틀리면 조용히 틀린다.
 화면은 멀쩡해 보이는데 숫자만 옛것이거나 빠져 있다."""
 
 import json
@@ -20,12 +20,12 @@ from muwon.strategy.registry import list_definitions
 
 
 def test_the_saved_card_loads_and_covers_every_registered_strategy():
-    """등록된 전략인데 성적표에 없으면, 화면은 '평가가 끝났다'는 인상을
+    """등록된 전략인데 전략 평가 결과에 없으면, 화면은 '평가가 끝났다'는 인상을
     주면서 실제로는 빠뜨린 것이 된다."""
     카드 = load()
     적힌것 = {r.키 for r in 카드.전략}
     등록된것 = {d.key for d in list_definitions()}
-    assert 등록된것 - 적힌것 == set(), f"성적표에 빠진 전략: {sorted(등록된것 - 적힌것)}"
+    assert 등록된것 - 적힌것 == set(), f"전략 평가 결과에 빠진 전략: {sorted(등록된것 - 적힌것)}"
 
 
 def test_every_row_has_a_plain_korean_note():

@@ -54,7 +54,7 @@ def test_ensure_schema_fixes_a_file_that_was_swapped_in_underneath(tmp_path):
     with sa.orm.Session(engine) as session:
         주문 = session.query(OrderRow).first()
     engine.dispose()
-    assert 주문 is not None, "기존 행이 사라지면 안 된다 — 채워 넣는 것이지 새로 만드는 게 아니다"
+    assert 주문 is not None, "기존 행이 사라지면 안 된다. 채워 넣는 것이지 새로 만드는 게 아니다"
     assert 주문.symbol == "005930"
     assert 주문.reference_price is None
 
@@ -79,7 +79,7 @@ def test_ensure_schema_on_an_already_correct_file_changes_nothing(tmp_path):
 
 
 def test_the_sync_fixes_the_schema_right_after_downloading(monkeypatch, tmp_path):
-    """받아 온 직후에 안 맞추면 맞출 기회가 없다 — 팩토리는 캐시돼 있다."""
+    """받아 온 직후에 안 맞추면 맞출 기회가 없다. 팩토리는 캐시돼 있다."""
     from muwon.dashboard import app
 
     순서: list[str] = []
@@ -96,7 +96,7 @@ def test_the_sync_fixes_the_schema_right_after_downloading(monkeypatch, tmp_path
 
 def test_a_db_failure_shows_the_real_cause_instead_of_a_blank_red_page(monkeypatch):
     """Streamlit은 안 잡은 예외를 "error message is redacted"로 가린다.
-    화면은 통째로 빨간 상자가 되고 남은 탭도 못 본다 — 실제로 그 상태로
+    화면은 통째로 빨간 상자가 되고 남은 탭도 못 본다. 실제로 그 상태로
     한참 헤맸다."""
     from muwon.dashboard import app
 

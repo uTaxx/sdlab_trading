@@ -1,7 +1,7 @@
-"""번 돈이 밤사이에 났나 낮에 났나 — 쪼개기 검증.
+"""번 돈이 밤사이에 났나 낮에 났나. 나누기 검증.
 
 이 표 하나로 "실시간 매매 구조를 만들 것인가"를 판단할 참이다. 그래서
-쪼개기가 조용히 틀리면 큰 결정을 틀린 근거로 내리게 된다."""
+나누기가 조용히 틀리면 큰 결정을 틀린 근거로 내리게 된다."""
 
 from datetime import date
 
@@ -47,12 +47,12 @@ def _trade(entry_day: int, exit_day: int) -> ClosedTrade:
 def test_night_and_day_multiply_back_to_the_whole():
     """이 항등식이 이 분석의 전부다. 깨지면 두 조각을 따로 말할 근거가 없다."""
     df = _bars([(1, 99.0, 100.0), (2, 104.0, 102.0), (3, 105.0, 110.0)])
-    (쪼갠것,) = split([_trade(1, 3)], {"A": df})
+    (나눈것,) = split([_trade(1, 3)], {"A": df})
 
-    밤 = 1 + 쪼갠것.오버나이트 / 100
-    낮 = 1 + 쪼갠것.장중 / 100
+    밤 = 1 + 나눈것.오버나이트 / 100
+    낮 = 1 + 나눈것.장중 / 100
     assert 밤 * 낮 == pytest.approx(110.0 / 100.0)
-    assert 쪼갠것.전체 == pytest.approx(10.0)
+    assert 나눈것.전체 == pytest.approx(10.0)
 
 
 def test_the_entry_day_intraday_move_is_not_ours():
@@ -60,23 +60,23 @@ def test_the_entry_day_intraday_move_is_not_ours():
     여기에 넣으면 없는 수익이 장중 몫으로 잡힌다."""
     # 산 날 낮에 +50% 폭등했지만 그건 우리가 사기 전 일이다.
     df = _bars([(1, 66.7, 100.0), (2, 100.0, 100.0)])
-    (쪼갠것,) = split([_trade(1, 2)], {"A": df})
-    assert 쪼갠것.장중 == pytest.approx(0.0)
-    assert 쪼갠것.오버나이트 == pytest.approx(0.0)
+    (나눈것,) = split([_trade(1, 2)], {"A": df})
+    assert 나눈것.장중 == pytest.approx(0.0)
+    assert 나눈것.오버나이트 == pytest.approx(0.0)
 
 
 def test_a_gain_made_only_overnight_shows_up_only_at_night():
     df = _bars([(1, 100.0, 100.0), (2, 110.0, 110.0), (3, 121.0, 121.0)])
-    (쪼갠것,) = split([_trade(1, 3)], {"A": df})
-    assert 쪼갠것.오버나이트 == pytest.approx(21.0)
-    assert 쪼갠것.장중 == pytest.approx(0.0)
+    (나눈것,) = split([_trade(1, 3)], {"A": df})
+    assert 나눈것.오버나이트 == pytest.approx(21.0)
+    assert 나눈것.장중 == pytest.approx(0.0)
 
 
 def test_a_gain_made_only_during_the_day_shows_up_only_in_the_day():
     df = _bars([(1, 100.0, 100.0), (2, 100.0, 110.0), (3, 110.0, 121.0)])
-    (쪼갠것,) = split([_trade(1, 3)], {"A": df})
-    assert 쪼갠것.오버나이트 == pytest.approx(0.0)
-    assert 쪼갠것.장중 == pytest.approx(21.0)
+    (나눈것,) = split([_trade(1, 3)], {"A": df})
+    assert 나눈것.오버나이트 == pytest.approx(0.0)
+    assert 나눈것.장중 == pytest.approx(21.0)
 
 
 def test_a_same_day_trade_has_nothing_to_split():
@@ -105,12 +105,12 @@ def test_the_report_refuses_to_split_a_share_when_the_signs_disagree():
     글 = format_split([_만든것(10.0, -4.0)])
     assert "번 것은 전부 밤사이" in 글
     assert "%" in 글
-    assert "기여도 — 밤" not in 글
+    assert "기여도: 밤" not in 글
 
 
 def test_the_report_splits_the_share_when_both_are_positive():
     글 = format_split([_만든것(6.0, 2.0)])
-    assert "기여도 — 밤 75% · 낮 25%" in 글
+    assert "기여도: 밤 75% · 낮 25%" in 글
 
 
 def test_the_report_says_so_when_there_is_nothing_to_share():
@@ -126,7 +126,7 @@ def test_the_report_warns_that_this_is_a_diagnosis_not_a_strategy():
 
 
 def test_an_empty_result_says_so_instead_of_dividing_by_zero():
-    assert "쪼갤 수 있는 매매가 없습니다" in format_split([])
+    assert "나눌 수 있는 매매가 없습니다" in format_split([])
 
 
 def test_the_report_never_compounds_overlapping_trades():

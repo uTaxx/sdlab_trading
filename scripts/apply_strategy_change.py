@@ -2,7 +2,7 @@
 
     17:50  검토 → 텔레그램 버튼           run_strategy_review.py
              ↓ 사람이 두 번 누른다
-    08:20  여기 — 확정된 것만 반영
+    08:20  여기: 확정된 것만 반영
              ↓
     08:30  새 전략으로 매수 후보를 뽑는다   propose_buys.py
 
@@ -14,7 +14,7 @@
 ## 바꾸면 보유 종목은 어떻게 되나
 
 **바로 새 규칙으로 팔린다.** 엔진의 청산 판단은 보유 종목이 어떤 전략으로
-들어왔는지가 아니라 지금 걸린 전략을 본다. 그래서 바꾸는 순간 들고 있는
+들어왔는지가 아니라 지금 설정된 전략을 본다. 그래서 바꾸는 순간 들고 있는
 것에도 적용된다. 이 사실을 반영 알림에 같이 적는다.
 
 ## 아무것도 안 하는 날이 대부분이다
@@ -64,7 +64,7 @@ from muwon.strategy.registry import get_definition, list_definitions
 def 전략이름(키: str) -> str:
     try:
         return get_definition(키).화면이름
-    except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 반영이 죽으면 안 된다
+    except Exception:  # noqa: BLE001 (이름을 못 찾는다고 반영이 죽으면 안 된다)
         return 키
 
 
@@ -145,7 +145,7 @@ def 시트에남기기(sheet_id: str, 이제, 줄, 이전이름: str, 새이름:
             줄.사유 or "",
         ]])
         print(f"시트 '{탭이름}'에 남겼습니다.", file=sys.stderr)
-    except Exception as 탈:  # noqa: BLE001 — 반영은 이미 끝났다
+    except Exception as 탈:  # noqa: BLE001 (반영은 이미 끝났다)
         print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
 
 
@@ -180,7 +180,7 @@ def main() -> int:
     고름 = service.get_strategy_selection()
     지금키 = (고름.active_keys or ("",))[0]
     아는것 = [ㅈ.key for ㅈ in list_definitions()]
-    print(f"■ 지금 걸린 전략  {전략이름(지금키)} ({지금키})")
+    print(f"■ 지금 설정된 전략  {전략이름(지금키)} ({지금키})")
 
     ensure_schema(bootstrap_settings.database_url)
     session_factory = make_session_factory(bootstrap_settings.database_url)
@@ -217,7 +217,7 @@ def main() -> int:
             print("dry-run이라 전략을 안 바꿉니다.")
             return 0
 
-        # 실제로 바꾼다. 매도 전략은 건드리지 않는다 — 여기서 같이 바꾸면
+        # 실제로 바꾼다. 매도 전략은 건드리지 않는다. 여기서 같이 바꾸면
         # 무엇 때문에 성적이 달라졌는지 나중에 가를 수 없다.
         from dataclasses import replace as _replace
 
@@ -241,6 +241,6 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except SystemExit:
         raise
-    except Exception:  # noqa: BLE001 — 무엇이 터지든 로그에 남아야 한다
+    except Exception:  # noqa: BLE001 (무엇이 터지든 로그에 남아야 한다)
         traceback.print_exc()
         raise SystemExit(1) from None

@@ -45,7 +45,7 @@ def test_sunday_utc_becomes_monday_in_korea():
 def test_cron_weekday_numbering_is_not_pythons():
     """cron은 일요일이 0, 파이썬 weekday()는 월요일이 0이다.
 
-    그대로 비교하면 하루씩 밀린다 — 조용히 틀리는 종류의 버그라 못 박아 둔다."""
+    그대로 비교하면 하루씩 밀린다. 조용히 틀리는 종류의 버그라 못 박아 둔다."""
     now = datetime(2026, 8, 19, 12, 0, tzinfo=KST)  # 수요일
     # cron 1 = 월요일 → UTC 월 03:00 = KST 월 12:00
     fire = next_fire("0 3 * * 1", now)
@@ -71,7 +71,7 @@ def test_it_reads_the_real_workflow_files():
     옛 시각으로 남는다."""
     jobs = upcoming(datetime(2026, 8, 19, 8, 0, tzinfo=KST))
     # 어느 워크플로가 켜져 있는지는 때에 따라 다르다(지금은 자동매매가
-    # 꺼져 있다). 여기서 못 박을 것은 "파일을 실제로 읽어 온다"까지다 —
+    # 꺼져 있다). 여기서 못 박을 것은 "파일을 실제로 읽어 온다"까지다.
     # 특정 일정이 있어야 한다고 쓰면, 일정을 끌 때마다 테스트가 깨진다.
     assert jobs, "워크플로에서 살아 있는 cron을 하나도 못 읽었다"
     for job in jobs:
@@ -91,7 +91,7 @@ def test_remaining_time_is_worded_by_size():
 
 def test_a_commented_out_cron_is_not_a_schedule():
     """자동 실행을 꺼 둔 뒤에도 화면이 "내일 09:05에 돕니다"라고 하면
-    안내가 아니라 거짓말이다 — 실제로 오늘 멈추면서 이걸 잡았다."""
+    안내가 아니라 거짓말이다. 실제로 오늘 멈추면서 이걸 잡았다."""
     text = """
 on:
   # schedule:
@@ -118,14 +118,14 @@ def test_paper_trading_is_currently_stopped():
 
     workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "paper-trading.yml"
     assert _crons_in(workflow.read_text(encoding="utf-8")) == [], (
-        "자동매매를 다시 켰다면 이 테스트도 함께 고치세요 — "
+        "자동매매를 다시 켰다면 이 테스트도 함께 고치세요. "
         "켜 두고 잊는 일이 없도록 일부러 걸어 둔 장치입니다."
     )
 
 
 def test_a_stopped_schedule_is_not_live_even_with_the_switch_on():
     """스케줄을 꺼 놨는데 킬스위치만 보고 'LIVE'라고 띄우면 화면이
-    거짓말을 한다 — 실제로 폰에서 그렇게 떠 있는 걸 보고 잡았다."""
+    거짓말을 한다. 실제로 폰에서 그렇게 떠 있는 걸 보고 잡았다."""
     from muwon.dashboard.schedule import automation_state
     from muwon.settings.schema import RiskPolicy
 
@@ -142,7 +142,7 @@ def test_the_switch_and_the_schedule_are_reported_separately(tmp_path):
     workflow = tmp_path / "paper-trading.yml"
     workflow.write_text('  schedule:\n    - cron: "5 0 * * 1-5"\n', encoding="utf-8")
 
-    # 일정이 살아 있다는 것을 먼저 확인한다 — 이 검사의 전제다.
+    # 일정이 살아 있다는 것을 먼저 확인한다. 이 검사의 전제다.
     assert upcoming(datetime(2026, 8, 19, 8, 0, tzinfo=KST), workflow_dir=tmp_path)
 
     import muwon.dashboard.schedule as mod

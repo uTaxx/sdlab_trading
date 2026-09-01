@@ -55,7 +55,7 @@ def test_대시보드가_읽는_JSON에_짧은_이름이_실린다():
 
     줄들 = {r["키"]: r for r in 전략설명()}
     assert 줄들["volume_surge_5d_ma20"]["이름"] == get_definition("volume_surge_5d_ma20").화면이름
-    # 자세한 이름도 같이 실어야 한다 — 파라미터를 확인하고 싶을 때가 있다.
+    # 자세한 이름도 같이 실어야 한다. 파라미터를 확인하고 싶을 때가 있다.
     assert 줄들["volume_surge_5d_ma20"]["자세한이름"]
 
 

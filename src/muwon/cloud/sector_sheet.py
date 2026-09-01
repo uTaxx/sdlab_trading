@@ -11,7 +11,7 @@
 편집은 시트에서만 한다. 두 곳에서 고칠 수 있으면 충돌 처리를 만들어야
 하는데, 개인용 도구에서 그 값이 비용보다 작다.
 
-## 읽자마자 검증한다 — 틀리면 매매를 멈춘다
+## 읽자마자 검증한다. 틀리면 매매를 멈춘다
 
 **반쯤 잘못된 목록으로 실거래를 도는 것이 최악이다.** 종목코드 한 자리가
 틀리면 엉뚱한 회사를 사고, 그 사실은 주문이 나간 뒤에야 드러난다.
@@ -120,7 +120,7 @@ def parse(섹터행: list[list[str]], 종목행: list[list[str]], 설정행: lis
             raise SheetError(f"{코드}: 비중상한이 숫자가 아닙니다 ({칸[3]!r})") from e
         if not 0 < 비중 <= MAX_WEIGHT_CAP:
             raise SheetError(
-                f"{코드}: 비중상한 {비중}%는 0 초과 {MAX_WEIGHT_CAP:g}% 이하여야 합니다 — "
+                f"{코드}: 비중상한 {비중}%는 0 초과 {MAX_WEIGHT_CAP:g}% 이하여야 합니다. "
                 "한 섹터에 절반 넘게 넣을 수 있으면 분산이 아닙니다"
             )
         출처 = str(칸[4] or "섹터지수").strip()
@@ -132,7 +132,7 @@ def parse(섹터행: list[list[str]], 종목행: list[list[str]], 설정행: lis
         )
 
     if not 섹터들:
-        raise SheetError("섹터 탭이 비어 있습니다 — 이 상태로는 매매 대상을 정할 수 없습니다")
+        raise SheetError("섹터 탭이 비어 있습니다. 이 상태로는 매매 대상을 정할 수 없습니다")
 
     종목들: dict[str, list[SectorMember]] = {s.코드: [] for s in 섹터들}
     본종목: dict[str, str] = {}
@@ -142,14 +142,14 @@ def parse(섹터행: list[list[str]], 종목행: list[list[str]], 설정행: lis
         칸 = (list(줄) + [""] * len(종목머리))[: len(종목머리)]
         코드 = str(칸[0]).strip()
         if not (코드.isdigit() and len(코드) == 6):
-            raise SheetError(f"종목코드가 여섯 자리 숫자가 아닙니다: {코드!r} ({칸[1]}) — "
+            raise SheetError(f"종목코드가 여섯 자리 숫자가 아닙니다: {코드!r} ({칸[1]}). "
                              "한 자리만 틀려도 엉뚱한 회사를 삽니다")
         섹터코드 = str(칸[3]).strip().upper()
         if 섹터코드 not in 종목들:
             raise SheetError(f"{코드} {칸[1]}: 없는 섹터코드 {섹터코드!r}")
         if 코드 in 본종목:
             raise SheetError(
-                f"{코드} {칸[1]}이 {본종목[코드]}와 {섹터코드} 양쪽에 있습니다 — "
+                f"{코드} {칸[1]}이 {본종목[코드]}와 {섹터코드} 양쪽에 있습니다. "
                 "한 종목이 두 섹터에 있으면 그 종목만 비중 상한을 두 배로 씁니다"
             )
         본종목[코드] = 섹터코드
@@ -168,7 +168,7 @@ def parse(섹터행: list[list[str]], 종목행: list[list[str]], 설정행: lis
         if s.활성 and s.전망출처 == "섹터지수" and len(살아있는것) < MIN_LIVE_MEMBERS:
             raise SheetError(
                 f"{s.코드} {s.이름}: 활성 종목이 {len(살아있는것)}개뿐입니다 "
-                f"(최소 {MIN_LIVE_MEMBERS}개) — 그러면 섹터 지수가 사실상 그 종목입니다"
+                f"(최소 {MIN_LIVE_MEMBERS}개): 그러면 섹터 지수가 사실상 그 종목입니다"
             )
         완성.append(
             Sector(코드=s.코드, 이름=s.이름, 성격=s.성격, 종목=멤버,
@@ -201,7 +201,7 @@ def catalog_rows() -> tuple[list[list[str]], list[list[str]]]:
 def default_settings_rows() -> list[list[str]]:
     """설정 탭 초안. **값은 사람이 시트에서 고친다.**
 
-    목록을 여기에 손으로 적지 않는다 — `settings/from_sheet.py`의 기준표
+    목록을 여기에 손으로 적지 않는다. `settings/from_sheet.py`의 기준표
     하나만 보고 만든다. 두 군데에 적어 두면 하나만 고치고 다른 하나를
     잊는데, 그러면 시트를 새로 만들 때 그 줄이 조용히 빠진다."""
     from muwon.settings.from_sheet import 기준들
@@ -249,7 +249,7 @@ def find_or_create(folder_id: str, title: str = DEFAULT_TITLE) -> tuple[str, boo
 
 
 def write_all(sheet_id: str, 섹터행, 종목행, 설정행) -> None:
-    """세 탭을 통째로 덮어쓴다. **첫 채움에만 쓴다** — 그 뒤에는 사람이
+    """세 탭을 통째로 덮어쓴다. **첫 채움에만 쓴다**. 그 뒤에는 사람이
     시트에서 고치고 코드는 읽기만 한다."""
     svc = _service().spreadsheets()
     있는탭 = {s["properties"]["title"] for s in svc.get(spreadsheetId=sheet_id).execute()["sheets"]}
@@ -294,7 +294,7 @@ def write_catalog(sheet_id: str, 섹터행, 종목행) -> None:
 def append_settings(sheet_id: str, 줄들, svc=None) -> int:
     """`설정` 탭 맨 아래에 줄을 한꺼번에 붙인다. 있는 값은 안 건드린다.
 
-    한 줄씩 `update_setting`을 부르면 줄 수만큼 읽고 쓰기를 반복한다 —
+    한 줄씩 `update_setting`을 부르면 줄 수만큼 읽고 쓰기를 반복한다.
     다섯 개면 열 번이고, 그중 하나만 시간 초과가 나도 통째로 실패한다.
     붙이는 일은 한 번에 할 수 있으므로 한 번에 한다."""
     if not 줄들:
@@ -312,11 +312,11 @@ def update_setting(sheet_id: str, 이름: str, 글자: str, svc=None, 설명: st
     """`설정` 탭의 한 줄을 고친다. 옛 값을 돌려준다.
 
     **텔레그램에서 온 변경도 여기로 들어온다.** 시트가 원본이라는 규칙을
-    깨지 않기 위해서다 — 코드가 따로 기억하는 값이 생기면 시트를 봐도
+    깨지 않기 위해서다. 코드가 따로 기억하는 값이 생기면 시트를 봐도
     지금 뭐가 걸려 있는지 알 수 없게 된다. 텔레그램 명령은 '사람이 시트를
     고친 것'과 같은 취급이다.
 
-    줄이 없으면 맨 아래에 새로 만든다 — 기준을 새로 추가했는데 시트가
+    줄이 없으면 맨 아래에 새로 만든다. 기준을 새로 추가했는데 시트가
     아직 옛것일 때 그냥 터지면 고칠 방법이 없다."""
     svc = svc or _service().spreadsheets()
     칸 = svc.values().get(spreadsheetId=sheet_id, range="설정!A1:C1000").execute(num_retries=3)

@@ -24,7 +24,7 @@ def test_every_symbol_is_six_digits():
 
 
 def test_no_symbol_appears_in_two_sectors():
-    """한 종목이 두 섹터에 있으면 섹터별 비중 상한을 두는 의미가 없다 —
+    """한 종목이 두 섹터에 있으면 섹터별 비중 상한을 두는 의미가 없다.
     그 종목만 두 배로 살 수 있게 된다."""
     본것: dict[str, str] = {}
     for 코드, m in all_members():
@@ -53,7 +53,7 @@ def test_a_sector_index_needs_at_least_three_live_names():
     '섹터'라고 부를 이유가 없고, 섹터 전망도 그 종목 전망일 뿐이다.
 
     원자재가 실제로 여기 걸렸다(금·은 ETF 둘). 그래서 기준을 낮추는 대신
-    **전망을 국제 시세로 내도록 바꿨다** — 국내 ETF 둘보다 훨씬 나은 표본이다."""
+    **전망을 국제 시세로 내도록 바꿨다**. 국내 ETF 둘보다 훨씬 나은 표본이다."""
     for s in CATALOG:
         if not s.활성 or s.전망출처 != "섹터지수":
             continue

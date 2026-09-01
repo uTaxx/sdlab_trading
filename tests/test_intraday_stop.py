@@ -36,7 +36,7 @@ def bars(start: date, rows):
 
 def test_a_dip_that_recovers_by_close_would_have_been_stopped_out():
     """장중에 -8%까지 빠졌다가 -1%로 마감한 매매. 지금 구조는 안 팔지만
-    장중 스톱은 팔린다 — 그리고 그건 **나빠지는** 쪽이다."""
+    장중 스톱은 팔린다. 그리고 그건 **나빠지는** 쪽이다."""
     df = bars(date(2024, 1, 1), [(100, 100, 100, 100), (99, 100, 92, 99)])
     결과 = compare(
         [FakeTrade("A", date(2024, 1, 1), date(2024, 1, 2), 100.0, -1.0)],

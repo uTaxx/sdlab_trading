@@ -1,12 +1,12 @@
 """하루 매매가 끝난 뒤 "그날 다른 전략이었으면 수익률이 어땠을까"를 자동으로
 계산해 텔레그램으로 알려주는 스크립트.
 
-run_hypothesis_sweep.py(사람이 손으로, 임의 기간에 대해 돌리는 스윕)와 달리
-이건 매일 자동 실행을 전제로 한다 — 기준일(오늘)에서 --lookback-days만큼
+run_hypothesis_sweep.py(사람이 손으로, 임의 기간에 대해 실행하는 스윕)와 달리
+이건 매일 자동 실행을 전제로 한다. 기준일(오늘)에서 --lookback-days만큼
 거슬러 올라간 최근 구간에 대해 등록된 전략 전체를 재평가하고, 지금 실거래
 중인 전략과 비교한다. GitHub Actions 배치(run_paper_trading.py) 직후에
-매일 돌리면, "이 전략이 계속 최선인가"를 사람이 매번 손으로 스윕을 돌리지
-않아도 자동으로 추적하게 된다 — 점점 더 나은 전략으로 수렴해가는 흐름을
+매일 실행하면, "이 전략이 계속 최선인가"를 사람이 매번 손으로 스윕을 실행하지
+않아도 자동으로 추적하게 된다. 점점 더 나은 전략으로 수렴해가는 흐름을
 만드는 축이다.
 
 결과는 backtest_runs 테이블에 notes="daily_review"로 쌓여서, 수동 스윕
@@ -50,7 +50,7 @@ def main() -> None:
     parser.add_argument("--initial-cash", type=float, default=10_000_000.0)
     args = parser.parse_args()
 
-    end = date.today()  # noqa: DTZ011 — 날짜만 필요, 배치 실행 전제라 tz 무관
+    end = date.today()  # noqa: DTZ011 (날짜만 필요, 배치 실행 전제라 tz 무관)
     start = end - timedelta(days=args.lookback_days)
 
     settings_service = build_settings_service()

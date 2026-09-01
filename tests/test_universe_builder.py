@@ -26,7 +26,7 @@ def test_accepts_ordinary_stocks():
 
 def test_rejects_etf_etn_spac_and_preferred_stocks():
     """개별 종목 전략(이동평균·RSI)의 전제가 안 맞거나, 추세 자체가 없는
-    상품들 — 유니버스에 섞이면 신호가 오염된다."""
+    상품들: 유니버스에 섞이면 신호가 오염된다."""
     rejected = [
         "KODEX 200",  # ETF
         "TIGER 미국나스닥100",
@@ -46,7 +46,7 @@ def test_rejects_empty_name():
 
 
 def test_to_ticker_assigns_market_specific_yahoo_suffix():
-    """백테스트는 야후 티커를 쓰는데 코스피/코스닥 접미사가 다르다 —
+    """백테스트는 야후 티커를 쓰는데 코스피/코스닥 접미사가 다르다.
     틀리면 그 종목만 조용히 시세가 안 잡힌다."""
     assert to_ticker("005930", "삼성전자", "KOSPI").yahoo_symbol == "005930.KS"
     assert to_ticker("247540", "에코프로비엠", "KOSDAQ").yahoo_symbol == "247540.KQ"
@@ -80,7 +80,7 @@ def test_build_universe_reserves_slots_for_kosdaq():
 
 def test_build_universe_fills_from_other_market_when_quota_unmet():
     """한쪽 시장에 조건 맞는 종목이 모자라면 다른 쪽에서 채워 요청 개수를
-    맞춘다 — 코스닥 후보가 적다고 유니버스가 쪼그라들면 안 된다."""
+    맞춘다. 코스닥 후보가 적다고 유니버스가 쪼그라들면 안 된다."""
     client = make_client(
         kospi_rows=[(f"KP{i}", f"코스피{i}", 10_000_000 - i) for i in range(10)],
         kosdaq_rows=[("KQ0", "코스닥0", 100)],  # 1종목뿐
@@ -93,7 +93,7 @@ def test_build_universe_fills_from_other_market_when_quota_unmet():
 
 
 def test_build_universe_filters_then_respects_size():
-    """걸러낼 종목이 섞여 있어도 요청한 개수를 채워야 한다 — 그래서 넉넉히
+    """걸러낼 종목이 섞여 있어도 요청한 개수를 채워야 한다. 그래서 넉넉히
     받아 온 뒤 거르는 순서가 중요하다."""
     client = make_client(
         kospi_rows=[
@@ -248,7 +248,7 @@ def test_volume_snapshot_does_not_change_what_live_trading_reads(tmp_path):
 
 
 def test_legacy_rows_without_kind_still_load_as_market_cap(tmp_path):
-    """kind 컬럼이 붙기 전에 저장된 행이 안 보이게 되면 안 된다 —
+    """kind 컬럼이 붙기 전에 저장된 행이 안 보이게 되면 안 된다.
     컬럼 하나 추가한 순간 운영 DB의 유니버스가 통째로 사라진다."""
     from sqlalchemy import update
 

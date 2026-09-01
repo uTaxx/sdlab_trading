@@ -1,6 +1,6 @@
 """지금 돌고 있는 전략이 **무엇을 보고 사고파는지**를 사람 말로 옮긴다.
 
-왜 필요한가 — 화면에는 전략 이름만 떠 있었다. `volume_surge_5d`라는 이름은
+왜 필요한가. 화면에는 전략 이름만 떠 있었다. `volume_surge_5d`라는 이름은
 그 전략이 무엇을 사는지 아무것도 말해 주지 않는다. 무엇을 기준으로 샀는지
 모르면, 결과를 봐도 무엇을 고쳐야 할지 판단할 수 없다.
 
@@ -9,7 +9,7 @@
 여기서는 전략 객체의 **실제 파라미터**를 읽어서 문장을 만든다. 파라미터를
 바꾸면 설명도 같이 바뀐다.
 
-모르는 전략이 새로 등록되면 파라미터를 그대로 나열한다 — 문장이 없더라도
+모르는 전략이 새로 등록되면 파라미터를 그대로 나열한다. 문장이 없더라도
 빈 화면보다는 낫고, '설명을 안 붙였다'는 사실 자체가 보인다.
 """
 
@@ -27,7 +27,7 @@ class Rules:
 
     산다: list[str]
     #: **전략 자신의** 매도 신호만. 보유 기간 경과와 손절은 엔진이 따로
-    #: 검사하므로 여기 넣지 않는다 — 넣었더니 화면에 같은 줄이 두 번 나왔다.
+    #: 검사하므로 여기 넣지 않는다. 넣었더니 화면에 같은 줄이 두 번 나왔다.
     #: 파는 조건 전부를 한자리에서 보려면 exit_rules()를 쓴다.
     판다: list[str]
     참고: list[str]
@@ -47,7 +47,7 @@ def describe(strategy) -> Rules:
     if hasattr(strategy, "members") and hasattr(strategy, "mode"):
         return _describe_combined(strategy)
     # 묶음 안의 전략은 SingleSymbolAdapter로 감싸여 들어온다. 껍데기에는
-    # params가 없어서 그대로 보면 "설명 없음"이 뜬다 — 실제로 그렇게 나왔다.
+    # params가 없어서 그대로 보면 "설명 없음"이 뜬다. 실제로 그렇게 나왔다.
     strategy = getattr(strategy, "inner", strategy)
     params = getattr(strategy, "params", None)
     if params is None:
@@ -61,7 +61,7 @@ def describe(strategy) -> Rules:
 
 
 def _fallback(params) -> Rules:
-    """문장을 안 붙인 전략 — 파라미터라도 그대로 보여 준다."""
+    """문장을 안 붙인 전략: 파라미터라도 그대로 보여 준다."""
     lines = [f"{f.name} = {getattr(params, f.name)}" for f in fields(params)] if is_dataclass(params) else []
     return Rules(
         산다=[],
@@ -73,7 +73,7 @@ def _fallback(params) -> Rules:
 
 # ── 전략별 문장 ────────────────────────────────────────────────────────
 # 각 함수는 그 전략의 generate_signals를 그대로 읽고 옮긴 것이다.
-# 코드와 어긋나면 그건 버그다 — 테스트가 파라미터 값이 문장에 들어갔는지까지 본다.
+# 코드와 어긋나면 그건 버그다. 테스트가 파라미터 값이 문장에 들어갔는지까지 본다.
 
 
 def _volume_surge_rules(p, strategy) -> Rules:
@@ -82,7 +82,7 @@ def _volume_surge_rules(p, strategy) -> Rules:
     **exit_sma가 있으면 매도 신호를 낸다.** 예전에는 이 계열에 매도 신호가
     아예 없어서 판다를 빈 칸으로 뒀는데, exit_sma를 붙인 전략이 생긴 뒤로도
     그대로였다. 그래서 화면이 `volume_surge_5d_ma20`을 놓고 "파는 신호를
-    내지 않습니다"라고 적고 있었다. 지금 실제로 걸려 있는 전략이 그것이다.
+    내지 않습니다"라고 적고 있었다. 지금 실제로 설정된 전략이 그것이다.
     """
     판다 = (
         [f"종가가 **{p.exit_sma}일 평균선 아래**로 내려온 날"]
@@ -129,9 +129,9 @@ def _bollinger_breakout_rules(p, strategy) -> Rules:
 
 
 def _price_channel_rules(p, strategy) -> Rules:
-    문턱 = f" + {_pct(p.breakout_pct)}" if p.breakout_pct else ""
+    넘을폭 = f" + {_pct(p.breakout_pct)}" if p.breakout_pct else ""
     return Rules(
-        산다=[f"종가가 **직전 {p.lookback}일 중 가장 높은 종가**{문턱}를 넘어설 때"],
+        산다=[f"종가가 **직전 {p.lookback}일 중 가장 높은 종가**{넘을폭}를 넘어설 때"],
         판다=[f"종가가 **{p.exit_sma}일 이동평균선을 아래로 뚫으면**"],
         참고=["신고가를 따라 매수하는 방식이므로, 이미 상승한 뒤에 진입하게 됩니다."],
     )
@@ -257,7 +257,7 @@ def _ma_rsi_rules(p, strategy) -> Rules:
 
 
 def _describe_combined(strategy) -> Rules:
-    """여러 전략을 묶은 것 — 각각의 조건을 그대로 늘어놓고, 어떻게 묶였는지를 앞에 둔다.
+    """여러 전략을 묶은 것: 각각의 조건을 그대로 늘어놓고, 어떻게 묶였는지를 앞에 둔다.
 
     묶음 이름만 보여 주면 무엇을 보고 사는지 알 수 없다. 화면에서 전략을
     여러 개 고를 수 있게 만든 이상, 그 각각이 무엇을 하는지도 같이 보여야
@@ -300,14 +300,14 @@ def _describe_combined(strategy) -> Rules:
 
 
 def _describe_score(strategy) -> Rules:
-    """점수 합산 전략 — 조건이 아니라 점수와 문턱으로 판단한다."""
+    """점수 합산 전략: 조건이 아니라 점수와 기준점으로 판단한다."""
     config = getattr(strategy, "config", None)
     if config is None:
         return Rules(산다=[], 판다=[], 참고=["설명을 만들 수 없는 전략입니다."], 설명있음=False)
 
     weights = config.enabled_weights()
     가중치 = ", ".join(f"{k} {v:.0f}%" for k, v in sorted(weights.items(), key=lambda x: -x[1]))
-    문턱 = ", ".join(
+    기준점 = ", ".join(
         f"{regime} {value:g}점" for regime, value in sorted(config.regime_buy_threshold.items())
     )
     return Rules(
@@ -315,9 +315,9 @@ def _describe_score(strategy) -> Rules:
             f"여러 기준에 점수를 매겨 합산하고, 총점이 **{config.buy_threshold:g}점 이상**이면 매수",
             f"쓰이는 기준과 비중: {가중치}",
         ],
-        판다=["점수가 문턱 아래로 떨어지거나, 리스크 정책의 손절 조건에 걸리면"],
+        판다=["점수가 기준점 아래로 떨어지거나, 리스크 정책의 손절 조건에 걸리면"],
         참고=[
-            (f"시장 국면에 따라 매수 기준 점수가 달라집니다({문턱}). "
+            (f"시장 국면에 따라 매수 기준 점수가 달라집니다({기준점}). "
             "하락 국면에서는 기준 점수를 크게 높여 사실상 매수하지 않습니다."),
             "개별 조건이 아니라 여러 기준의 **합산 점수**로 종목을 선별하는 방식입니다.",
         ],
@@ -414,7 +414,7 @@ def common_rules(policy, universe_size: int, universe_kind: str) -> list[str]:
 def exit_rules(strategy, policy) -> tuple[list[str], list[str]]:
     """**엔진이 실제로 검사하는 순서대로** 청산 조건 전부.
 
-    왜 따로 두는가 — 전략의 매도 신호만 보여 줬더니 "매도 전략은 기간밖에
+    왜 따로 두는가. 전략의 매도 신호만 보여 줬더니 "매도 전략은 기간밖에
     없냐"는 질문을 받았다. 실제로는 손절이 항상 먼저 걸리는데, 그게 리스크
     정책 쪽에 있다는 이유로 다른 칸에 적혀 있었다. **파는 조건은 어디에
     설정돼 있든 한자리에 모여 있어야 한다.**
@@ -423,7 +423,7 @@ def exit_rules(strategy, policy) -> tuple[list[str], list[str]]:
     조건: list[str] = []
     주의: list[str] = []
 
-    # 1순위 — 손절. 엔진은 이걸 가장 먼저 본다(risk/exits.py evaluate_exit).
+    # 1순위: 손절. 엔진은 이걸 가장 먼저 본다(risk/exits.py evaluate_exit).
     if getattr(policy, "atr_stop_enabled", False):
         조건.append(
             f"**손절(변동성 기준)**: 매수가에서 해당 종목의 일평균 변동폭"
@@ -433,7 +433,7 @@ def exit_rules(strategy, policy) -> tuple[list[str], list[str]]:
         조건.append(
             f"**손절**: 매수가 대비 **{abs(policy.stop_loss_pct) * 100:.0f}%** 하락하면 매도"
         )
-    # 2순위 — 익절. 손절보다 뒤인 이유는 손실을 막는 쪽이 언제나 먼저여야
+    # 2순위: 익절. 손절보다 뒤인 이유는 손실을 막는 쪽이 언제나 먼저여야
     # 하기 때문이고, 트레일링보다 앞인 이유는 익절선에 닿았으면 트레일링이
     # 더 기다릴 이유가 없기 때문이다(risk/exits.py의 순서와 같다).
     익절 = getattr(policy, "take_profit_pct", 0.0) or 0.0
@@ -446,7 +446,7 @@ def exit_rules(strategy, policy) -> tuple[list[str], list[str]]:
             f"**{policy.trailing_stop_multiple:g}배**만큼 하락하면 매도"
         )
 
-    # 3순위 — 보유 기간. 기준에서 덮어썼으면 그것이, 아니면 전략이 정한 대로.
+    # 3순위: 보유 기간. 기준에서 덮어썼으면 그것이, 아니면 전략이 정한 대로.
     from muwon.risk.exits import 보유상한 as _보유상한
 
     holding = _보유상한(strategy, policy)
@@ -457,7 +457,7 @@ def exit_rules(strategy, policy) -> tuple[list[str], list[str]]:
             + ("(기본 전략에서 설정한 값이며, 전략의 설정값보다 우선합니다)" if 덮었나 else "")
         )
 
-    # 3순위 — 전략 자신의 매도 신호
+    # 3순위: 전략 자신의 매도 신호
     전략 = describe(strategy).판다
     if 전략:
         조건 += [f"**전략 매도 신호**: {line}" for line in 전략]

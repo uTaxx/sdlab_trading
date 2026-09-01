@@ -24,18 +24,18 @@ name: 미체결 주문 취소
 # ## 상태 DB는 안 바뀐다
 #
 # 우리 기록에는 **체결된 수량만** 들어 있고 잔여는 애초에 없다. 취소해도
-# 고칠 것이 없어서 DB를 도로 올리지 않는다 — 올리면 그 사이 다른 실행이 쓴
+# 고칠 것이 없어서 DB를 도로 올리지 않는다. 올리면 그 사이 다른 실행이 쓴
 # 것을 옛 것으로 덮을 수 있다.
 
 on:
   workflow_dispatch:
     inputs:
       symbols:
-        description: "이 종목만 취소 (쉼표로 여럿 — 비우면 미체결 전부가 대상)"
+        description: "이 종목만 취소 (쉼표로 여럿: 비우면 미체결 전부가 대상)"
         required: false
         default: ""
       order_ids:
-        description: "이 주문번호만 취소 (쉼표로 여럿 — 비우면 종목 기준으로 고른다)"
+        description: "이 주문번호만 취소 (쉼표로 여럿: 비우면 종목 기준으로 고른다)"
         required: false
         default: ""
       apply:
@@ -83,7 +83,7 @@ jobs:
 
       - name: 취소
         run: |
-          # `| tee`는 파이썬의 종료 코드를 삼킨다 — 조용히 성공한 척하는
+          # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
           # 실패라 여기서 막는다.
           set -o pipefail
           args=""

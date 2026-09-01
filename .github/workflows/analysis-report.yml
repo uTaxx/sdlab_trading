@@ -23,7 +23,7 @@ jobs:
     # 시트에 같은 줄을 두 번 쌓는다.
     #
     # n8n 시계가 아직 muwon406을 부르므로 그쪽이 운영이다. n8n을 옮기는
-    # 날 이 이름을 sdlab_trading으로 바꾼다 — **양쪽 저장소에서 같이.**
+    # 날 이 이름을 sdlab_trading으로 바꾼다. **양쪽 저장소에서 같이.**
     # 손으로 부르는 것(workflow_dispatch)은 어느 쪽에서든 그대로 된다.
     if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ jobs:
           python scripts/configure.py telegram \
             --bot-token "${{ secrets.TELEGRAM_BOT_TOKEN }}" --chat-id "${{ secrets.TELEGRAM_CHAT_ID }}"
 
-      # 읽기 전용이라 상태 DB를 다시 올리지 않는다 — 리포트 생성이 운영
+      # 읽기 전용이라 상태 DB를 다시 올리지 않는다. 리포트 생성이 운영
       # 상태를 건드릴 이유가 없고, 올리면 다른 실행과 덮어쓰기 경합만 생긴다.
       - name: 리포트 생성·발송
         run: |

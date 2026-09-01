@@ -1,7 +1,7 @@
 name: 운영 상태 점검
 
 # 운영 DB에 무엇이 들어 있는지 그대로 찍는다. 읽기만 하고 다시 올리지
-# 않는다 — 확인하려고 돌린 것이 운영 상태를 바꾸면 안 된다.
+# 않는다. 확인하려고 돌린 것이 운영 상태를 바꾸면 안 된다.
 #
 # 대시보드가 비어 있을 때 '아직 안 샀다'인지 '기록이 저장되지 못했다'인지
 # 구분하려고 만들었다. 둘은 고치는 방법이 전혀 다르다.
@@ -29,7 +29,7 @@ jobs:
         run: |
           python scripts/gdrive_sync.py download \
             --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
-          ls -la muwon.db || echo "muwon.db 자체가 없다 — 드라이브에 파일이 없다는 뜻"
+          ls -la muwon.db || echo "muwon.db 자체가 없다. 드라이브에 파일이 없다는 뜻"
 
       - name: .env 구성
         run: |

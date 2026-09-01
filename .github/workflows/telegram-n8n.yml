@@ -43,7 +43,7 @@ concurrency:
   # 것을 통째로 덮는다.
   #
   # 전에는 `telegram-n8n` 그룹이었다. 그때는 버튼이 시트에만 썼기 때문이다.
-  # 그룹은 하나만 걸 수 있어서 DB 쪽으로 맞춘다 — 버튼 처리가 잠깐 기다리는
+  # 그룹은 하나만 걸 수 있어서 DB 쪽으로 맞춘다. 버튼 처리가 잠깐 기다리는
   # 것보다 DB가 통째로 덮이는 쪽이 훨씬 비싸다.
   group: state-write
   cancel-in-progress: false

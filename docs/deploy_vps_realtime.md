@@ -1,4 +1,4 @@
-# VPS에서 장중 실시간 매매 돌리기
+# VPS에서 장중 실시간 매매 실행하기
 
 `scripts/run_realtime_trading.py`는 GitHub Actions처럼 하루 한 번 돌고
 끝나는 배치가 아니라, **장이 열려 있는 동안(09:00~15:30 KST) 계속 떠서
@@ -6,7 +6,7 @@ KIS 웹소켓으로 체결가를 받는** 프로세스다. GitHub Actions는 이
 연결 유지에 안 맞으므로, 24시간 켜둘 수 있는 VPS가 필요하다.
 
 **GitHub Actions 배치 자동매매(`docs/deploy_github_actions.md`)와는 별개
-운영 모드다 — 같은 KIS 계좌에 두 개를 동시에 돌리지 말 것.** 어느 쪽을
+운영 모드다. 같은 KIS 계좌에 두 개를 동시에 실행하지 말 것.** 어느 쪽을
 쓸지 하나만 고르면 된다.
 
 ## 0. 이 문서를 믿기 전에
@@ -20,7 +20,7 @@ KIS Developers 공식 문서를 기준으로 작성한 최선의 추정이다. V
 ## 1. VPS 준비
 
 아무 리눅스 VPS나 된다 (AWS Lightsail, 오라클 클라우드 무료 티어, 가비아/
-카페24 등). 사양은 크게 필요 없다 — 1 vCPU, 1GB RAM이면 충분하다.
+카페24 등). 사양은 크게 필요 없다. 1 vCPU, 1GB RAM이면 충분하다.
 
 ```bash
 sudo apt update && sudo apt install -y python3.11 python3.11-venv git
@@ -44,7 +44,7 @@ python scripts/configure.py telegram --bot-token ... --chat-id ...
 ```
 
 VPS는 로컬 디스크가 계속 살아있으므로(GitHub Actions와 달리), 구글드라이브
-동기화가 필요 없다 — `muwon.db`가 그 자리에 계속 남는다.
+동기화가 필요 없다. `muwon.db`가 그 자리에 계속 남는다.
 
 ## 3. 첫 실행(수동으로 로그 보면서)
 
@@ -57,7 +57,7 @@ python scripts/run_realtime_trading.py
   (KIS Developers 포털에서 최신 웹소켓 접속 가이드 대조)
 - 틱은 들어오는데 매매가 전혀 안 되면 `src/muwon/data/kis_websocket.py`의
   `_parse_price_message` 필드 인덱스(`_FIELD_SYMBOL`/`_FIELD_PRICE`/`_FIELD_VOLUME`)가
-  실제 메시지 구조와 맞는지 확인 — 필요하면 `print(raw)`로 원본 메시지를
+  실제 메시지 구조와 맞는지 확인: 필요하면 `print(raw)`로 원본 메시지를
   한 번 찍어보고 인덱스를 맞출 것
 
 ## 4. 상시 서비스로 등록 (systemd)
@@ -90,10 +90,10 @@ sudo systemctl start muwon-realtime
 sudo journalctl -u muwon-realtime -f   # 로그 실시간 확인
 ```
 
-## 5. 장 시간에만 돌리기
+## 5. 장 시간에만 실행하기
 
 지금은 프로세스를 계속 띄워둬도 장외 시간엔 KIS가 체결 데이터를 안 보내니
-자연히 아무 일도 안 한다 — 굳이 시간 맞춰 껐다 켰다 안 해도 동작상
+자연히 아무 일도 안 한다. 굳이 시간 맞춰 껐다 켰다 안 해도 동작상
 문제는 없다. 다만 자원을 아끼거나 웹소켓 연결을 깔끔하게 유지하고
 싶으면, cron으로 장 시작 전 `systemctl start`, 장 마감 후
 `systemctl stop`을 걸 수 있다:

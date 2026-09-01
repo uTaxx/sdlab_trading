@@ -1,4 +1,4 @@
-"""KIS 실시간 시세(웹소켓) 클라이언트 — 장중 체결가를 스트리밍으로 받는다.
+"""KIS 실시간 시세(웹소켓) 클라이언트: 장중 체결가를 스트리밍으로 받는다.
 
 REST(KISClient)와는 별도 프로토콜이다. 접속키(approval_key)는 REST로
 먼저 발급받고, 그 키로 웹소켓을 열어 종목을 구독한다. 실시간 체결가
@@ -34,7 +34,7 @@ WS_URL_REAL = "ws://ops.koreainvestment.com:21000"
 WS_URL_PAPER = "ws://ops.koreainvestment.com:31000"
 TR_ID_REALTIME_PRICE = "H0STCNT0"
 
-# H0STCNT0(주식체결통보) 응답 필드 순서 — KIS Developers 문서 기준.
+# H0STCNT0(주식체결통보) 응답 필드 순서: KIS Developers 문서 기준.
 # 인덱스 0: 유가증권 단축 종목코드, 2: 주식 현재가, 12: 체결 거래량.
 _FIELD_SYMBOL = 0
 _FIELD_PRICE = 2

@@ -3,7 +3,7 @@
 TradingEngine(engine.py)이 "하루 한 번, 이미 확정된 종가로" 판단한다면,
 이건 "장이 열려 있는 동안 계속 떠서, 분봉이 하나 마감될 때마다" 판단한다.
 신호 판정 로직(Strategy)과 리스크 검증(RiskManager)은 완전히 동일하게
-재사용한다 — 다른 건 "언제 판단하느냐"뿐이다. 틱 하나하나에 반응하지
+재사용한다. 다른 건 "언제 판단하느냐"뿐이다. 틱 하나하나에 반응하지
 않는 이유는 tick_aggregator.py 문서 참고.
 
 TradingEngine은 프로세스가 매번 새로 뜨는 걸 전제로 매번 DB에서 상태를
@@ -14,7 +14,7 @@ TradingEngine은 프로세스가 매번 새로 뜨는 걸 전제로 매번 DB에
 
 engine.py와 이게 같은 DB를 공유하는 건 코드 재사용 때문이지, 배치
 모드(GitHub Actions)와 장중 상시 모드(VPS)를 동시에 같은 계좌에 돌리라는
-뜻이 아니다 — 운영 모드는 한 번에 하나만 고를 것."""
+뜻이 아니다. 운영 모드는 한 번에 하나만 고를 것."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from muwon.execution.engine import 매도알림, 매수알림
 from muwon.notify.telegram import TelegramNotifier
 from muwon.risk.manager import RiskManager
 
-BAR_HISTORY_LENGTH = 120  # sma60까지 계산하려면 최소 60개 봉 필요 — 여유있게 보관
+BAR_HISTORY_LENGTH = 120  # sma60까지 계산하려면 최소 60개 봉 필요. 여유있게 보관
 MIN_BARS_FOR_SIGNAL = 20  # sma20조차 안 채워졌으면 신호 자체가 항상 NaN
 
 
@@ -69,7 +69,7 @@ class RealtimeTradingEngine:
         self._started = False
 
     def start(self) -> None:
-        """장 시작 시 한 번 호출 — DB에서 현금/기준평가금액을 읽어와
+        """장 시작 시 한 번 호출: DB에서 현금/기준평가금액을 읽어와
         메모리에 올린다. 이후 거래가 있을 때마다 DB에도 즉시 반영되므로,
         중간에 프로세스가 죽어도 다음 start()에서 이어받는다."""
         self._cash, self._day_start_equity = state_repository.load_engine_state(
@@ -145,8 +145,8 @@ class RealtimeTradingEngine:
             symbol=symbol,
             quantity=order.quantity,
             entry_price=order.price,
-            entry_date=date.today(),  # noqa: DTZ011 — 기록용, tz 무관
-            entered_at=datetime.utcnow(),  # noqa: DTZ003 — 기록용, tz 무관
+            entry_date=date.today(),  # noqa: DTZ011 (기록용, tz 무관)
+            entered_at=datetime.utcnow(),  # noqa: DTZ003 (기록용, tz 무관)
             entry_reason=buy_signals[0].reason,
             strategy_key=self._strategy.name,
         )
@@ -174,7 +174,7 @@ class RealtimeTradingEngine:
             매도알림(
                 ticker.name, position.symbol, order, reason,
                 진입가=position.entry_price, 진입일=position.entry_date,
-                판날=date.today(),  # noqa: DTZ011 — 알림 표시용, tz 무관
+                판날=date.today(),  # noqa: DTZ011 (알림 표시용, tz 무관)
                 장중=True,
             )
         )

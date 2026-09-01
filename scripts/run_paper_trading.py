@@ -1,7 +1,7 @@
-"""KIS 모의투자 계좌로 실제 매매 파이프라인을 돌리는 스크립트.
+"""KIS 모의투자 계좌로 실제 매매 파이프라인을 실행하는 스크립트.
 
 KIS 서버(openapivts.koreainvestment.com:29443)에 접근 가능한 환경에서만
-동작한다 — 비표준 포트라 egress 정책에 따라 막혀 있을 수 있다 (이 저장소를
+동작한다. 비표준 포트라 egress 정책에 따라 막혀 있을 수 있다 (이 저장소를
 개발한 환경은 실제로 막혀 있었다). 여기서 막히면 scripts/run_dry_run.py로
 파이프라인 로직만 먼저 검증할 것.
 
@@ -56,7 +56,7 @@ def main() -> None:
     notifier = TelegramNotifier(settings_service)
 
     # 리스크 기준은 **구글 시트가 원본**이다(`docs/설계_스트림릿을_걷어낼까.md`
-    # 2단계). 시트를 못 읽거나 값이 검증에 걸리면 매매를 끈다 — 사람은 시트에서
+    # 2단계). 시트를 못 읽거나 값이 검증에 걸리면 매매를 끈다. 사람은 시트에서
     # 껐다고 믿는데 코드는 켜진 채 도는 것이 제일 나쁜 고장이다.
     sheet_id = os.environ.get("MUWON_SHEET_ID", "")
     if sheet_id:
@@ -73,7 +73,7 @@ def main() -> None:
 
     # 매매 전에 우리 기록과 실제 계좌를 대조한다. 어긋난 채로 매매하면
     # 비중 계산·손실한도가 전부 틀린 현금값 위에서 돌아가므로, 최소한
-    # 알고는 있어야 한다(자동으로 덮어쓰진 않는다 — 사람이 판단할 일이다).
+    # 알고는 있어야 한다(자동으로 덮어쓰진 않는다. 사람이 판단할 일이다).
     report = check_account_consistency(client, session_factory)
     if report is not None and not report.is_consistent:
         notifier.send("🔍 계좌 대조 결과\n" + "\n".join(report.summary_lines()))
@@ -97,7 +97,7 @@ def main() -> None:
         print("체결 없음")
     for action in summary.actions:
         side = "매수" if action.side.value == "buy" else "매도"
-        print(f"{side}: {action.name}({action.symbol}) {action.quantity}주 @ {action.price:,.0f}원 — {action.reason}")
+        print(f"{side}: {action.name}({action.symbol}) {action.quantity}주 @ {action.price:,.0f}원: {action.reason}")
     if summary.rejections:
         print("\n리스크 매니저 거부:")
         for rejection in summary.rejections:

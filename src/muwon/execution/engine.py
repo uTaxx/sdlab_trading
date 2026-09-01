@@ -3,13 +3,13 @@
 BacktestEngine과 최대한 같은 판단 로직(진입 조건, 손절, 비중 계산, 당일
 손익 기준 서킷브레이커)을 쓰지만, 여긴 프로세스가 매번 새로 떠도 상태
 (포지션·가상현금)가 이어져야 하므로 DB(positions/engine_state 테이블)에
-둔다. run_once()는 하루에 한 번, **개장 직후** 호출하는 걸 전제로 한다 —
-전략이 일봉 기준이라 더 자주 돌릴 이유가 없고, 판단은 어제까지의 완성된
+둔다. run_once()는 하루에 한 번, **개장 직후** 호출하는 걸 전제로 한다.
+전략이 일봉 기준이라 더 자주 실행할 이유가 없고, 판단은 어제까지의 완성된
 일봉으로 하되 주문은 장이 열려 있을 때 넣어야 체결되기 때문이다. (장 마감
-시각에 돌리면 판단할 데이터는 완전하지만 주문을 넣을 시장이 없다.)
+시각에 실행하면 판단할 데이터는 완전하지만 주문을 넣을 시장이 없다.)
 
 가상현금(engine_state.cash)은 KIS 실계좌 잔고를 조회하는 대신 이 엔진이
-자체적으로 기록하는 값이다 — KIS 잔고조회 API 연동은 이 MVP 범위 밖이라,
+자체적으로 기록하는 값이다. KIS 잔고조회 API 연동은 이 MVP 범위 밖이라,
 KISOrderExecutor로 실제 주문을 넣더라도 리스크 계산(종목당 비중, 일일
 손실한도)은 이 가상현금 기준으로 이뤄진다는 점에 주의할 것."""
 
@@ -91,7 +91,7 @@ def 전략이름(전략, *, 파는쪽: bool = False) -> str:
         from muwon.strategy.registry import get_definition
 
         return get_definition(이름).화면이름
-    except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 알림이 안 가면 안 된다
+    except Exception:  # noqa: BLE001 (이름을 못 찾는다고 알림이 안 가면 안 된다)
         return 이름
 
 
@@ -133,13 +133,13 @@ def 매도규칙(전략, 정책, 산값: float) -> list[str]:
         )
 
     # 전략 자신의 매도 신호. 설명을 만드는 쪽은 화면용이라 **굵게** 표시가
-    # 섞여 있다 — 텔레그램은 그것을 별표 그대로 보여 준다.
+    # 섞여 있다. 텔레그램은 그것을 별표 그대로 보여 준다.
     try:
         from muwon.dashboard.strategy_rules import describe
 
         파는쪽 = getattr(전략, "매도쪽", 전략)
         줄들 += [ㄱ.replace("**", "") for ㄱ in describe(파는쪽).판다]
-    except Exception as e:  # noqa: BLE001 — 설명 하나 때문에 알림이 안 가면 안 된다
+    except Exception as e:  # noqa: BLE001 (설명 하나 때문에 알림이 안 가면 안 된다)
         # 조용히 넘기지는 않는다. 매도 조건 한 줄이 빠진 알림은 "이게 전부"로
         # 읽히는데, 그 사실이 로그에도 없으면 영영 안 고쳐진다.
         logger.warning(f"매도 규칙 설명을 못 만들었습니다: {type(e).__name__}: {e}")
@@ -157,7 +157,7 @@ def 매수알림(이름: str, symbol: str, order, 사유: str, 손절비율: flo
     자리에 있어서, 훑어보는 글로는 못 쓴다.
 
     손절비율·atr손절은 정책을 통째로 못 넘기는 부르는 쪽을 위해 남겨 둔다.
-    정책을 주면 그쪽이 이긴다 — 손절 말고 다른 청산 조건까지 적을 수 있다."""
+    정책을 주면 그쪽이 이긴다. 손절 말고 다른 청산 조건까지 적을 수 있다."""
     줄 = 모양.머리("🟢", "매수체결" + (" (장중)" if 장중 else ""), 이름, symbol)
     줄 += [
         모양.수량칸(order),
@@ -218,7 +218,7 @@ def _수량글(order) -> str:
     """체결 알림의 수량 줄.
 
     **부분 체결은 사고가 아니라 흔한 일이다.** 그래서 경보를 걸지 않고
-    사실만 적는다 — 다 채워졌으면 예전처럼 한 줄이고, 남았으면 주문·체결·
+    사실만 적는다. 다 채워졌으면 예전처럼 한 줄이고, 남았으면 주문·체결·
     잔여를 나란히 보여 준다.
 
         수량: 51주
@@ -255,7 +255,7 @@ class RunSummary:
     rejections: list[str] = field(default_factory=list)
     #: 종목코드 → 안 산(또는 못 산) 이유. rejections는 사람이 읽는 한 줄이라
     #: 종목명이 앞에 붙어 있어서 짝을 지으려면 문자열을 다시 뜯어야 한다.
-    #: 알림에서 "승인했는데 왜 안 샀지"에 답하려면 이 짝이 필요하다 —
+    #: 알림에서 "승인했는데 왜 안 샀지"에 답하려면 이 짝이 필요하다.
     #: 2026-08-26에 이유가 바로 옆에 있는데도 알림이 버리고 있었다.
     거부사유: dict[str, str] = field(default_factory=dict)
 
@@ -287,17 +287,17 @@ class TradingEngine:
         self._costs = costs or TransactionCosts()
         self._initial_cash = initial_cash
         #: (종목, 값) → 미수 없이 살 수 있는 수량. 못 물어보면 -1.
-        #: 없으면 예전처럼 우리 현금 계산만으로 간다 — 백테스트와 흉내 실행은
+        #: 없으면 예전처럼 우리 현금 계산만으로 간다. 백테스트와 흉내 실행은
         #: 증권사가 없으니 물어볼 곳도 없다.
         self._orderable_provider = orderable_provider
         #: 종목코드 → 지금 값. **손절 판단에만 쓴다.**
         #:
-        #: 사는 판단은 어제까지의 완성된 일봉으로 한다 — 오늘 봉은 거래량이
+        #: 사는 판단은 어제까지의 완성된 일봉으로 한다. 오늘 봉은 거래량이
         #: 아직 다 안 쌓여서 "거래량 2배 급증" 같은 조건이 성립할 수가 없다.
         #: 그런데 손절은 다르다. 손절은 "지금 이 값에 팔아야 하나"를 묻는
         #: 것이라 어제 종가로 재면 하루 늦게 판다.
         #:
-        #: 없으면 예전처럼 어제 종가로 잰다 — 백테스트와 흉내 실행은
+        #: 없으면 예전처럼 어제 종가로 잰다. 백테스트와 흉내 실행은
         #: 증권사가 없으니 물어볼 곳도 없다.
         self._현재가공급자 = 현재가공급자
 
@@ -331,14 +331,14 @@ class TradingEngine:
             histories[ticker.symbol] = df
 
         # 손절은 지금 값으로 잰다. 못 물어보면 어제 종가로 재고, **그
-        # 사실을 회차 기록에 남긴다** — 조용히 어제 값으로 재면 왜 늦게
+        # 사실을 회차 기록에 남긴다**. 조용히 어제 값으로 재면 왜 늦게
         # 팔렸는지 나중에 알 방법이 없다.
         현재가: dict[str, float] = {}
         if self._현재가공급자 is not None:
             try:
                 현재가 = {ㄱ: float(ㄴ) for ㄱ, ㄴ in (self._현재가공급자() or {}).items() if ㄴ}
-            except Exception as e:  # noqa: BLE001 — 시세를 못 물어봐도 회차는 돌아야 한다
-                logger.warning(f"지금 값을 못 물어봤습니다. 어제 종가로 손절을 잽니다: {e}")
+            except Exception as e:  # noqa: BLE001 (시세를 못 물어봐도 회차는 돌아야 한다)
+                logger.warning(f"지금 값을 못 물어봤습니다. 어제 종가로 손절을 계산합니다: {e}")
 
         summary = RunSummary(run_date=run_date, checked_symbols=len(latest_prices))
         cash, day_start_equity = state_repository.load_engine_state(
@@ -362,7 +362,7 @@ class TradingEngine:
         )
         for signal in signals:
             latest_signals.setdefault(signal.symbol, []).append(signal)
-        # 신호는 주문이 나가든 안 나가든 남긴다 — "안 산 이유"를 나중에
+        # 신호는 주문이 나가든 안 나가든 남긴다. "안 산 이유"를 나중에
         # 되짚으려면 무엇을 봤는지가 먼저 있어야 한다.
         state_repository.record_signals(self._session_factory, signals)
 
@@ -370,7 +370,7 @@ class TradingEngine:
         #
         # **매도 스위치가 꺼져 있으면 이 구간을 통째로 건너뛴다.** 손절도
         # 익절도 보유일수 청산도 안 걸린다. 값이 반토막 나도 아무 일이
-        # 일어나지 않는다는 뜻이라, 조용히 지나가면 안 된다 —
+        # 일어나지 않는다는 뜻이라, 조용히 지나가면 안 된다.
         # 들고 있는 것이 있으면 화면과 알림에 그 사실을 남긴다.
         매도켬 = self._risk_manager.get_policy().sell_enabled
         if not 매도켬 and positions:
@@ -499,7 +499,7 @@ class TradingEngine:
             # 그 값은 부분 체결·거부·손매매로 조용히 어긋난다. 2026-08-25에
             # 294만원이 벌어진 채로 돌았다.
             #
-            # 못 물어봤을 때(-1)는 예전처럼 우리 현금으로 간다 — 조회 한 번
+            # 못 물어봤을 때(-1)는 예전처럼 우리 현금으로 간다. 조회 한 번
             # 실패한 것이 그날 매수를 통째로 막으면 안 된다.
             살수있는수량 = self._orderable(symbol, price)
             if 살수있는수량 == 0:
@@ -538,7 +538,7 @@ class TradingEngine:
                 quantity=order.quantity,
                 entry_price=order.price,
                 entry_date=trade_date,
-                entered_at=datetime.utcnow(),  # noqa: DTZ003 — 기록용, tz 무관
+                entered_at=datetime.utcnow(),  # noqa: DTZ003 (기록용, tz 무관)
                 entry_reason=buy_signal.reason,
                 strategy_key=self._strategy.name,
             )
@@ -558,7 +558,7 @@ class TradingEngine:
         final_equity = cash + sum(
             positions[s].quantity * latest_prices[s] for s in positions if s in latest_prices
         )
-        # day_start_equity는 "직전 실행 종료 시점 평가금액"이다 — 하루 한 번만
+        # day_start_equity는 "직전 실행 종료 시점 평가금액"이다. 하루 한 번만
         # 도는 엔진이라 이번 실행의 최종 평가금액이 곧 다음 실행의 기준점이 된다.
         state_repository.save_engine_state(self._session_factory, cash, final_equity)
         self._record_run(
@@ -593,7 +593,7 @@ class TradingEngine:
             return -1
         try:
             return self._orderable_provider(symbol, price)
-        except Exception:  # noqa: BLE001 — 조회 실패가 매매를 멈춰선 안 된다
+        except Exception:  # noqa: BLE001 (조회 실패가 매매를 멈춰선 안 된다)
             return -1
 
     def _notify(self, message: str) -> None:

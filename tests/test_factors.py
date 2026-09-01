@@ -1,4 +1,4 @@
-"""개별 Factor 검증 — 특히 예전 구조에서 만들 수 없던 두 개.
+"""개별 Factor 검증: 특히 예전 구조에서 만들 수 없던 두 개.
 
 상대강도와 시장국면은 '다른 종목을 봐야' 계산되므로, generate_signals(symbol, df)
 시절에는 구현 자체가 불가능했다. 그게 정말로 가능해졌는지 확인하는 게 이
@@ -41,7 +41,7 @@ def ctx_of(histories, index_history=None):
 
 
 def run_factor(factor, ctx):
-    """실제 호출 순서 그대로 — warmup(실행당 1회) → prepare(날짜별) → score.
+    """실제 호출 순서 그대로: warmup(실행당 1회) → prepare(날짜별) → score.
 
     이 순서를 지키지 않으면 지표 표가 비어 있어 전부 '데이터 부족'이 된다."""
     factor.warmup(ctx.histories)
@@ -75,7 +75,7 @@ def test_relative_strength_ranks_within_universe():
 
 
 def test_relative_strength_uses_index_when_given():
-    """지수를 주면 초과수익 기준으로 바뀐다 — 지수가 없어도 죽지 않아야 한다."""
+    """지수를 주면 초과수익 기준으로 바뀐다. 지수가 없어도 죽지 않아야 한다."""
     histories = {"A": frame([100 + i for i in range(120)])}
     index = frame([100 + i * 2 for i in range(120)])
 
@@ -143,7 +143,7 @@ def test_trend_reports_reason_in_words():
 
 
 def test_pullback_prefers_moderate_dip_over_deep_crash():
-    """많이 떨어졌다고 좋은 게 아니다 — 눌림과 추세훼손을 구분해야 한다."""
+    """많이 떨어졌다고 좋은 게 아니다. 눌림과 추세훼손을 구분해야 한다."""
     base = [100 + i for i in range(120)]  # 꾸준한 상승으로 60일선 위 확보
     moderate = frame(base + [base[-1] * 0.94])  # 고점 대비 -6%
     crash = frame(base + [base[-1] * 0.80])  # -20%
@@ -227,7 +227,7 @@ def test_momentum_weights_long_horizons_over_a_single_spike():
 def test_cross_sectional_factors_ignore_data_after_as_of():
     """상대강도·국면은 '그날 전 종목'을 보므로 미래를 볼 위험이 가장 크다.
 
-    warmup에서 전 기간 시계열을 미리 만들어 두기 때문에 더더욱 확인이 필요하다 —
+    warmup에서 전 기간 시계열을 미리 만들어 두기 때문에 더더욱 확인이 필요하다.
     rolling 값 자체는 과거만 쓰지만, 꺼내 쓰는 날짜를 잘못 잡으면 새어 든다."""
     base = {
         "A": [100 + i for i in range(150)],
@@ -319,11 +319,11 @@ def test_regime_confirmation_looks_backward_only():
 def test_market_filter_rejects_a_bounce_inside_a_downtrend():
     """하락 추세의 반등 꼭지를 강세로 부르지 않아야 한다.
 
-    반등이 크면 가격이 잠시 장기 평균선을 넘는다 — 그리고 그 자리가 정확히
+    반등이 크면 가격이 잠시 장기 평균선을 넘는다. 그리고 그 자리가 정확히
     반등 꼭지다. 그래서 '평균선 위'만으로는 부족하고, 평균선 자체가 아직
     내려가고 있다는 것까지 봐야 한다. 2022년 58종목에서 이 조건 하나가
     최악 구간을 -39.1%에서 -29.2%로 바꿨다."""
-    # 300일 하락 뒤 40일 급반등 — 반등 끝에서 가격은 200일선을 넘지만
+    # 300일 하락 뒤 40일 급반등: 반등 끝에서 가격은 200일선을 넘지만
     # 200일선 자체는 여전히 내려가는 중이다
     falling = [200.0 - i * 0.4 for i in range(300)]
     bounce = [falling[-1] + i * 2.0 for i in range(40)]
@@ -338,7 +338,7 @@ def test_market_filter_rejects_a_bounce_inside_a_downtrend():
 
 
 def test_market_filter_allows_a_real_uptrend():
-    """고치면서 필터가 전부 막아 버리면 안 된다 — 진짜 상승장은 통과해야 한다."""
+    """고치면서 필터가 전부 막아 버리면 안 된다. 진짜 상승장은 통과해야 한다."""
     rising = pd.Series([100.0 + i * 0.5 for i in range(400)]).pct_change()
 
     result = MarketRegimeFactor._market_uptrend([rising], 200, 60, rising.index)

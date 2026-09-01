@@ -3,7 +3,7 @@
 ## 왜 이걸 하나
 
 전망 기록을 오늘부터 쌓으면 **판정에 몇 달이 걸린다.** 그런데 과거
-날짜에 대해서는 답을 이미 알고 있다 — 그날 전망을 내고, 그 뒤 20일에
+날짜에 대해서는 답을 이미 알고 있다. 그날 전망을 내고, 그 뒤 20일에
 실제로 무슨 일이 있었는지 보면 된다.
 
 **이건 반칙이 아니다.** 전망을 낼 때 그날 이후 데이터를 안 쓰기 때문이다.
@@ -94,7 +94,7 @@ def main() -> int:
                     df = cache.fetch(source, 심볼, 심볼, 시작, 오늘)
                 except (requests.RequestException, ValueError, KeyError):
                     continue
-                가격표[f"{sector.이름} — {이름}"] = df.set_index("trade_date")["close"].astype(float)
+                가격표[f"{sector.이름}: {이름}"] = df.set_index("trade_date")["close"].astype(float)
             continue
         모음 = {}
         for m in sector.활성종목:
@@ -116,12 +116,12 @@ def main() -> int:
     # ── 전망을 낼 날짜들 ─────────────────────────────────────────
     #
     # 마지막 지평만큼은 결과를 모르므로 뺀다. 그리고 --every로 띄엄띄엄
-    # 고른다 — 이웃한 날들은 상태가 거의 같아서 표본만 부풀린다.
+    # 고른다. 이웃한 날들은 상태가 거의 같아서 표본만 부풀린다.
     쓸수있는날 = [d for d in 상태.index if d.year >= args.from_year]
     낼날들 = 쓸수있는날[: -args.horizon or None][:: args.every]
-    emit(f"■ 되돌려 검증 — {len(낼날들)}개 날짜 × 대상 {len(고른대상)}개")
+    emit(f"■ 되돌려 검증: {len(낼날들)}개 날짜 × 대상 {len(고른대상)}개")
     emit(f"  {낼날들[0]} ~ {낼날들[-1]} · {args.every}일 간격 · 지평 {args.horizon}일 · 렌즈 {args.lens}")
-    emit("  전망을 낼 때 그날 이후 데이터는 쓰지 않습니다 — 미래를 모르는 척 검증입니다.")
+    emit("  전망을 낼 때 그날 이후 데이터는 쓰지 않습니다. 미래를 모르는 척 검증입니다.")
     emit()
 
     줄들 = []
@@ -174,7 +174,7 @@ def main() -> int:
 
     emit()
     emit("※ 적중률이 '기준선'보다 낮으면 그 대상의 전망은 버립니다.")
-    emit("※ 꼬리 비율이 20%를 넘으면 '아주 나빴을 때' 칸이 위험을 낮잡고 있는 것입니다 —")
+    emit("※ 꼬리 비율이 20%를 넘으면 '아주 나빴을 때' 칸이 위험을 낮잡고 있는 것입니다.")
     emit("   그 칸을 믿고 비중을 키우면 다칩니다.")
 
     if args.out:

@@ -1,6 +1,6 @@
 """점수 합산 엔진 검증.
 
-이 방식의 전제는 딱 두 가지다 — (1) 모든 Factor가 0~100이라는 것,
+이 방식의 전제는 딱 두 가지다. (1) 모든 Factor가 0~100이라는 것,
 (2) 꺼지거나 평가 못 한 Factor의 가중치가 나머지로 재분배된다는 것.
 이 둘이 깨지면 가중치도 매수 기준선(75점)도 의미를 잃는다."""
 
@@ -33,7 +33,7 @@ def frame(closes, volumes=None, start=date(2024, 1, 2)):
 
 
 class StubFactor(Factor):
-    """지정한 점수를 그대로 돌려주는 Factor — 합산 로직만 떼어 검증한다."""
+    """지정한 점수를 그대로 돌려주는 Factor: 합산 로직만 떼어 검증한다."""
 
     def __init__(self, key, scores):
         super().__init__({})
@@ -91,7 +91,7 @@ def test_unavailable_factor_does_not_drag_score_down():
 
 
 def test_all_factors_unavailable_yields_no_result():
-    """판단 근거가 하나도 없으면 아무 판정도 내리지 않는다 — 0점으로 팔면 안 된다."""
+    """판단 근거가 하나도 없으면 아무 판정도 내리지 않는다. 0점으로 팔면 안 된다."""
     config = StrategyConfig(factors={"trend": FactorConfig(enabled=True, weight=100)})
     engine = ScoreEngine(config, factors=[StubFactor("trend", {"A": None})])
 
@@ -171,7 +171,7 @@ def test_bear_regime_makes_buying_unreachable_by_default():
 
 
 def test_regime_classification_from_breadth():
-    """국면은 우리 유니버스의 Breadth로 판정한다 — 지수 데이터가 없어도 돌아야 한다."""
+    """국면은 우리 유니버스의 Breadth로 판정한다. 지수 데이터가 없어도 돌아야 한다."""
     rising = [100.0 + i for i in range(80)]
     falling = [180.0 - i for i in range(80)]
     as_of = frame(rising)["trade_date"].iloc[-1]
@@ -197,7 +197,7 @@ def test_percentile_gives_equal_values_equal_scores():
 
 
 def test_piecewise_can_penalise_extremes():
-    """'많이 떨어질수록 좋다'가 아니어야 한다 — 눌림과 추세훼손은 다르다."""
+    """'많이 떨어질수록 좋다'가 아니어야 한다. 눌림과 추세훼손은 다르다."""
     curve = [(-12.0, 10.0), (-6.0, 100.0), (0.0, 10.0)]
 
     assert piecewise(-6.0, curve) == 100.0
@@ -249,7 +249,7 @@ def test_strategy_emits_buy_only_above_threshold():
 
 def test_strategy_sells_held_symbol_when_score_collapses():
     """살 이유가 사라졌으면 들고 있을 이유도 없다(Score Exit).
-    단, 보유 중인 종목에만 해당한다 — 안 들고 있는 종목을 팔 수는 없다."""
+    단, 보유 중인 종목에만 해당한다. 안 들고 있는 종목을 팔 수는 없다."""
     strategy = FactorScoreStrategy(
         StrategyConfig(
             sell_threshold=45,
@@ -275,7 +275,7 @@ def test_strategy_sells_held_symbol_when_score_collapses():
 
 
 def test_strategy_config_round_trips_through_settings_store():
-    """가중치를 바꾸면 다음 실행부터 반영돼야 한다 — 저장이 실제로 되는지."""
+    """가중치를 바꾸면 다음 실행부터 반영돼야 한다. 저장이 실제로 되는지."""
     from muwon.db.session import make_session_factory
     from muwon.settings.service import SettingsService
     from muwon.settings.store import SettingsStore
@@ -297,7 +297,7 @@ def test_strategy_config_round_trips_through_settings_store():
 
 
 class FixedRegimeFactor(MarketRegimeFactor):
-    """국면을 고정해 두는 Factor — 판정 사다리만 떼어서 보기 위한 것."""
+    """국면을 고정해 두는 Factor: 판정 사다리만 떼어서 보기 위한 것."""
 
     def __init__(self, regime, score=None):
         # Factor.__init__이 곧바로 warmup()을 부르므로 먼저 채워 둔다
@@ -330,7 +330,7 @@ def test_strong_buy_cannot_bypass_a_raised_regime_threshold():
         },
         regime_buy_threshold={"BEAR": 90.0},
     )
-    # 국면 가중치를 1로 낮춰 총점 87을 만들 수 있게 한다 — 기본 가중치(15)에서는
+    # 국면 가중치를 1로 낮춰 총점 87을 만들 수 있게 한다. 기본 가중치(15)에서는
     # BEAR 천장이 88이라 87을 만들 수는 있어도 여유가 거의 없다
     engine = ScoreEngine(
         config,
@@ -345,7 +345,7 @@ def test_strong_buy_cannot_bypass_a_raised_regime_threshold():
 
 
 def test_strong_buy_still_works_when_the_regime_threshold_is_lower():
-    """반대로 강세장에서는 STRONG_BUY가 원래대로 붙어야 한다 — 고치면서
+    """반대로 강세장에서는 STRONG_BUY가 원래대로 붙어야 한다. 고치면서
     STRONG_BUY 자체를 없애 버리면 안 된다."""
     config = StrategyConfig(
         buy_threshold=75,

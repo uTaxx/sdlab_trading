@@ -77,10 +77,11 @@ from muwon.notify.telegram_buttons import 전략버튼, 전략상태블록, 전�
 from muwon.settings.from_sheet import build_policy_provider
 from muwon.settings.service import build_settings_service
 from muwon.strategy.registry import build_strategy, get_definition, list_definitions
+from muwon.text import 이가
 
 서울 = ZoneInfo("Asia/Seoul")
 
-#: 매일 재는 구간. `period_check.기간표`의 이름을 그대로 쓴다 — 이름이 갈리면
+#: 매일 재는 구간. `period_check.기간표`의 이름을 그대로 쓴다. 이름이 갈리면
 #: 같은 구간이 화면마다 다르게 불린다.
 볼구간 = ("1주", "1개월", "3개월")
 
@@ -103,7 +104,7 @@ from muwon.strategy.registry import build_strategy, get_definition, list_definit
 def 전략이름(키: str) -> str:
     try:
         return get_definition(키).화면이름
-    except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 검토가 죽으면 안 된다
+    except Exception:  # noqa: BLE001 (이름을 못 찾는다고 검토가 죽으면 안 된다)
         return 키
 
 
@@ -136,7 +137,7 @@ def 대상종목(sheet_id: str):
 
 
 def 구간순위내기(정의, histories, 끝, 정책, 지금키: str) -> tuple[구간순위, list[str]]:
-    """한 구간에 등록된 전략을 전부 계산한다. (순위, 못 돌린 것).
+    """한 구간에 등록된 전략을 전부 계산한다. (순위, 못 실행한 것).
 
     **하나가 터져도 나머지는 봐야 한다.** 전략 하나의 파라미터가 이상해서
     전체 검토가 멈추면, 그날은 아무 숫자도 안 남는다."""
@@ -169,7 +170,7 @@ def 뒤재기만들기(histories, 정책):
         정의 = 기간정의(
             이름=f"{일수}일 뒤",
             달수=0,
-            쪼갬="주",
+            나눔="주",
             설명="그림자 추적용 구간입니다. 화면에서 고를 수 있는 구간이 아닙니다",
             날수=일수,
         )
@@ -218,8 +219,12 @@ def 막는까닭(session, 오늘, 최소운용일: int) -> str:
     앞 = 승인.지금예약(session)
     if 앞 is not None:
         상태말 = "확정되어 반영을 기다리는" if 앞.상태 == 승인.확정 else "선택된"
+        # 조사를 글자로 박으면 안 된다. 전략 이름이 설정에서 오므로 무엇이
+        # 올지 모른다. 2026-09-01 17:50 첫 자동 실행에서 "변동성 돌파이 이미
+        # 확정되어"가 네 번 나갔다.
+        이름 = 전략이름(앞.새전략)
         return (
-            f"{전략이름(앞.새전략)}이 이미 {상태말} 상태입니다. "
+            f"{이름}{이가(이름)} 이미 {상태말} 상태입니다. "
             "먼저 반영하거나 취소한 뒤에 다시 검토합니다."
         )
     return ""
@@ -407,7 +412,7 @@ def main() -> int:
             센것, 못센것 = 그림자.재기(
                 session, 잴것, 뒤재기만들기(histories, 정책), 끝
             )
-            비교들 = 그림자.견주기(그림자.잰줄들(session))
+            비교들 = 그림자.비교하기(그림자.잰줄들(session))
             요약 = 그림자.모아보기(비교들)
             추적글 = 그림자.학습글(요약, 인자.추적일수)
             올릴추적 = [추적시트줄(ㅈ) for ㅈ in 잴것]
@@ -419,7 +424,7 @@ def main() -> int:
                   f"{인자.추적일수}일 지난 것 {센것}줄 계산"
                   f"(계산 못 한 것 {못센것}줄)")
             print(f"■ {추적글}\n")
-        except Exception as 탈:  # noqa: BLE001 — 추적이 터져도 오늘 검토는 나가야 한다
+        except Exception as 탈:  # noqa: BLE001 (추적이 터져도 오늘 검토는 나가야 한다)
             session.rollback()
             print(f"그림자 추적 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
@@ -441,7 +446,7 @@ def main() -> int:
             if 올릴추적:
                 올린수 = append(sheet_id, 추적탭, 추적머리, 올릴추적)
                 print(f"시트 '{추적탭}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
-        except Exception as 탈:  # noqa: BLE001 — 시트가 막혀도 알림은 가야 한다
+        except Exception as 탈:  # noqa: BLE001 (시트가 막혀도 알림은 가야 한다)
             print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
 
     cfg = service.get_telegram_config()
@@ -474,6 +479,6 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except SystemExit:
         raise
-    except Exception:  # noqa: BLE001 — 무엇이 터지든 로그에 남아야 한다
+    except Exception:  # noqa: BLE001 (무엇이 터지든 로그에 남아야 한다)
         traceback.print_exc()
         raise SystemExit(1) from None

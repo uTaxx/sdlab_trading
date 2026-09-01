@@ -1,7 +1,7 @@
 """**시트에서 승인된 것만 산다.** 승인 스텝의 마지막 칸이다.
 
     08:30  매수 후보 제안  →  텔레그램 버튼  →  시트에 Y
-    09:05  여기 — Y가 적힌 것만 매수
+    09:05  여기: Y가 적힌 것만 매수
 
 ## 왜 따로 만드나
 
@@ -84,12 +84,12 @@ def main() -> int:
     # ── 흉내만 낼 때는 사본에 쓴다 ───────────────────────────────
     #
     # 엔진은 dry-run인지 모른다. 주문을 흉내로 내든 진짜로 내든 결과를
-    # 똑같이 저장한다. 그래서 **쓸 곳 자체를 바꾼다** — 사본을 보게 하면
+    # 똑같이 저장한다. 그래서 **쓸 곳 자체를 바꾼다**. 사본을 보게 하면
     # 무엇을 쓰든 운영 DB에는 닿지 않는다(muwon/db/scratch.py에 경위).
     쓸곳 = bootstrap_settings.database_url
     if args.dry_run:
         쓸곳 = 사본으로(쓸곳)
-        print(f"■ --dry-run — 운영 DB 사본에 씁니다. 원본은 안 건드립니다.\n  {쓸곳}")
+        print(f"■ --dry-run: 운영 DB 사본에 씁니다. 원본은 안 건드립니다.\n  {쓸곳}")
     session_factory = make_session_factory(쓸곳)
 
     # ── 킬스위치가 먼저다 ────────────────────────────────────────
@@ -106,15 +106,15 @@ def main() -> int:
     거절한것 = [c for c in 후보 if 결정.get(c.symbol) == "N"]
     무응답 = [c for c in 후보 if c.symbol not in 결정]
 
-    print(f"■ {오늘} 승인 현황 — 후보 {len(후보)}종목")
-    print(f"  ✅ 승인   {len(승인된것)}종목" + (f" — {', '.join(c.name for c in 승인된것)}" if 승인된것 else ""))
-    print(f"  ❌ 거절   {len(거절한것)}종목" + (f" — {', '.join(c.name for c in 거절한것)}" if 거절한것 else ""))
-    print(f"  ⬜ 무응답 {len(무응답)}종목" + (f" — {', '.join(c.name for c in 무응답)}" if 무응답 else ""))
+    print(f"■ {오늘} 승인 현황: 후보 {len(후보)}종목")
+    print(f"  ✅ 승인   {len(승인된것)}종목" + (f": {', '.join(c.name for c in 승인된것)}" if 승인된것 else ""))
+    print(f"  ❌ 거절   {len(거절한것)}종목" + (f": {', '.join(c.name for c in 거절한것)}" if 거절한것 else ""))
+    print(f"  ⬜ 무응답 {len(무응답)}종목" + (f": {', '.join(c.name for c in 무응답)}" if 무응답 else ""))
     print()
 
     if not 설정.승인필요:
         print("⚠️ 시트의 require_approval이 꺼져 있습니다. 그래도 **이 스크립트는")
-        print("   승인된 것만 삽니다** — 승인 없이 사려면 run_paper_trading.py를 쓰세요.")
+        print("   승인된 것만 삽니다**. 승인 없이 사려면 run_paper_trading.py를 쓰세요.")
         print()
 
     with session_factory() as session:
@@ -128,7 +128,7 @@ def main() -> int:
 
     # ── 사기 전에 실제 계좌와 대조한다 ───────────────────────────
     #
-    # 이 프로그램의 현금은 스스로 계산해 온 값이다 — 매수하면 빼고 매도하면
+    # 이 프로그램의 현금은 스스로 계산해 온 값이다. 매수하면 빼고 매도하면
     # 더한다. 우리를 거치지 않은 주문(손매매·검증 스크립트)이나 부분 체결이
     # 있으면 그 계산이 조용히 어긋난다. 비중 상한·일일 손실한도가 전부 이
     # 현금값 위에서 도니까, 틀어진 걸 모르고 매매하는 게 제일 나쁘다.
@@ -155,8 +155,8 @@ def main() -> int:
         보고 = check_account_consistency(client, session_factory)
         if 보고 is not None and not 보고.is_consistent:
             try:
-                notifier.send("🔍 계좌 대조 — 어긋남\n" + "\n".join(보고.summary_lines()))
-            except Exception as e:  # noqa: BLE001 — 알림 실패가 매매를 막으면 안 된다
+                notifier.send("🔍 계좌 대조: 어긋남\n" + "\n".join(보고.summary_lines()))
+            except Exception as e:  # noqa: BLE001 (알림 실패가 매매를 막으면 안 된다)
                 print(f"대조 알림 전송 실패: {type(e).__name__}: {e}", file=sys.stderr)
         print()
 
@@ -168,7 +168,7 @@ def main() -> int:
         {c.symbol: c.name for c in 후보},
     )
 
-    print(f"■ 살펴볼 종목 {len(universe)}개 — 승인 {len(승인된것)} + 보유 {len(보유)}")
+    print(f"■ 살펴볼 종목 {len(universe)}개: 승인 {len(승인된것)} + 보유 {len(보유)}")
     print("  (매도 판단은 승인과 무관하게 보유 종목 전부에 걸립니다)")
     if 가정한것:
         # 코스닥인데 코스피로 가정하면 시세가 통째로 비고, 그 종목은
@@ -195,8 +195,8 @@ def main() -> int:
         source_symbol = lambda t: t.yahoo_symbol
         # 흉내 실행에는 증권사가 없어서 지금 값을 물어볼 곳도 없다.
         지금값 = None
-        print("■ --dry-run — 야후 시세로 주문 흉내만 냅니다. KIS에 안 붙습니다.")
-        print("■ 손절은 어제 종가로 잽니다 (지금 값을 물어볼 곳이 없습니다).")
+        print("■ --dry-run: 야후 시세로 주문 흉내만 냅니다. KIS에 안 붙습니다.")
+        print("■ 손절은 어제 종가로 계산합니다 (지금 값을 물어볼 곳이 없습니다).")
     else:
         from muwon.execution.kis_order_executor import KISOrderExecutor
 
@@ -205,16 +205,16 @@ def main() -> int:
         source_symbol = lambda t: t.symbol
         # 우리 기준은 "얼마나 사고 싶은가"를, 증권사는 "얼마나 살 수 있는가"를
         # 정한다. 우리가 스스로 센 현금은 부분 체결·거부·손매매로 조용히
-        # 어긋난다 — 2026-08-25에 294만원이 벌어진 채로 돌았다.
+        # 어긋난다. 2026-08-25에 294만원이 벌어진 채로 돌았다.
         살수있는수량 = client.get_orderable
-        print("■ 매수 수량은 증권사의 매수가능수량과 견줘 작은 쪽으로 갑니다.")
+        print("■ 매수 수량은 증권사의 매수가능수량과 비교해 작은 쪽으로 갑니다.")
 
         # 손절은 지금 값으로 잰다. 잔고조회 한 번이면 들고 있는 종목의
         # 현재가가 다 온다(prpr). 어제 종가로 재면 하루 늦게 판다.
         def 지금값():
             return {h.symbol: h.current_price for h in client.get_balance().holdings}
 
-        print("■ 손절은 어제 종가가 아니라 지금 값으로 잽니다.")
+        print("■ 손절은 어제 종가가 아니라 지금 값으로 계산합니다.")
 
     engine = TradingEngine(
         strategy=strategy,
@@ -231,7 +231,7 @@ def main() -> int:
     summary = engine.run_once()
 
     # 날짜가 둘 나온다. 위의 "승인 현황"은 **오늘**이고 여기는 **판단의 근거가
-    # 된 날**이다 — 엔진은 마지막으로 완성된 일봉만 쓴다(오늘 봉은 장이 안
+    # 된 날**이다. 엔진은 마지막으로 완성된 일봉만 쓴다(오늘 봉은 장이 안
     # 끝나 종가도 거래량도 확정이 아니다). 이름표가 없으면 같은 것의 오타로
     # 읽힌다.
     print(f"\n=== 승인 매매 결과 (판단 근거: {summary.run_date} 종가) ===")
@@ -242,13 +242,13 @@ def main() -> int:
     for a in summary.actions:
         쪽 = "매수" if a.side.value == "buy" else "매도"
         (산것 if a.side.value == "buy" else 판것).append(a)
-        print(f"{쪽}: {a.name}({a.symbol}) {a.quantity}주 @ {a.price:,.0f}원 — {a.reason}")
+        print(f"{쪽}: {a.name}({a.symbol}) {a.quantity}주 @ {a.price:,.0f}원: {a.reason}")
     if summary.rejections:
         print("\n리스크 매니저 거부:")
         for r in summary.rejections:
             print(f"  - {r}")
 
-    # 승인했는데 안 샀으면 그 이유를 알려 줘야 한다 — 안 그러면
+    # 승인했는데 안 샀으면 그 이유를 알려 줘야 한다. 안 그러면
     # "승인했는데 왜 안 샀지"가 남는다.
     산심볼 = {a.symbol for a in 산것}
     안산것 = [c for c in 승인된것 if c.symbol not in 산심볼]
@@ -268,7 +268,7 @@ def main() -> int:
                 거부사유=summary.거부사유,
             )
         )
-    except Exception as e:  # noqa: BLE001 — 알림 실패가 매매 결과를 지우면 안 된다
+    except Exception as e:  # noqa: BLE001 (알림 실패가 매매 결과를 지우면 안 된다)
         print(f"\n텔레그램 전송 실패: {type(e).__name__}: {e}", file=sys.stderr)
     return 0
 
@@ -295,7 +295,7 @@ def _알림글(날짜, 승인된것, 산것, 판것, 안산것, 켜짐, 거부�
     당연한 물음이다. 안 샀다는 사실만 있고 **이유가 없고**, 주문을 내고
     기다리는 중인지 아예 안 낸 것인지도 없다.
 
-    이유는 바로 옆에 있었다 — 엔진이 `summary.거부사유`에 종목별로 적어
+    이유는 바로 옆에 있었다. 엔진이 `summary.거부사유`에 종목별로 적어
     두는데 알림이 그걸 버리고 이름만 옮겨 적고 있었다."""
     거부사유 = 거부사유 or {}
     줄 = [f"🧾 {_날짜글(날짜)} 오전 9시 5분 매수 시도 결과", ""]

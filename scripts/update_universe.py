@@ -5,7 +5,7 @@ data/universe.py의 기본 목록은 사람이 골라 고정해 둔 18종목이�
 돌려 갱신하면, 매매 스크립트가 자동으로 최신 스냅샷을 쓴다.
 
 덮어쓰지 않고 스냅샷으로 쌓기 때문에, 종목이 언제 어떻게 바뀌었는지
-남는다 — 성과 변화가 전략 탓인지 종목 교체 탓인지 구분하려면 필요하다.
+남는다. 성과 변화가 전략 탓인지 종목 교체 탓인지 구분하려면 필요하다.
 
 주의: KIS의 순위 조회 API는 모의투자를 지원하지 않을 수 있다. 거부되면
 사유를 그대로 출력하고 종료하며, 기존 유니버스는 그대로 유지된다.
@@ -52,7 +52,7 @@ def main() -> None:
         "--kosdaq-ratio",
         type=float,
         default=0.3,
-        help="코스닥에 할당할 비율 (기본 0.3 — 시총만으로 뽑으면 코스닥이 0종목이 된다)",
+        help="코스닥에 할당할 비율 (기본 0.3: 시총만으로 뽑으면 코스닥이 0종목이 된다)",
     )
     parser.add_argument("--apply", action="store_true", help="실제로 저장한다(없으면 미리보기만)")
     parser.add_argument("--notify", action="store_true", help="변경 내역을 텔레그램으로 발송")
@@ -66,7 +66,7 @@ def main() -> None:
         "--min-price",
         type=int,
         default=1000,
-        help="volume 종류일 때 제외할 최저 가격 (기본 1000원 — 저가주는 호가 단위가 커서 "
+        help="volume 종류일 때 제외할 최저 가격 (기본 1000원: 저가주는 호가 단위가 커서 "
         "종가 체결 가정이 실제와 벌어진다)",
     )
     args = parser.parse_args()
@@ -95,12 +95,12 @@ def main() -> None:
     except RuntimeError as e:
         raise SystemExit(
             f"❌ 유니버스 갱신 실패: {e}\n"
-            "모의투자 키로는 순위 조회가 막혀 있을 수 있습니다 — 그 경우 기존 "
+            "모의투자 키로는 순위 조회가 막혀 있을 수 있습니다. 그 경우 기존 "
             "종목 목록이 그대로 유지되므로 매매에는 영향이 없습니다."
         ) from e
 
     if not new_universe:
-        raise SystemExit("❌ 조건에 맞는 종목이 하나도 없습니다 — 갱신을 중단합니다.")
+        raise SystemExit("❌ 조건에 맞는 종목이 하나도 없습니다. 갱신을 중단합니다.")
 
     current = active_universe(session_factory, list(UNIVERSE), kind=args.kind)
     added, removed = diff_universe(current, new_universe)
@@ -114,18 +114,18 @@ def main() -> None:
     print(f"제외 {len(removed)}종목: {', '.join(removed) if removed else '없음'}")
 
     if not args.apply:
-        print("\n미리보기 모드입니다 — 저장하려면 --apply 를 붙이세요.")
+        print("\n미리보기 모드입니다. 저장하려면 --apply 를 붙이세요.")
         return
 
     save_snapshot(session_factory, new_universe, metrics, kind=args.kind)
     if args.kind == KIND_VOLUME:
         print(
-            f"\n✅ 저장 완료 — 실험용 목록 {len(new_universe)}종목입니다. "
+            f"\n✅ 저장 완료: 실험용 목록 {len(new_universe)}종목입니다. "
             "실거래 대상은 바뀌지 않습니다(실거래는 market_cap 목록만 읽습니다)."
         )
     else:
         print(
-            f"\n✅ 저장 완료 — 다음 매매 실행부터 이 {len(new_universe)}종목을 대상으로 합니다."
+            f"\n✅ 저장 완료: 다음 매매 실행부터 이 {len(new_universe)}종목을 대상으로 합니다."
         )
 
     if args.notify and (added or removed):

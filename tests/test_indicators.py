@@ -35,7 +35,7 @@ def test_custom_windows_change_column_values():
 def test_adx_on_a_freshly_listed_stock_returns_blanks_not_a_crash():
     """상장한 지 얼마 안 된 종목은 봉이 몇 개 없다.
 
-    ta 라이브러리는 그럴 때 IndexError로 터진다 — 60종목 5년 비교에서
+    ta 라이브러리는 그럴 때 IndexError로 터진다. 60종목 5년 비교에서
     봉 11개짜리 종목 하나 때문에 실험 전체가 죽었다. 지표를 못 구하는 건
     정상 상황이므로 빈 값이어야 한다."""
     import pandas as pd
@@ -61,7 +61,7 @@ def test_adx_on_a_freshly_listed_stock_returns_blanks_not_a_crash():
 def test_adx_never_crashes_at_any_length(window):
     """필요한 최소 봉 수를 손으로 어림하지 않는다.
 
-    처음엔 window개면 된다고 보고 막았는데 같은 자리에서 또 터졌다 —
+    처음엔 window개면 된다고 보고 막았는데 같은 자리에서 또 터졌다.
     실제로는 2*window가 필요하다(ta가 window로 한 번 줄인 결과에 다시
     window 번째 칸을 쓴다). 길이를 하나씩 다 밟아 확인한다."""
     import pandas as pd

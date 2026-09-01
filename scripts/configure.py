@@ -1,4 +1,4 @@
-"""임시 설정 CLI — 대시보드(Phase 2+)가 만들어지기 전까지 KIS/텔레그램/
+"""임시 설정 CLI: 대시보드(Phase 2+)가 만들어지기 전까지 KIS/텔레그램/
 리스크 설정을 DB(app_settings 테이블)에 채워 넣는 도구.
 
 대시보드가 생기면 이 CLI가 호출하는 것과 동일한 SettingsService를 그대로
@@ -112,7 +112,7 @@ def main() -> None:
         if args.list:
             for d in list_definitions():
                 marker = " [현재 활성]" if d.key == service.get_strategy_selection().active_key else ""
-                print(f"{d.key} ({d.status}){marker}: {d.화면이름} — {d.description}")
+                print(f"{d.key} ({d.status}){marker}: {d.화면이름}: {d.description}")
         else:
             get_definition(args.active_key)  # 등록 안 된 키면 여기서 바로 에러
             service.set_strategy_selection(StrategySelection(active_key=args.active_key))

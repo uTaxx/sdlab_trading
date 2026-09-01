@@ -32,7 +32,7 @@ def make_signal(
     reason: str,
     score: float = 0.0,
 ) -> Signal:
-    """score는 '이 신호가 얼마나 강한가'다 — 클수록 강하다.
+    """score는 '이 신호가 얼마나 강한가'다. 클수록 강하다.
 
     같은 날 매수 신호가 살 수 있는 자리보다 많이 뜨면 엔진이 이 값으로
     줄을 세워 상위만 산다. 종목 수를 18개에서 60개로 늘리면서 필요해졌다:
@@ -61,7 +61,7 @@ def volume_ratio(row: pd.Series) -> float:
 
 
 def pct_above(value: float, reference: float) -> float:
-    """기준선을 몇 % 넘어섰는지 — 돌파 폭이 클수록 강한 신호로 본다."""
+    """기준선을 몇 % 넘어섰는지. 돌파 폭이 클수록 강한 신호로 본다."""
     if pd.isna(value) or pd.isna(reference) or reference <= 0:
         return 0.0
     return float((value / reference - 1) * 100)

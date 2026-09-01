@@ -1,4 +1,4 @@
-# 설정 아키텍처 — 대시보드에서 값을 바꿀 수 있게 하는 구조
+# 설정 아키텍처: 대시보드에서 값을 바꿀 수 있게 하는 구조
 
 ## 왜 `.env` 하나로 안 끝내는가
 
@@ -9,14 +9,14 @@
 
 ## 두 계층
 
-1. **부트스트랩 설정** (`.env`, `src/muwon/config.py`의 `BootstrapSettings`)
-   — DB에 연결하기 위해 최소한으로 필요한 값만: `DATABASE_URL`,
+1. **부트스트랩 설정** (`.env`, `src/muwon/config.py`의 `BootstrapSettings`).
+   DB에 연결하기 위해 최소한으로 필요한 값만 담습니다. `DATABASE_URL`과
    `MUWON_MASTER_KEY`(비밀값 암호화 키). 이 두 값은 DB 자체에 저장할 수
    없으므로 (닭이 먼저냐 달걀이 먼저냐 문제) `.env`에 남는다.
 
-2. **런타임 설정** (DB `app_settings` 테이블, `src/muwon/settings/`)
-   — KIS 인증정보, 텔레그램 봇 토큰, 리스크 정책. `SettingsService`
-   (`src/muwon/settings/service.py`)가 유일한 접근 창구다.
+2. **런타임 설정** (DB `app_settings` 테이블, `src/muwon/settings/`).
+   KIS 인증정보, 텔레그램 봇 토큰, 리스크 정책이 여기 있습니다.
+   `SettingsService`(`src/muwon/settings/service.py`)가 유일한 접근 지점입니다.
 
 ```
 .env (DATABASE_URL, MUWON_MASTER_KEY)
@@ -45,7 +45,7 @@ SettingsService (타입 안전한 get/set: 리스크정책 / KIS인증정보 / �
 
 `kis.app_key`, `kis.app_secret`, `kis.account_no`, `telegram.bot_token`은
 `MUWON_MASTER_KEY`(Fernet 대칭키)로 암호화되어 DB에 저장된다. 이 키가 없으면
-비밀값을 저장하거나 읽을 수 없다 — 실수로 평문 저장되는 걸 막기 위한
+비밀값을 저장하거나 읽을 수 없다. 실수로 평문 저장되는 걸 막기 위한
 안전장치다. 리스크 정책 같은 비민감 값은 암호화하지 않는다.
 
 ## 값 넣는 법

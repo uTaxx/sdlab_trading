@@ -1,6 +1,6 @@
 """RealtimeTradingEngine을 '봉 하나당 틱 하나'로 흘려보내며 검증한다.
 기존 일봉 합성 시나리오(tests/price_series.py)의 종가·거래량 시퀀스를
-그대로 재사용한다 — MovingAverageRsiStrategy는 close/volume만 보고
+그대로 재사용한다. MovingAverageRsiStrategy는 close/volume만 보고
 open/high/low는 안 보므로, 봉 하나에 틱 하나씩만 흘려도 동일한 신호가
 나온다."""
 
@@ -79,7 +79,7 @@ def test_breakout_bar_sequence_triggers_buy_and_notifies():
 
 
 def test_dead_cross_bar_sells_existing_position():
-    """진입→보유→청산이 하나로 이어진 fixture를 그대로 흘려보낸다 —
+    """진입→보유→청산이 하나로 이어진 fixture를 그대로 흘려보낸다.
     일봉 엔진 테스트(test_execution_engine.py)와 같은 시나리오를 봉 단위
     틱 스트림으로 재현."""
     engine, session_factory, notifier = make_engine()

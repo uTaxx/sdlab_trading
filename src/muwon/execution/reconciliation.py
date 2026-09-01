@@ -1,12 +1,12 @@
 """우리 DB가 기록해 온 상태와 증권사 계좌의 실제 잔고를 대조한다.
 
-이 프로그램은 현금을 스스로 계산해 왔다(engine_state.cash) — 매수하면 빼고
+이 프로그램은 현금을 스스로 계산해 왔다(engine_state.cash): 매수하면 빼고
 매도하면 더하는 식이다. 그런데 주문이 일부만 체결되거나 거부되면 그 계산이
 실제 계좌와 조용히 어긋나고, 대조할 기준이 없으면 어긋난 채로 계속 매매하게
 된다. 비중 계산·일일 손실한도가 전부 이 현금값에 기대고 있어서, 틀어지면
 리스크 관리 자체가 헛돌게 된다.
 
-여기서는 "무엇이 얼마나 다른지"만 계산하고 고치지는 않는다 — 어긋난 원인이
+여기서는 "무엇이 얼마나 다른지"만 계산하고 고치지는 않는다. 어긋난 원인이
 부분 체결일 수도, 수동 매매일 수도, 우리 버그일 수도 있어서 자동으로
 덮어쓰면 그것대로 사고를 부른다. 알리고 사람이 판단하게 한다."""
 
@@ -20,7 +20,7 @@ from muwon.db.models import PositionRow
 from muwon.domain.types import AccountBalance
 from muwon.execution import state_repository
 
-# 이보다 작은 현금 차이는 보고하지 않는다 — 수수료·세금 반올림 등으로 몇 원
+# 이보다 작은 현금 차이는 보고하지 않는다. 수수료·세금 반올림 등으로 몇 원
 # 단위 오차는 늘 생기는데, 그걸 매번 경고하면 진짜 문제가 묻힌다.
 CASH_TOLERANCE_KRW = 1_000.0
 
@@ -61,7 +61,7 @@ class ReconciliationReport:
         return self.cash_matches and not self.quantity_mismatches
 
     def summary_lines(self) -> list[str]:
-        """사람이 읽을 요약 — 텔레그램 알림과 콘솔 출력이 같이 쓴다."""
+        """사람이 읽을 요약: 텔레그램 알림과 콘솔 출력이 같이 쓴다."""
         lines = []
         if self.is_consistent:
             lines.append("✅ DB 기록과 실제 계좌가 일치합니다.")
@@ -119,12 +119,12 @@ def reconcile(
 def check_account_consistency(client, session_factory, initial_cash: float = 10_000_000.0):
     """실제 계좌를 조회해 DB 상태와 대조한 보고서를 돌려준다(콘솔에도 출력).
 
-    잔고 조회가 실패하면 None을 돌려주고 넘어간다 — 대조는 어디까지나
+    잔고 조회가 실패하면 None을 돌려주고 넘어간다. 대조는 어디까지나
     점검이라, 여기서 예외를 올려 그날 매매를 통째로 막는 건 과하다."""
     try:
         balance = client.get_balance()
-    except Exception as e:  # noqa: BLE001 — 점검 실패가 매매를 막아선 안 된다
-        logger.warning(f"계좌 잔고 조회 실패 — 대조를 건너뜁니다: {e}")
+    except Exception as e:  # noqa: BLE001 (점검 실패가 매매를 막아선 안 된다)
+        logger.warning(f"계좌 잔고 조회에 실패해 대조를 건너뜁니다: {e}")
         return None
 
     db_positions = state_repository.load_positions(session_factory)

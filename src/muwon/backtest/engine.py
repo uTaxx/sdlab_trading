@@ -120,7 +120,7 @@ class BacktestEngine:
         # 실거래 엔진은 어제까지의 완성된 일봉으로 판단하고 개장 직후에
         # 시장가 주문을 낸다. 즉 **실거래는 이미 이렇게 하고 있다.** 기본값
         # (False)은 신호 난 그날 종가에 사는데, 그건 실거래가 하는 일이
-        # 아니다 — 지금까지의 5년 성적이 실거래와 다른 규칙의 성적이었다.
+        # 아니다. 지금까지의 5년 성적이 실거래와 다른 규칙의 성적이었다.
         #
         # 그리고 수익의 70~92%가 밤사이에 났으므로(설계안 §26), 매수를 하루
         # 늦추면 **밤 하나를 잃는다.** 청산 쪽과 부호가 반대다.
@@ -133,7 +133,7 @@ class BacktestEngine:
 
         trade_from을 주면 그 날짜부터만 매매하고, 그 이전 구간은 지표 예열에만
         쓴다(신호는 전체 히스토리로 계산되므로 이동평균·RSI가 충분히 채워진
-        상태로 매매를 시작한다). 기간을 잘라 여러 구간에서 검증할 때 필요하다 —
+        상태로 매매를 시작한다). 기간을 잘라 여러 구간에서 검증할 때 필요하다.
         예열 없이 잘라 넣으면 각 구간 초반의 지표가 NaN이라 신호가 안 나와
         짧은 구간일수록 결과가 과소평가된다."""
         enriched = {
@@ -181,7 +181,7 @@ class BacktestEngine:
 
         for current_date in all_dates:
             if trade_from is not None and current_date < trade_from:
-                continue  # 지표 예열 구간 — 매매도 평가금액 기록도 하지 않는다
+                continue  # 지표 예열 구간: 매매도 평가금액 기록도 하지 않는다
 
             opens_today = {
                 symbol: df.loc[current_date, "open"]
@@ -204,11 +204,11 @@ class BacktestEngine:
             ):
                 signals_today.setdefault(signal.symbol, []).append(signal)
 
-            # 0) 어제 정한 주문을 오늘 **시가**에 체결한다. 청산이 먼저다 —
+            # 0) 어제 정한 주문을 오늘 **시가**에 체결한다. 청산이 먼저다.
             # 판 돈으로 사야 하기 때문이다(실거래에서도 같은 순서).
             # 판단(어제 종가)과 체결(오늘 시가)을 하루 벌려 두는 것이 이
             # 옵션의 전부다. 오늘 거래가 없는 종목은 그대로 두고 다음 날 다시
-            # 시도한다 — 임의로 종가에 팔아 버리면 옵션의 뜻이 사라진다.
+            # 시도한다. 임의로 종가에 팔아 버리면 옵션의 뜻이 사라진다.
             for symbol, reason in list(pending_exits.items()):
                 if symbol not in positions:
                     del pending_exits[symbol]
@@ -251,7 +251,7 @@ class BacktestEngine:
                             positions,
                         )
                 # 어제 신호는 어제 것이다. 오늘 못 산 것을 계속 들고 있으면
-                # 며칠 묵은 신호로 사게 된다 — 실거래에서도 당일 주문이다.
+                # 며칠 묵은 신호로 사게 된다. 실거래에서도 당일 주문이다.
                 pending_entries.clear()
 
             # 1) 청산: 손절 → 보유기간 초과 → 전략 매도 신호
@@ -336,7 +336,7 @@ class BacktestEngine:
                 positions[s].quantity * 값(s, closes_today)
                 for s in positions
             )
-            # 보유 종목 수와 현금도 남긴다 — 노출도(자금을 얼마나 굴렸나)와
+            # 보유 종목 수와 현금도 남긴다. 노출도(자금을 얼마나 굴렸나)와
             # 회전율을 나중에 계산하려면 이 두 값이 있어야 한다. 수익률만
             # 남기면 "적게 굴려서 적게 벌었는지"를 구분할 수 없다.
             equity_curve_rows.append(
@@ -370,7 +370,7 @@ class BacktestEngine:
 
         종가에 사든 시가에 사든 여기서 하는 일은 같다. 한 군데로 모으는
         이유는, 두 벌로 두면 리스크 규칙이 한쪽에만 반영되는 일이 생기기
-        때문이다 — 그런 어긋남은 화면에 아무 표시도 남기지 않는다."""
+        때문이다. 그런 어긋남은 화면에 아무 표시도 남기지 않는다."""
         policy = self._risk_manager.get_policy()
         decision = self._risk_manager.check_new_position(
             proposed_weight=policy.max_position_weight,
@@ -380,7 +380,7 @@ class BacktestEngine:
         if not decision.approved:
             return 0.0
 
-        # 체결가는 기준가가 아니다 — 호가가 벌어져 있고 시장가로 치면
+        # 체결가는 기준가가 아니다. 호가가 벌어져 있고 시장가로 치면
         # 반대 호가를 먹고 들어간다. 사는 쪽은 기준가보다 비싸게 잡힌다.
         fill = self._costs.buy_price(market_price)
         target_value = equity * policy.max_position_weight
@@ -406,8 +406,8 @@ class BacktestEngine:
         exit_reason: str,
         closed_trades: list[ClosedTrade],
     ) -> float:
-        """market_price는 체결 기준가다 — 지금 방식이면 그날 **종가**,
-        exit_at_open이면 그날 **시가**. 실제 체결가는 그보다 불리하다 —
+        """market_price는 체결 기준가다. 지금 방식이면 그날 **종가**,
+        exit_at_open이면 그날 **시가**. 실제 체결가는 그보다 불리하다.
         파는 쪽은 더 싸게 잡힌다. 손익도 체결가 기준으로 계산해야 실제로
         계좌에 남는 돈과 맞는다."""
         exit_price = self._costs.sell_price(market_price)

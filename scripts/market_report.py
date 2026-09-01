@@ -2,7 +2,7 @@
 
 **이 스크립트는 아무것도 사지 않는다.** 보는 것만 한다.
 
-설계안(`docs/설계_섹터기반.md`)의 1~4단계를 한 번에 돌린다.
+설계안(`docs/설계_섹터기반.md`)의 1~4단계를 한 번에 실행한다.
 
 1. 지수·원자재·환율 30년치를 받는다
 2. 날짜별 장 상태를 z점수로 적는다
@@ -48,7 +48,7 @@ def _섹터시세(source, cache, start: date, end: date) -> dict[str, dict[str, 
         for m in sector.활성종목:
             try:
                 # 야후가 간헐적으로 최근 20일치만 준다. 그게 캐시에 굳으면
-                # 그 종목은 다음부터 영영 짧게 온다 — 최소일수로 막는다.
+                # 그 종목은 다음부터 영영 짧게 온다. 최소일수로 막는다.
                 df = cache.fetch(source, m.symbol, m.yahoo_symbol, start, end, 최소일수=250)
             except (requests.RequestException, ValueError, KeyError):
                 실패.append(m.symbol)
@@ -67,7 +67,7 @@ def _오늘한일(그날: date) -> dict:
     """오늘 낸 주문, 오늘 청산한 매매, 지금 들고 있는 종목을 DB에서 읽는다.
 
     **못 읽어도 리포트를 죽이지 않는다.** 다만 조용히 빈 값으로 넘기지도
-    않는다 — 안 산 날과 DB를 못 읽은 날이 화면에서 같아 보이면, 매수가
+    않는다. 안 산 날과 DB를 못 읽은 날이 화면에서 같아 보이면, 매수가
     통째로 막힌 날을 평범한 날로 읽게 된다. 못 읽으면 그렇게 적는다.
 
     시세를 다시 부르지 않는다. 이 스크립트는 장 마감 뒤에 돌고, 지금 평가액을
@@ -85,7 +85,7 @@ def _오늘한일(그날: date) -> dict:
             주문 = 세션.execute(select(OrderRow)).scalars().all()
             매매 = 세션.execute(select(TradeRow)).scalars().all()
             보유 = 세션.execute(select(PositionRow)).scalars().all()
-    except Exception as e:  # noqa: BLE001 — DB가 없어도 리포트는 나가야 한다
+    except Exception as e:  # noqa: BLE001 (DB가 없어도 리포트는 나가야 한다)
         print(f"오늘 한 일을 못 읽었습니다: {type(e).__name__}: {e}", file=sys.stderr)
         return {"못읽음": f"{type(e).__name__}"}
 
@@ -144,7 +144,7 @@ def main() -> int:
 
     쓰는것 = 시계열.lens_series(args.lens)
     시작 = date(1990, 1, 1)
-    print(f"■ 렌즈 '{args.lens}' — {', '.join(s.이름 for s in 쓰는것)}", file=sys.stderr)
+    print(f"■ 렌즈 '{args.lens}': {', '.join(s.이름 for s in 쓰는것)}", file=sys.stderr)
     바깥 = 시계열.load([s.키 for s in 쓰는것], 시작, 오늘, source=source, cache=cache)
     for 키, df in 바깥.items():
         print(f"  {시계열.SERIES[키].이름}: {len(df)}일 ({df['trade_date'].min()} ~)", file=sys.stderr)
@@ -155,7 +155,7 @@ def main() -> int:
     # 있었고, 그렇다고 숫자를 다 지웠더니 이번엔 "얼마나 깊이?"에 답을 못 했다.
     원시 = raw_indicators(바깥)
     emit(f"■ 장 상태를 잰 날 {len(상태)}일 ({상태.index[0]} ~ {상태.index[-1]})")
-    emit(f"  렌즈: {args.lens} — {시계열.LENSES[args.lens][2]}")
+    emit(f"  렌즈: {args.lens}: {시계열.LENSES[args.lens][2]}")
     emit()
     emit(describe_today(상태 if 기준일 is None else 상태.loc[:기준일], 원시))
     emit()
@@ -191,7 +191,7 @@ def main() -> int:
                     못낸것.append(f"{sector.이름}/{이름}: 시세를 못 받음")
                     continue
                 가격 = df.set_index("trade_date")["close"].astype(float)
-                f = forecast(상태, 가격, f"{sector.이름} — {이름}", 기준일=기준일,
+                f = forecast(상태, 가격, f"{sector.이름}: {이름}", 기준일=기준일,
                              top_pct=args.top_pct, horizon=args.horizon)
                 낸전망.append(f)
                 emit(format_forecast(f))
@@ -209,7 +209,7 @@ def main() -> int:
                      top_pct=args.top_pct, horizon=args.horizon)
         낸전망.append(f)
         emit(format_forecast(f))
-        # 시장 대비 강도는 생존편향에 덜 민감하다 — 같이 보여 준다.
+        # 시장 대비 강도는 생존편향에 덜 민감하다. 같이 보여 준다.
         강도 = relative_strength(지수["close"], 코스피).dropna()
         if len(강도):
             끝 = 강도.index[-1] if 기준일 is None else max(d for d in 강도.index if d <= 기준일)
@@ -221,7 +221,7 @@ def main() -> int:
 
     emit(f"■ 전망을 낸 섹터 {낸것}개")
     if 못낸것:
-        emit(f"  못 낸 것 {len(못낸것)}개 — **이유가 있어야 다음에 무엇을 고칠지 안다**")
+        emit(f"  못 낸 것 {len(못낸것)}개: **이유가 있어야 다음에 무엇을 고칠지 안다**")
         for 줄 in 못낸것:
             emit(f"    · {줄}")
     emit()
@@ -253,13 +253,13 @@ def main() -> int:
 
         채운수 = forecast_log.fill_actuals(실제결과, today=오늘)
         전체 = forecast_log.load()
-        emit(f"■ 전망 기록 — {len(줄들)}줄 저장, {채운수}줄에 실제 결과를 채움 (누적 {len(전체)}줄)")
+        emit(f"■ 전망 기록: {len(줄들)}줄 저장, {채운수}줄에 실제 결과를 채움 (누적 {len(전체)}줄)")
         emit()
         emit(forecast_log.format_scorecard(forecast_log.score(전체)))
         emit()
 
     emit("※ 이 리포트는 아무것도 사지 않습니다. 보는 것만 합니다.")
-    emit("※ '아주 나빴을 때' 칸이 비중을 정하는 자리입니다 — 감이 아니라 과거가 정합니다.")
+    emit("※ '아주 나빴을 때' 칸이 비중을 정하는 자리입니다. 감이 아니라 과거가 정합니다.")
 
     # ── 텔레그램 요약 ────────────────────────────────────────────
     #
@@ -294,8 +294,8 @@ def main() -> int:
             try:
                 TelegramNotifier(build_settings_service()).send(요약)
                 print("\n텔레그램으로 요약을 보냈습니다.", file=sys.stderr)
-            except Exception as e:  # noqa: BLE001 — 알림 실패가 리포트를 죽이면 안 된다
-                # 리포트 자체는 끝까지 만든다. 다만 **조용히 넘어가지는 않는다** —
+            except Exception as e:  # noqa: BLE001 (알림 실패가 리포트를 죽이면 안 된다)
+                # 리포트 자체는 끝까지 만든다. 다만 **조용히 넘어가지는 않는다**.
                 # 2026-08-19~24에 여기서 여덟 번 내리 실패했는데 워크플로는 여덟 번
                 # 다 초록불이었고, 그동안 리포트가 폰에 한 번도 안 왔다.
                 # 조용히 성공한 척하는 실패가 이 저장소에서 제일 비싼 종류다.
@@ -306,7 +306,7 @@ def main() -> int:
     #
     # DB는 폰에서 못 본다. 시트에 같은 것을 덧붙여 두면 대시보드를 켜지
     # 않고도 "오늘 뭐라고 전망했나"를 볼 수 있다. 열쇠가 (낸날·대상·지평)
-    # 이라 **여러 번 돌려도 줄이 늘지 않는다.**
+    # 이라 **여러 번 실행해도 줄이 늘지 않는다.**
     if args.sheet:
         import os
 
@@ -319,7 +319,7 @@ def main() -> int:
                 sheet_id, _ = find_or_create(os.environ["GDRIVE_FOLDER_ID"], DEFAULT_TITLE)
             올린수 = append(sheet_id, "전망기록", 전망머리, forecast_rows(낸전망))
             print(f"\n시트에 전망 {올린수}줄을 덧붙였습니다.", file=sys.stderr)
-        except Exception as e:  # noqa: BLE001 — 기록 실패가 리포트를 죽이면 안 된다
+        except Exception as e:  # noqa: BLE001 (기록 실패가 리포트를 죽이면 안 된다)
             print(f"\n시트 기록 실패: {type(e).__name__}: {e}", file=sys.stderr)
 
     if args.out:
@@ -337,7 +337,7 @@ def main() -> int:
 
     if 못보냄:
         # 리포트는 다 만들었고 파일·아티팩트로도 남겼다. 그래도 실패로
-        # 끝낸다 — 보내라고 했는데 못 보냈으면 그건 실패다.
+        # 끝낸다. 보내라고 했는데 못 보냈으면 그건 실패다.
         print(f"\n❌ 요약을 텔레그램으로 보내지 못했습니다: {못보냄}", file=sys.stderr)
         return 1
     return 0

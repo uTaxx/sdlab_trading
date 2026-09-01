@@ -22,10 +22,10 @@ class SettingHistoryEntry:
 
 
 class SettingsService:
-    """리스크 정책·KIS 인증정보·텔레그램 설정에 대한 타입 안전한 접근 창구.
+    """리스크 정책·KIS 인증정보·텔레그램 설정에 대한 타입 안전한 접근 지점.
 
     CLI(scripts/configure.py)와 (Phase 2+) 대시보드는 모두 이 서비스 하나를
-    통해 설정을 읽고 쓴다 — 저장 방식이 바뀌어도 호출부는 영향받지 않는다.
+    통해 설정을 읽고 쓴다. 저장 방식이 바뀌어도 호출부는 영향받지 않는다.
     """
 
     def __init__(self, store: SettingsStore):
@@ -33,7 +33,7 @@ class SettingsService:
         #
         # 사이에 SettingsStore가 있어야 하고, 그게 비밀값을 푸는 열쇠를 들고
         # 있다. 안 잡으면 생성은 조용히 지나가고 한참 뒤 첫 읽기에서
-        # `'sessionmaker' object has no attribute 'get'`으로 터진다 — 무엇을
+        # `'sessionmaker' object has no attribute 'get'`으로 터진다. 무엇을
         # 잘못 넘겼는지가 안 보이는 자리에서.
         #
         # 2026-08-20~25에 이걸로 두 가지가 망가져 있었다. 30분봉 수집은 일곱
@@ -42,7 +42,7 @@ class SettingsService:
         # 번 다 초록불이었다.**
         if not hasattr(store, "get") or not hasattr(store, "set"):
             raise TypeError(
-                f"SettingsService에는 SettingsStore를 줘야 합니다 — 받은 것: "
+                f"SettingsService에는 SettingsStore를 줘야 합니다. 받은 것: "
                 f"{type(store).__name__}.\n"
                 "session_factory를 바로 넘기셨다면 build_settings_service()를 쓰세요 "
                 "(사이에 있는 SettingsStore가 비밀값을 푸는 열쇠를 들고 있습니다)."
@@ -68,7 +68,7 @@ class SettingsService:
                 "risk.trading_enabled", str(d.trading_enabled)
             )
             == "True",
-            # 매도는 **없으면 켠 것으로 본다.** 매수와 반대 방향이다 —
+            # 매도는 **없으면 켠 것으로 본다.** 매수와 반대 방향이다.
             # 값이 비어 있는 이유가 무엇이든(첫 실행, 저장 실패, 열쇠 오타)
             # 그 사이 손절이 멈춰 있으면 안 된다.
             sell_enabled=self._store.get("risk.sell_enabled", str(d.sell_enabled))
@@ -154,9 +154,9 @@ class SettingsService:
     #
     # 2026-08-25에 이것 때문에 세 번 막혔다. 그중 하나는 **승인 매수**였고,
     # 주문이 한 건도 안 나간 채 끝났다. 평소처럼 하루 두세 번이면 안 걸리지만
-    # 손볼 일이 생겨 연달아 돌리면 그날 매매가 통째로 막힌다.
+    # 손볼 일이 생겨 연달아 실행하면 그날 매매가 통째로 막힌다.
     #
-    # 발급받은 토큰은 보통 24시간 쓸 수 있다. DB에 두면 그동안 재사용된다 —
+    # 발급받은 토큰은 보통 24시간 쓸 수 있다. DB에 두면 그동안 재사용된다.
     # n8n 쪽은 이미 그렇게 하고 있었고(20시간 캐시) 파이썬 쪽만 안 했다.
     #
     # 토큰은 비밀값이다. app_secret과 같은 자리에 같은 방식으로 넣는다.
@@ -176,7 +176,7 @@ class SettingsService:
 
     def get_strategy_selection(self) -> StrategySelection:
         """전략 여러 개를 걸 수 있게 바뀌었지만 옛 키(strategy.active_key)도
-        읽는다 — 운영 DB에는 그게 이미 들어 있고, 컬럼 하나 바꾸느라 지금
+        읽는다. 운영 DB에는 그게 이미 들어 있고, 컬럼 하나 바꾸느라 지금
         돌고 있는 설정이 초기화되면 안 된다."""
         d = StrategySelection()
         saved = self._store.get("strategy.active_keys", "")
@@ -186,7 +186,7 @@ class SettingsService:
             keys = (self._store.get("strategy.active_key", d.active_key),)
         combine = self._store.get("strategy.combine", d.combine).upper()
         # 파는 쪽은 안 걸려 있는 것이 기본이다. 빈 값이면 사는 쪽이 양쪽을
-        # 다 맡는다 — 지금까지의 동작이 그것이다.
+        # 다 맡는다. 지금까지의 동작이 그것이다.
         판것 = self._store.get("strategy.sell_keys", "")
         sell_keys = tuple(k.strip() for k in 판것.split(",") if k.strip())
         return StrategySelection(
@@ -216,7 +216,7 @@ class SettingsService:
 
     def undecryptable_secret_keys(self) -> list[str]:
         """지금 MUWON_MASTER_KEY로 열리지 않는 비밀값 키 목록. 마스터키를 새로
-        발급한 뒤 DB에 옛 키로 암호화된 값이 남아 있으면 여기 잡힌다 — 해당
+        발급한 뒤 DB에 옛 키로 암호화된 값이 남아 있으면 여기 잡힌다. 해당
         값을 다시 저장하면 새 키로 재암호화되어 사라진다."""
         return self._store.undecryptable_secret_keys()
 
@@ -228,7 +228,7 @@ class SettingsService:
             else:
                 old_value = self._store.try_decrypt(row.old_value)
                 new_value = self._store.try_decrypt(row.new_value)
-                # 마스터키가 있어도 옛 키로 암호화된 값은 못 읽는다 —
+                # 마스터키가 있어도 옛 키로 암호화된 값은 못 읽는다.
                 # 키 보유 여부가 아니라 실제 복호화 성공 여부로 판단한다.
                 decrypted = self._store.has_master_key and new_value is not None
             entries.append(

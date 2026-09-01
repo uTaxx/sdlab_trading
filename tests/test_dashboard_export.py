@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 def test_뽑아둔_자료가_파이썬_원본과_같다():
-    """다르면 `python scripts/export_dashboard_data.py`를 돌리고 같이 커밋한다."""
+    """다르면 `python scripts/export_dashboard_data.py`를 실행하고 같이 커밋한다."""
     끝난것 = subprocess.run(
         [sys.executable, "scripts/export_dashboard_data.py", "--check"],
         cwd=뿌리, capture_output=True, text=True, check=False,
@@ -37,7 +37,7 @@ def test_전략설명에_산다_규칙이_있다():
     전략들 = json.loads((자료 / "전략설명.json").read_text(encoding="utf-8"))
     assert len(전략들) >= 20
     설명없음 = [ㅈ["키"] for ㅈ in 전략들 if not ㅈ["설명있음"]]
-    # 설명이 없는 전략이 있어도 막지는 않는다 — 다만 몇 개인지는 보이게 둔다.
+    # 설명이 없는 전략이 있어도 막지는 않는다. 다만 몇 개인지는 보이게 둔다.
     assert len(설명없음) <= len(전략들) // 2, f"설명 없는 전략이 너무 많다: {설명없음}"
 
 

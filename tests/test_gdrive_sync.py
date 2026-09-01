@@ -103,7 +103,7 @@ def test_download_writes_via_temp_file_then_atomic_replace(mock_downloader_cls, 
 def test_download_uses_unique_temp_file_per_call(mock_downloader_cls, mock_build, mock_creds, tmp_path):
     """대시보드는 시작 시 1회 동기화와 30초 주기 동기화가 겹칠 수 있다.
     임시 파일 이름이 고정이면 먼저 끝난 쪽이 그 파일을 치워서 나중 쪽의
-    os.replace가 FileNotFoundError로 죽는다(실제로 발생) — 호출마다 임시
+    os.replace가 FileNotFoundError로 죽는다(실제로 발생): 호출마다 임시
     파일 경로가 달라야 한다."""
     service = make_fake_service(existing_file_id="EXISTING456")
     mock_build.return_value = service

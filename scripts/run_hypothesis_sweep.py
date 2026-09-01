@@ -3,9 +3,9 @@
 
 "가설을 검증하고 진화시킨다"의 2단계(과거 데이터 검증)를 담당한다. 콘솔에
 찍고 끝나는 1회성 스크립트가 아니라 결과가 쌓이므로, 파라미터를 바꿔가며
-여러 번 돌려도 시간에 따른 비교가 가능하다. 결과가 마음에 들면
+여러 번 실행해도 시간에 따른 비교가 가능하다. 결과가 마음에 들면
 `python scripts/configure.py strategy --active-key <키>`로 실거래에
-반영한다(3단계 — 코드 배포 없이 설정값 하나로 전환).
+반영한다(3단계: 코드 배포 없이 설정값 하나로 전환).
 
 시세는 YahooFinanceDataSource(개발·백테스트 전용)에서 가져온다.
 
@@ -32,9 +32,7 @@ from muwon.strategy.registry import list_definitions
 
 
 def parse_date(value: str) -> date:
-    return datetime.strptime(value, "%Y-%m-%d").date()  # noqa: DTZ007 — 날짜만 필요, tz 무관
-
-
+    return datetime.strptime(value, "%Y-%m-%d").date()  # noqa: DTZ007 (날짜만 필요, tz 무관)
 def main() -> None:
     parser = argparse.ArgumentParser(description="등록된 전략 가설 일괄 백테스트")
     parser.add_argument("--start", type=parse_date, required=True)

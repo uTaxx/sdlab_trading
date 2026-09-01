@@ -62,7 +62,7 @@ def main() -> None:
         return
 
     OUTPUT.write_text(text, encoding="utf-8")
-    print(f"✅ {OUTPUT.name} — {len(TERMS)}개")
+    print(f"✅ {OUTPUT.name}: {len(TERMS)}개")
 
 
 if __name__ == "__main__":

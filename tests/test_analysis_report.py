@@ -25,7 +25,7 @@ def make_trade(
     holding_days: int = 3,
     symbol: str = "005930",
 ) -> TradeRow:
-    exited = datetime.utcnow() - timedelta(days=days_ago)  # noqa: DTZ003 — 저장 기준과 동일
+    exited = datetime.utcnow() - timedelta(days=days_ago)  # noqa: DTZ003 (저장 기준과 동일)
     entry_price = 70_000.0
     return TradeRow(
         symbol=symbol,
@@ -60,7 +60,7 @@ def build(session_factory, **kwargs) -> str:
 
 
 def test_summarize_computes_win_rate_and_profit_factor():
-    """승률만 보면 오해한다 — 승률 33%라도 이길 때 크게 벌면 본전 이상이다.
+    """승률만 보면 오해한다. 승률 33%라도 이길 때 크게 벌면 본전 이상이다.
     손익비를 같이 계산해 그 구분이 되게 한다."""
     trades = [make_trade(9.0), make_trade(-3.0), make_trade(-3.0)]
 
@@ -86,7 +86,7 @@ def test_summarize_computes_average_holding_days():
 
 
 def test_report_includes_settings_context():
-    """숫자만 있으면 좋은지 나쁜지 판단할 수 없다 — 어떤 설정으로 돌린
+    """숫자만 있으면 좋은지 나쁜지 판단할 수 없다. 어떤 설정으로 돌린
     결과인지가 함께 있어야 진단이 가능하다."""
     session_factory = make_session_factory("sqlite:///:memory:")
 
@@ -164,7 +164,7 @@ def test_report_includes_open_positions():
                 quantity=10,
                 entry_price=70_000.0,
                 entry_date=date(2026, 8, 17),
-                entered_at=datetime(2026, 8, 17, 9, 30),  # noqa: DTZ001 — 테스트용
+                entered_at=datetime(2026, 8, 17, 9, 30),  # noqa: DTZ001 (테스트용)
                 entry_reason="RSI 과매도 반등",
                 strategy_key="ma_rsi_v1",
             )

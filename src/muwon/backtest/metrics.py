@@ -2,7 +2,7 @@
 
 지금까지는 총수익률·MDD·승률·거래수만 봤는데, 그걸로는 전략을 제대로 비교할
 수 없다. 기간이 다르면 총수익률은 비교가 안 되고(1년 +20%와 3년 +20%는 전혀
-다르다), 승률은 인수인계서 25항이 경고하듯 그 자체로는 의미가 없다 —
+다르다), 승률은 인수인계서 25항이 경고하듯 그 자체로는 의미가 없다.
 승률 80%여도 평균이익 +1%에 평균손실 -6%면 장기적으로 잃는다.
 
 그래서 기간에 무관한 값(CAGR)과 위험 대비 값(Sharpe·Sortino), 한 거래당
@@ -77,7 +77,7 @@ def max_drawdown_pct(equity: pd.Series) -> float:
 
 
 def sharpe(equity_curve: pd.DataFrame, risk_free_rate: float = 0.0) -> float:
-    """수익률을 변동성으로 나눈 값 — 같은 수익이면 덜 흔들린 쪽이 낫다.
+    """수익률을 변동성으로 나눈 값: 같은 수익이면 덜 흔들린 쪽이 낫다.
 
     무위험수익률은 기본 0으로 둔다. 넣으려면 값을 정해야 하는데, 그 선택이
     결과를 흔드는 데 비해 전략끼리 비교하는 목적에는 영향이 없다."""
@@ -94,14 +94,14 @@ def sharpe(equity_curve: pd.DataFrame, risk_free_rate: float = 0.0) -> float:
 def sortino(equity_curve: pd.DataFrame) -> float:
     """Sharpe와 같되 '아래로 흔들린 것'만 위험으로 본다.
 
-    위로 크게 튀는 건 벌하지 않는 게 맞다 — 투자자가 싫어하는 건 손실 쪽
+    위로 크게 튀는 건 벌하지 않는 게 맞다. 투자자가 싫어하는 건 손실 쪽
     변동이지 이익 쪽 변동이 아니다."""
     returns = _daily_returns(equity_curve["equity"])
     if len(returns) < 2:
         return 0.0
     downside = returns[returns < 0]
     # 하락일이 하나뿐이면 표준편차가 NaN이다(표본 분산은 n-1로 나눈다).
-    # 0인지만 검사하면 NaN이 그대로 통과해 비교표에 조용히 섞인다 —
+    # 0인지만 검사하면 NaN이 그대로 통과해 비교표에 조용히 섞인다.
     # 실제로 그 상태로 한 번 나왔다.
     if len(downside) < 2:
         return 0.0

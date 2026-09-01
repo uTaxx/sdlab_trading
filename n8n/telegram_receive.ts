@@ -47,7 +47,7 @@ const 받았습니다 = node({
       resource: 'callback',
       operation: 'answerQuery',
       queryId: expr('{{ $json.callback_query.id }}'),
-      additionalFields: { text: '받았습니다 — 잠시 뒤 반영됩니다' }
+      additionalFields: { text: '받았습니다. 잠시 뒤 반영됩니다' }
     },
     credentials: { telegramApi: newCredential('무원406 텔레그램 봇') }
   },
@@ -81,12 +81,12 @@ const 깃허브로넘기기 = node({
 });
 
 const 설명 = sticky(
-  '## 무원406 — 텔레그램 받기\n\n' +
+  '## 무원406: 텔레그램 받기\n\n' +
   '버튼을 누르거나 명령을 보내면 여기가 받아 **GitHub Actions로 그대로 넘긴다.**\n\n' +
   '### 규칙: 여기서는 아무 판단도 하지 않는다\n' +
   '무엇을 승인할지, 기준을 어떻게 바꿀지는 전부 저장소 코드가 정한다.\n' +
   '판단이 두 군데로 나뉘면 나중에 왜 그렇게 됐는지 볼 곳이 두 배가 된다.\n\n' +
-  '"받았습니다"만 여기서 답한다 — 이건 판단이 아니라 인사다.\n' +
+  '"받았습니다"만 여기서 답한다. 이건 판단이 아니라 인사다.\n' +
   '안 하면 버튼이 도는 표시로 남아 사람이 또 누른다.\n\n' +
   '### ⚠️ 켜기 전에\n' +
   '1. 텔레그램 자격증명은 **무원406 봇으로 새로 만든다.** 뉴스 시스템 봇을\n' +
@@ -98,7 +98,7 @@ const 설명 = sticky(
   { color: 4 }
 );
 
-export default workflow('muwon406-telegram', '무원406 — 텔레그램 받기')
+export default workflow('muwon406-telegram', '무원406: 텔레그램 받기')
   .add(텔레그램에서온것)
   .to(버튼인가.onTrue(받았습니다.to(깃허브로넘기기)).onFalse(깃허브로넘기기))
   .add(설명);

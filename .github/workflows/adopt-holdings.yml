@@ -18,7 +18,7 @@ on:
         description: "매수일 YYYY-MM-DD (비우면 오늘). 보유일수 청산이 이 날부터 센다"
         default: ""
       fix_quantity:
-        description: "수량을 계좌 값으로 덮을 종목 (쉼표로 여럿). 원인을 확인한 뒤에만 — 부분 체결·손매매·버그가 겉이 같다"
+        description: "수량을 계좌 값으로 덮을 종목 (쉼표로 여럿). 원인을 확인한 뒤에만: 부분 체결·손매매·버그가 겉이 같다"
         default: ""
 
 concurrency:
@@ -56,7 +56,7 @@ jobs:
 
       - name: 들이기
         run: |
-          # `| tee` 없이도 습관으로 켠다 — 나중에 누가 파이프를 붙여도
+          # `| tee` 없이도 습관으로 켠다. 나중에 누가 파이프를 붙여도
           # 파이썬이 죽은 것을 초록불이 덮지 않게.
           set -o pipefail
           fixargs=""
@@ -68,7 +68,7 @@ jobs:
             ${{ github.event.inputs.entry_date != '' && format('--entry-date {0}', github.event.inputs.entry_date) || '' }}
 
       # 미리보기였다면 DB가 안 바뀌었으니 올려도 같은 파일이다. 그래도
-      # 조건을 걸어 둔다 — 쓰지 않은 실행이 운영 파일을 건드릴 이유가 없다.
+      # 조건을 걸어 둔다. 쓰지 않은 실행이 운영 파일을 건드릴 이유가 없다.
       - name: 상태 DB 올리기
         if: github.event.inputs.apply == 'true'
         env:

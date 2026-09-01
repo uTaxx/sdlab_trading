@@ -46,7 +46,7 @@ def test_unfavourable_fills_are_positive_for_both_sides():
 
 
 def test_favourable_fills_are_negative():
-    """유리하게 체결되는 경우도 있다 — 그걸 0으로 깎으면 값이 부풀려진다."""
+    """유리하게 체결되는 경우도 있다. 그걸 0으로 깎으면 값이 부풀려진다."""
     assert CostSample("005930", "BUY", 10_000, 9_900).cost_pct == pytest.approx(-1.0)
 
 
