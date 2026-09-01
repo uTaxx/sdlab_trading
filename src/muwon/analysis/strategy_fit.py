@@ -47,6 +47,9 @@ from dataclasses import dataclass, field
 
 from muwon.analysis.period_check import 기간성적
 
+# 조사는 알림 쪽도 쓴다. 두 곳에 따로 두면 한쪽만 고치게 된다.
+from muwon.text import 은는, 이가  # noqa: F401 — 이 모듈을 통해 쓰는 곳이 있다
+
 #: 이 배수만큼 앞서야 후보로 올린다. 조금 앞서는 것으로 바꾸면 매번 바뀐다.
 #: 지침서 8.1의 Score Hysteresis와 같은 장치다.
 기본우위배수 = 1.15
@@ -59,26 +62,6 @@ from muwon.analysis.period_check import 기간성적
 최소거래수 = 20
 
 등급들 = ("이상없음", "살펴볼것", "확인필요")
-
-
-def 조사(말: str, 받침있을때: str, 받침없을때: str) -> str:
-    """앞말의 받침에 따라 조사를 고른다. "변동성 돌파이"는 안 읽힌다.
-
-    전략 이름이 설정에서 오므로 무엇이 올지 모른다. 한글이 아니면(영문 키가
-    그대로 나오는 경우) 받침 없는 쪽으로 둔다. 둘 중 하나는 골라야 하고,
-    "volume_surge_3d가"가 "volume_surge_3d이"보다 낫다."""
-    끝 = (말 or "").strip()[-1:]
-    if not 끝 or not ("가" <= 끝 <= "힣"):
-        return 받침없을때
-    return 받침있을때 if (ord(끝) - 0xAC00) % 28 else 받침없을때
-
-
-def 이가(말: str) -> str:
-    return 조사(말, "이", "가")
-
-
-def 은는(말: str) -> str:
-    return 조사(말, "은", "는")
 
 
 def 더센등급(ㄱ: str, ㄴ: str) -> str:

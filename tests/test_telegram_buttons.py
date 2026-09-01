@@ -235,11 +235,11 @@ def test_업데이트가_아니면_터진다():
 
 from muwon.notify.telegram_buttons import (
     MAX_KEY_LEN,
-    예약키보드,
+    고른것표시,
+    고른표,
     전략버튼,
     전략상태블록,
     전략키보드,
-    확인키보드,
 )
 
 
@@ -256,12 +256,12 @@ def test_전략_버튼과_매수_버튼은_콜백_글자가_안_겹친다():
     assert len(글자) == len(set(글자)), f"겹치는 글자가 있습니다: {글자}"
 
 
-def test_한_번_누르는_것으로는_안_바뀐다():
-    """1단계 버튼은 예약만 한다. 손가락이 스쳐도 그것만으로는 안 바뀐다."""
+def test_옛_메시지의_확인_버튼도_계속_읽는다():
+    """두 단계였을 때 보낸 메시지가 대화방에 남아 있다. 안 읽으면 그 버튼이
+    아무 반응도 안 하고, 사람은 왜 안 되는지 알 수가 없다."""
     c = parse_callback("s|2026-08-20|volume_surge_3d")
     assert c.종류 == "전략고름"
     assert c.전략키 == "volume_surge_3d"
-    # 확정은 다른 글자다.
     assert parse_callback("c|2026-08-20|volume_surge_3d").종류 == "전략확정"
 
 
@@ -309,27 +309,57 @@ def test_키가_너무_길면_조용히_넘어가지_않는다():
         전략키보드([_버튼(키="a" * (MAX_KEY_LEN + 1))], 오늘)
 
 
-def test_확인판에는_확정과_취소가_같이_있다():
-    """확정만 두면 잘못 눌렀을 때 되돌릴 자리가 없습니다."""
-    줄 = 확인키보드("volume_surge_3d", "거래량 급증 3일", 오늘)["inline_keyboard"][0]
-    종류들 = [parse_callback(ㄱ["callback_data"]).종류 for ㄱ in 줄]
-    assert 종류들 == ["전략확정", "전략취소"]
+def test_고른_것에만_표시가_붙는다():
+    """무엇을 예약해 두었는지 판만 보고 알 수 있어야 합니다."""
+    판 = 전략키보드([_버튼(), _버튼(키="macd_cross", 이름="MACD 교차", 구간="1주")], 오늘)
+    표시된것 = 고른것표시(판, "macd_cross")
+    글들 = [ㄱ[0]["text"] for ㄱ in 표시된것["inline_keyboard"]]
+    붙은것 = [ㄱ for ㄱ in 글들 if ㄱ.startswith(고른표)]
+    assert len(붙은것) == 1
+    assert "MACD" in 붙은것[0]
 
 
-def test_확정된_뒤에도_취소할_수_있다():
-    """반영이 다음 거래일이라 그 사이에 되돌릴 수 있어야 합니다."""
-    줄 = 예약키보드(오늘)["inline_keyboard"][0]
-    assert parse_callback(줄[0]["callback_data"]).종류 == "전략취소"
+def test_취소하면_표시가_사라진다():
+    """표시가 남으면 취소했는데도 예약된 것처럼 보입니다."""
+    판 = 전략키보드([_버튼()], 오늘)
+    표시된것 = 고른것표시(판, "volume_surge_3d")
+    되돌린것 = 고른것표시(표시된것, "")
+    assert 되돌린것["inline_keyboard"][0][0]["text"] == 판["inline_keyboard"][0][0]["text"]
 
 
-def test_상태블록이_세_상태를_구별한다():
-    """예약 없음, 골랐지만 미확정, 확정됨은 전부 다른 말이어야 합니다."""
+def test_표시를_붙여도_누를_자료는_그대로다():
+    """자료가 바뀌면 그 버튼이 다른 일을 하게 됩니다."""
+    판 = 전략키보드([_버튼()], 오늘)
+    앞 = 판["inline_keyboard"][0][0]["callback_data"]
+    뒤 = 고른것표시(판, "volume_surge_3d")["inline_keyboard"][0][0]["callback_data"]
+    assert 앞 == 뒤
+
+
+def test_같은_것을_두_번_표시해도_표가_겹치지_않는다():
+    판 = 전략키보드([_버튼()], 오늘)
+    한번 = 고른것표시(판, "volume_surge_3d")
+    두번 = 고른것표시(한번, "volume_surge_3d")
+    assert 두번["inline_keyboard"][0][0]["text"].count(고른표.strip()) == 1
+
+
+def test_판이_없으면_None이다():
+    assert 고른것표시(None, "volume_surge_3d") is None
+    assert 고른것표시({"inline_keyboard": []}, "volume_surge_3d") is None
+
+
+def test_상태블록이_두_상태를_구별한다():
+    """예약 없음과 예약됨은 다른 말이어야 합니다."""
     없음 = 전략상태블록()
-    고름 = 전략상태블록("volume_surge_3d", "거래량 급증 3일", 확정됐나=False)
-    확정 = 전략상태블록("volume_surge_3d", "거래량 급증 3일", 확정됐나=True)
+    예약 = 전략상태블록("volume_surge_3d", "거래량 급증 3일")
     assert "예약된 전략 변경이 없습니다" in 없음
-    assert "아직 확정되지 않았습니다" in 고름
-    assert "예약되었습니다" in 확정
-    assert "다음 거래일" in 확정
-    for 글 in (없음, 고름, 확정):
+    assert "예약되었습니다" in 예약
+    assert "다음 거래일" in 예약
+    assert "다시 누르면 취소" in 예약
+    for 글 in (없음, 예약):
         assert "—" not in 글, f"줄표가 있습니다: {글}"
+
+
+def test_상태블록의_조사가_이름을_따라간다():
+    """받침을 안 보면 "변동성 돌파으로"가 나옵니다. 실제로 나왔습니다."""
+    assert "변동성 돌파로 변경이" in 전략상태블록("k", "변동성 돌파")
+    assert "골든크로스 20/60으로 변경이" in 전략상태블록("k", "골든크로스 20/60")

@@ -53,12 +53,11 @@ from muwon.notify.telegram_api import (
 from muwon.notify.telegram_buttons import (
     keyboard,
     parse_callback,
+    고른것표시,
     글에_상태붙이기,
     누른뒤말,
     상태표시,
-    예약키보드,
     전략상태블록,
-    확인키보드,
 )
 from muwon.notify.telegram_control import parse_command, 도움말, 바꾼말
 from muwon.settings.from_sheet import apply, describe, parse_settings, 기준표
@@ -232,11 +231,11 @@ def _전략이름(키: str) -> str:
         return 키
 
 
-def _전략버튼처리(c, 누른것: dict, cfg) -> None:
-    """전략 변경 버튼. **한 번 눌러서는 안 바뀐다.**
+def _전략버튼처리(c, 누른것: dict, cfg, 오늘) -> None:
+    """전략 변경 버튼. **한 번 누르면 예약, 다시 누르면 취소다.**
 
-    누르면 예약만 되고 확인 버튼이 뜬다. 확인까지 눌러도 그날 안 바뀐다.
-    다음 거래일 매수 후보 산출 전에 반영하므로 그 사이에 취소할 수 있다.
+    눌러도 그날은 안 바뀐다. 다음 거래일 매수 후보 산출 전에 반영하므로 그
+    사이에 같은 버튼을 다시 눌러 되돌릴 수 있다.
 
     규칙은 전부 `cloud/strategy_approval.py`가 지킨다. 여기서 따로 검사하면
     규칙이 두 벌이 되고, 둘이 어긋나도 아무것도 안 빨개진다."""
@@ -249,24 +248,32 @@ def _전략버튼처리(c, 누른것: dict, cfg) -> None:
     지금키 = (service.get_strategy_selection().active_keys or ("",))[0]
     아는것 = [ㅈ.key for ㅈ in list_definitions()]
 
+    # 눌린 메시지에 실려 온 판을 그대로 고쳐 쓴다. 새로 만들려면 그때의
+    # 전략 목록이 있어야 하는데, 버튼을 누르는 시점에는 그 목록이 없다.
+    받은판 = 메시지.get("reply_markup")
+
     session_factory = make_session_factory(bootstrap_settings.database_url)
     with session_factory() as session:
         if c.종류 == "전략취소":
+            # 두 단계였을 때의 취소 버튼이다. 옛 메시지가 남아 있어 계속 받는다.
             결과 = 전략승인.취소하기(session)
-            판, 붙일글 = None, 전략상태블록()
-        elif c.종류 == "전략고름":
-            결과 = 전략승인.고르기(
-                session, c.날짜, 지금키, c.전략키, 아는것,
+            판, 붙일글 = 고른것표시(받은판, ""), 전략상태블록()
+        else:
+            # 전략고름과 전략확정을 똑같이 처리한다. 전략확정은 두 단계였을
+            # 때의 확인 버튼이고, 그 메시지가 대화방에 남아 있다.
+            결과 = 전략승인.누르기(
+                session, c.날짜, 오늘, 지금키, c.전략키, 아는것,
                 승인경로="텔레그램",
             )
             이름 = _전략이름(c.전략키)
-            판 = 확인키보드(c.전략키, 이름, c.날짜) if 결과.된것 else None
-            붙일글 = 전략상태블록(c.전략키, 이름, 확정됐나=False) if 결과.된것 else ""
-        else:  # 전략확정
-            결과 = 전략승인.확정하기(session, c.날짜, c.전략키)
-            이름 = _전략이름(c.전략키)
-            판 = 예약키보드(c.날짜) if 결과.된것 else None
-            붙일글 = 전략상태블록(c.전략키, 이름, 확정됐나=True) if 결과.된것 else ""
+            취소됐나 = 결과.된것 and 결과.줄 is None
+            판 = 고른것표시(받은판, "" if 취소됐나 else c.전략키)
+            if not 결과.된것:
+                붙일글 = ""
+            elif 취소됐나:
+                붙일글 = 전략상태블록()
+            else:
+                붙일글 = 전략상태블록(c.전략키, 이름)
 
         if 결과.된것:
             session.commit()
@@ -311,7 +318,7 @@ def _버튼처리(누른것: dict, sheet_id: str, cfg) -> None:
     # 전략 버튼은 매수 승인과 길이 다르다. 시트가 아니라 상태 DB를 보고,
     # 날짜 검사도 저쪽에서 한다 — 어제 버튼을 눌렀을 때 돌려줄 말이 다르다.
     if c.종류 in ("전략고름", "전략확정", "전략취소"):
-        _전략버튼처리(c, 누른것, cfg)
+        _전략버튼처리(c, 누른것, cfg, 오늘)
         return
 
     if c.날짜 != 오늘:
