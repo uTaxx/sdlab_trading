@@ -272,3 +272,64 @@ class StrategyChangeRow(Base):
     )
     바뀐때: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     반영때: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class StrategyShadowRow(Base):
+    """검토가 낸 순위 한 줄을 그대로 남겨 두고, 나중에 실제로 어떻게 됐는지
+    되짚는 기록. **고른 것뿐 아니라 안 고른 것도 남긴다.**
+
+    ## 왜 안 고른 것까지 남기나
+
+    바꾸지 않기로 한 판단도 판단이다. 고른 것만 남기면 "바꿨더니 좋아졌다"는
+    볼 수 있지만 "안 바꿨더니 좋았다"는 볼 수가 없다. 그러면 이 저장소가
+    쌓아 온 기각 기록이 한쪽만 남는다.
+
+    ## 한 줄은 전략 하나다
+
+    같은 날 같은 구간에서 여러 줄이 나온다. 그때 걸려 있던 전략 한 줄과,
+    그날 순위 위쪽 몇 줄이다. 견주는 일은 읽을 때 한다 — 저장할 때 미리
+    빼 두면 나중에 다른 방식으로 견주고 싶을 때 다시 잴 수가 없다.
+
+    ## 상태
+
+    - `열림`: 아직 지평이 안 지났다. 뒤 숫자가 비어 있다.
+    - `닫힘`: 지평이 지나 실제 수익률을 쟀다.
+    - `못잼`: 지평은 지났는데 시세가 모자라 못 쟀다. 까닭을 같이 적는다.
+
+    **`못잼`을 `닫힘`과 같이 두면 안 된다.** 못 잰 것을 0%로 세면 신호가
+    실제보다 밋밋해진다.
+    """
+
+    __tablename__ = "strategy_shadows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    #: 검토가 이 순위를 낸 날. 뒤 수익률을 재는 시작점이기도 하다.
+    제안일: Mapped[date] = mapped_column(Date, index=True)
+    #: 어느 구간의 순위였나. "1주" / "1개월" / "3개월".
+    구간: Mapped[str] = mapped_column(String(10), index=True)
+    전략: Mapped[str] = mapped_column(String(50), index=True)
+    #: 그날 그 구간 순위에서 몇 번째였나. 1이 제일 좋았던 것이다.
+    자리: Mapped[int] = mapped_column(Integer, default=0)
+    #: 그때 실제로 걸려 있던 전략인가.
+    지금것: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: 그날 버튼으로 내보낸 후보인가.
+    제안것: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: 사람이 실제로 이걸 골라서 반영했나. 지평을 잴 때 채운다.
+    골랐나: Mapped[bool] = mapped_column(Boolean, default=False)
+    등급: Mapped[str] = mapped_column(String(10), default="")
+    #: 그날 순위를 만든 숫자. 이 값이 뒤 수익률을 맞혔는지가 이 표의 질문이다.
+    제안시수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    제안시거래수: Mapped[int] = mapped_column(Integer, default=0)
+    상태: Mapped[str] = mapped_column(String(10), default="열림", index=True)
+    #: 뒤 수익률을 잰 날. 제안일부터 이 날까지를 잰다.
+    잰날: Mapped[date | None] = mapped_column(Date, nullable=True)
+    지난날수: Mapped[int] = mapped_column(Integer, default=0)
+    #: 제안일부터 잰날까지 이 전략을 걸었다면 나왔을 수익률.
+    뒤수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    뒤거래수: Mapped[int] = mapped_column(Integer, default=0)
+    뒤최대낙폭: Mapped[float | None] = mapped_column(Float, nullable=True)
+    못잰까닭: Mapped[str] = mapped_column(Text, default="")
+    만든때: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
+    바뀐때: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -45,11 +45,13 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from muwon.analysis import shadow as 그림자
 from muwon.analysis.experiment import WARMUP_DAYS
 from muwon.analysis.market_data import load_histories
 from muwon.analysis.period_check import (
     검증용정책,
     구간,
+    기간정의,
     기간표,
     기준글,
     돌려보기,
@@ -83,11 +85,18 @@ from muwon.strategy.registry import build_strategy, get_definition, list_definit
 볼구간 = ("1주", "1개월", "3개월")
 
 탭이름 = "전략검토"
+추적탭 = "전략추적"
 
 머리 = [
     "열쇠", "잰때", "구간", "시작일", "끝일", "지금전략", "후보전략",
     "지금수익률%", "후보수익률%", "거래수", "지금자리", "전체수", "플러스수",
-    "등급", "트렌드", "후보글", "막힌까닭",
+    "등급", "트렌드", "후보글", "막힌까닭", "추적글",
+]
+
+추적머리 = [
+    "열쇠", "제안일", "잰날", "지난날수", "구간", "전략", "자리", "지금것",
+    "제안것", "골랐나", "제안시수익률%", "뒤수익률%", "뒤거래수", "뒤최대낙폭%",
+    "상태", "못잰까닭",
 ]
 
 
@@ -147,6 +156,57 @@ def 구간순위내기(정의, histories, 끝, 정책, 지금키: str) -> tuple[
     return 구간순위(구간=정의.이름, 줄들=줄들, 지금키=지금키), 못돌린것
 
 
+def 뒤재기만들기(histories, 정책):
+    """그림자 추적이 쓸 재기함수. (전략키, 시작, 끝) → 기간성적 또는 None.
+
+    **오늘 순위를 낸 것과 같은 시세, 같은 기초설정, 같은 체결 규칙으로 돈다.**
+    다른 것은 전략 하나뿐이어야 차이를 전략 탓으로 읽을 수 있다."""
+
+    def 재기(전략키: str, 시작, 끝):
+        일수 = (끝 - 시작).days
+        if 일수 <= 0:
+            return None
+        정의 = 기간정의(
+            이름=f"{일수}일 뒤",
+            달수=0,
+            쪼갬="주",
+            설명="그림자 추적용 구간입니다. 화면에서 고를 수 있는 구간이 아닙니다",
+            날수=일수,
+        )
+        return 돌려보기(정의, (lambda k=전략키: build_strategy(k)), histories, 끝, 정책)
+
+    return 재기
+
+
+def 추적시트줄(줄) -> list[str]:
+    def 숫자(값):
+        return "" if 값 is None else f"{값:.2f}"
+
+    def 셈(값):
+        # None을 str()로 찍으면 시트의 숫자 칸에 "None"이 남는다. 그러면
+        # 나중에 그 칸을 세는 계산이 통째로 문자열 오류로 죽는다.
+        return "" if 값 is None else str(값)
+
+    return [
+        f"S{줄.제안일}|{줄.구간}|{줄.전략}",
+        f"{줄.제안일}",
+        f"{줄.잰날}" if 줄.잰날 else "",
+        셈(줄.지난날수),
+        줄.구간,
+        전략이름(줄.전략),
+        셈(줄.자리),
+        "예" if 줄.지금것 else "",
+        "예" if 줄.제안것 else "",
+        "예" if 줄.골랐나 else "",
+        숫자(줄.제안시수익률),
+        숫자(줄.뒤수익률),
+        셈(줄.뒤거래수),
+        숫자(줄.뒤최대낙폭),
+        줄.상태,
+        줄.못잰까닭,
+    ]
+
+
 def 막는까닭(session, 오늘, 최소운용일: int) -> str:
     """이 구간 밖에서 정해지는 이유. 있으면 후보를 아예 안 낸다."""
     지난 = 승인.지난거래일수(승인.마지막반영(session), 오늘)
@@ -172,6 +232,7 @@ def 알림글만들기(
     트렌드들: dict,
     후보들: list[변경후보],
     기준: str,
+    추적글: str = "",
 ) -> str:
     머리말 = {
         "이상없음": "전략 검토 | 이상 없음",
@@ -194,6 +255,8 @@ def 알림글만들기(
     줄 += [f"  {후보글(ㅎ)}" for ㅎ in 후보들]
 
     줄 += ["", "정리", f"  {총평(후보들, 등급)}"]
+    if 추적글:
+        줄 += ["", "지난 후보를 다시 잰 것", f"  {추적글}"]
     줄 += ["", "계산 조건", f"  {기준}"]
 
     있는것 = [ㅎ for ㅎ in 후보들 if ㅎ.있나]
@@ -210,7 +273,7 @@ def 알림글만들기(
     return "\n".join(줄)
 
 
-def 시트줄(잰때, 정의, 후보: 변경후보, 트렌드, 기준: str) -> list[str]:
+def 시트줄(잰때, 정의, 후보: 변경후보, 트렌드, 기준: str, 추적글: str = "") -> list[str]:
     def 숫자(값):
         return "" if 값 is None else f"{값:.2f}"
 
@@ -232,6 +295,7 @@ def 시트줄(잰때, 정의, 후보: 변경후보, 트렌드, 기준: str) -> l
         트렌드글(트렌드) if 트렌드 else "",
         후보글(후보),
         후보.막힌까닭,
+        추적글,
     ]
 
 
@@ -245,6 +309,10 @@ def main() -> int:
                         help="직전 변경 뒤 이만큼 지나기 전에는 후보를 안 낸다")
     parser.add_argument("--우위배수", type=float, default=기본우위배수,
                         help="1위가 지금 전략보다 이 배수만큼 앞서야 후보로 낸다")
+    parser.add_argument("--추적일수", type=int, default=그림자.추적일수,
+                        help="제안일부터 이만큼 지난 뒤에 뒤 수익률을 잰다")
+    parser.add_argument("--기록자리", type=int, default=그림자.기록자리,
+                        help="구간마다 순위 위쪽 몇 개를 남길 것인가")
     인자 = parser.parse_args()
 
     잰때 = datetime.now(서울).replace(tzinfo=None)
@@ -306,10 +374,12 @@ def main() -> int:
         print(f"■ 후보를 안 냅니다: {막힘}\n")
 
     후보들: list[변경후보] = []
+    순위들: dict = {}
     for 정의 in 정의들:
         순위, 못돌린것 = 구간순위내기(정의, histories, 끝, 정책, 지금키)
         후보 = 후보내기(순위, 우위배수=인자.우위배수, 막혔나=막힘)
         후보들.append(후보)
+        순위들[정의.이름] = 순위
         print(f"■ {정의.이름} · 계산된 전략 {len(순위.차례)}개")
         for i, ㄱ in enumerate(순위.차례[:5], 1):
             표 = "◀ 지금" if ㄱ.키 == 지금키 else ""
@@ -322,6 +392,38 @@ def main() -> int:
     print(f"■ 등급: {등급}")
     print(f"■ {총평(후보들, 등급)}\n")
 
+    # 그림자 추적. **고른 것뿐 아니라 안 고른 것도 남기고 나중에 다시 잰다.**
+    # 오늘 순위를 통째로 남겨 두고, 지평이 지난 옛 줄의 뒤 수익률을 여기서
+    # 채운다. 시세는 위에서 이미 받은 것을 그대로 쓴다.
+    제안키들 = {ㅎ.구간: (ㅎ.키 if ㅎ.있나 else "") for ㅎ in 후보들}
+    추적글 = ""
+    올릴추적: list = []
+    with session_factory() as session:
+        try:
+            남긴수 = 그림자.기록하기(
+                session, 끝, 순위들, 지금키, 등급, 제안키들,
+                자리수=인자.기록자리,
+            )
+            잴것 = 그림자.잴것(session, 끝, 인자.추적일수)
+            센것, 못센것 = 그림자.재기(
+                session, 잴것, 뒤재기만들기(histories, 정책), 끝
+            )
+            비교들 = 그림자.견주기(그림자.잰줄들(session))
+            요약 = 그림자.모아보기(비교들)
+            추적글 = 그림자.학습글(요약, 인자.추적일수)
+            올릴추적 = [추적시트줄(ㅈ) for ㅈ in 잴것]
+            if 인자.dry_run:
+                session.rollback()
+            else:
+                session.commit()
+            print(f"■ 그림자 추적 · 오늘 {남긴수}줄 남김 · "
+                  f"{인자.추적일수}일 지난 것 {센것}줄 잼(못 잰 것 {못센것}줄)")
+            print(f"■ {추적글}\n")
+        except Exception as 탈:  # noqa: BLE001 — 추적이 터져도 오늘 검토는 나가야 한다
+            session.rollback()
+            print(f"그림자 추적 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
     if 인자.dry_run:
         print("dry-run이라 시트에도 안 올리고 알림도 안 보냅니다.")
         return 0
@@ -331,11 +433,14 @@ def main() -> int:
             from muwon.cloud.sheet_log import append
 
             줄들 = [
-                시트줄(잰때, 구간경계[ㅎ.구간], ㅎ, 트렌드들.get(ㅎ.구간), 기준)
+                시트줄(잰때, 구간경계[ㅎ.구간], ㅎ, 트렌드들.get(ㅎ.구간), 기준, 추적글)
                 for ㅎ in 후보들
             ]
             올린수 = append(sheet_id, 탭이름, 머리, 줄들)
             print(f"시트 '{탭이름}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
+            if 올릴추적:
+                올린수 = append(sheet_id, 추적탭, 추적머리, 올릴추적)
+                print(f"시트 '{추적탭}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
         except Exception as 탈:  # noqa: BLE001 — 시트가 막혀도 알림은 가야 한다
             print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
 
@@ -357,7 +462,7 @@ def main() -> int:
         for ㅎ in 후보들
         if ㅎ.있나
     ]
-    글 = 알림글만들기(잰때, 등급, 지금키, 트렌드들, 후보들, 기준)
+    글 = 알림글만들기(잰때, 등급, 지금키, 트렌드들, 후보들, 기준, 추적글)
     send(cfg.bot_token, cfg.chat_id, 글,
          reply_markup=전략키보드(버튼들, 끝))
     print(f"텔레그램으로 알렸습니다(버튼 {len(버튼들)}개).", file=sys.stderr)

@@ -174,16 +174,19 @@ def test_사람이_넣은_값을_명령줄에_직접_박지_않는다():
 # ── 전략 검토·반영 (2026-09-01) ────────────────────────────────
 
 
-def test_전략검토는_상태DB를_안_고치므로_잠그지_않는다():
-    """읽기만 하는 워크플로를 state-write에 묶으면 5분마다 도는 손절 감시가
-    전략 27개 계산을 기다린다. 손절이 늦는 쪽이 훨씬 나쁘다.
+def test_전략검토도_상태DB를_고치므로_state_write다():
+    """2026-09-01에 옮겼다. 전에는 읽기만 해서 따로 묶여 있었다.
 
-    이 스크립트가 DB에 한 줄이라도 쓰게 되면 upload 줄이 생기고, 그러면
-    위의 `test_DB를_고치면_같은_자물쇠를_쓴다`가 잡는다."""
-    글 = (_워크플로[0].parent / "strategy-review.yml").read_text(encoding="utf-8")
-    assert "group: strategy-review" in 글
-    assert "group: state-write" not in 글
-    assert "gdrive_sync.py upload" not in 글
+    지금은 그림자 추적이 오늘 순위를 `strategy_shadows`에 남기고 지평이 지난
+    옛 줄에 뒤 수익률을 채운다. 쓰는데 안 올리면 러너가 사라질 때 통째로
+    없어지고, 그런데도 텔레그램에는 검토 결과가 뜬다."""
+    길 = _워크플로[0].parent / "strategy-review.yml"
+    글 = 길.read_text(encoding="utf-8")
+    assert "gdrive_sync.py upload" in 글, "DB에 썼으면 올려야 합니다"
+    묶음 = _읽기(길).get("concurrency")
+    assert 묶음.get("group") == DB잠금
+    # 쓰는 도중에 끊기면 반쯤 고친 DB가 올라간다.
+    assert 묶음.get("cancel-in-progress") is False
 
 
 def test_전략반영은_상태DB를_고치므로_state_write다():
