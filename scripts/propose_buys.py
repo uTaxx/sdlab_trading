@@ -41,7 +41,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import requests
 from sqlalchemy import select
 
-from muwon.cloud.approval import pending_rows, read_today, 승인머리, 알림글, 후보
+from muwon.cloud.approval import (
+    pending_rows,
+    read_today,
+    보유종목,
+    승인머리,
+    알림글,
+    후보,
+)
 from muwon.cloud.sector_sheet import DEFAULT_TITLE, find_or_create, read
 from muwon.cloud.sheet_log import append
 from muwon.config import bootstrap_settings
@@ -51,6 +58,7 @@ from muwon.db.models import PositionRow
 from muwon.db.session import ensure_schema, make_session_factory
 from muwon.domain.types import SignalType
 from muwon.market.sector_index import build_index
+from muwon.risk.exits import 보유상한
 from muwon.sector.selection import (
     cap_per_sector,
     format_ranking,
@@ -59,6 +67,7 @@ from muwon.sector.selection import (
 )
 from muwon.settings.from_sheet import parse_settings
 from muwon.settings.service import build_settings_service
+from muwon.strategy.portfolio import bars_since
 from muwon.strategy.registry import build_strategies
 
 KST = ZoneInfo("Asia/Seoul")
@@ -80,6 +89,31 @@ def 사흘등락(df) -> tuple[float, ...]:
         return ()
     변동 = (종가.pct_change() * 100).dropna()
     return tuple(round(float(ㄱ), 2) for ㄱ in 변동.tail(3))
+
+
+def 보유현황(보유중, 섹터시세, 전략, 정책) -> list[보유종목]:
+    """들고 있는 종목마다 매도까지 남은 거래일을 센다.
+
+    **엔진과 같은 방법으로 세야 한다.** 엔진은 `bars_since()`로 진입일
+    다음 거래일부터 세고, 그 수가 상한에 닿으면 판다. 여기서 달력 일수로
+    세면 알림이 말하는 날과 실제 매도일이 어긋난다.
+
+    시세를 못 받은 종목은 남은거래일을 None으로 둔다. 0으로 채우면
+    "오늘 판다"로 읽히는데 그것과 "못 셌다"는 다른 말이다."""
+    상한 = 보유상한(전략, 정책)
+    시세 = {심볼: (m, df) for 모음 in 섹터시세.values() for 심볼, (m, df) in 모음.items()}
+
+    줄들 = []
+    for p in sorted(보유중, key=lambda ㄱ: ㄱ.entry_date):
+        만난것 = 시세.get(p.symbol)
+        이름 = 만난것[0].name if 만난것 else p.symbol
+        남은 = None
+        if 상한 and 만난것 is not None:
+            거래일들 = list(만난것[1]["trade_date"])
+            남은 = 상한 - bars_since(거래일들, p.entry_date, max(거래일들))
+        줄들.append(보유종목(symbol=p.symbol, name=이름, entry_date=p.entry_date,
+                          상한=상한, 남은거래일=남은))
+    return 줄들
 
 
 def main() -> int:
@@ -121,7 +155,8 @@ def main() -> int:
     print(f"■ 전략: {selection.describe()}", file=sys.stderr)
 
     with make_session_factory(bootstrap_settings.database_url)() as session:
-        보유중 = {p.symbol for p in session.scalars(select(PositionRow))}
+        보유중 = list(session.scalars(select(PositionRow)))
+    보유심볼 = {p.symbol for p in 보유중}
 
     source, cache = YahooFinanceDataSource(), PriceCache()
     오늘 = datetime.now(KST).date()
@@ -149,6 +184,13 @@ def main() -> int:
                 continue
             모음[m.symbol] = (m, df)
         섹터시세[s.코드] = 모음
+
+    # ── 들고 있는 종목은 며칠 뒤에 팔리나 ──────────────────────
+    #
+    # **거래일로 센다.** 실거래 엔진이 `bars_since()`로 그렇게 세기 때문이다
+    # (`execution/engine.py`). 달력으로 세면 연휴가 낀 주에 알림과 실제
+    # 매도일이 하루씩 어긋나고, 어긋난 줄도 모른다.
+    보유알림 = 보유현황(보유중, 섹터시세, strategy, service.get_risk_policy())
 
     # ── 1차: 섹터 줄 세우기 ──────────────────────────────────────
     코스피 = cache.fetch(source, "^KS11", "^KS11", 시작, 오늘, 최소일수=200)
@@ -181,7 +223,7 @@ def main() -> int:
         if 코드 not in 살섹터:
             continue
         for 심볼, (m, df) in 모음.items():
-            if 심볼 in 보유중:
+            if 심볼 in 보유심볼:
                 continue
             # **마지막 봉의 신호만** 본다. generate_signals는 히스토리 전체의
             # 신호를 돌려주므로, 거르지 않으면 3년 전 신호로 오늘 산다.
@@ -203,7 +245,7 @@ def main() -> int:
 
     살펴본수 = sum(
         1 for 코드, 모음 in 섹터시세.items() if 코드 in 살섹터
-        for 심볼 in 모음 if 심볼 not in 보유중
+        for 심볼 in 모음 if 심볼 not in 보유심볼
     )
     신호들.sort(key=lambda 것: 것[0], reverse=True)
     줄선것 = [c for _, c in 신호들]
@@ -295,7 +337,7 @@ def main() -> int:
             )
             글 = 알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                      전략=selection.describe(), 섹터요약=강한섹터,
-                     섹터강도=순위)
+                     섹터강도=순위, 보유=보유알림)
             send(cfg.bot_token, cfg.chat_id, 글,
                  reply_markup=keyboard(고른것, 오늘) if 고른것 else None)
             print("텔레그램으로 알렸습니다(버튼 포함).", file=sys.stderr)
