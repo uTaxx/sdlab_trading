@@ -245,3 +245,38 @@ def test_셸_변수_이름에_한글을_안_쓴다():
         "셸 변수 이름에 한글이 있습니다. bash가 command not found로 죽습니다:\n  "
         + "\n  ".join(나쁜것)
     )
+
+
+def test_전략_승인_버튼이_고친_DB가_드라이브로_올라간다():
+    """2026-09-01에 이 구멍이 있었다.
+
+    telegram-n8n.yml은 버튼이 시트에만 쓴다는 전제로 DB를 안 올렸다. 전략
+    승인 버튼이 붙으면서 상태 DB에 쓰게 됐는데 업로드 단계가 없었다.
+    러너가 사라질 때 예약이 통째로 없어지고, 그런데도 텔레그램에는
+    "선택했습니다"가 뜬다. 조용히 성공한 척하는 실패다.
+
+    이 시험은 세 가지를 같이 본다. 하나만 있어도 안 된다."""
+    길 = _워크플로[0].parent / "telegram-n8n.yml"
+    글 = 길.read_text(encoding="utf-8")
+
+    assert "--touch-when-changed" in 글, "무엇이 바뀌었는지 표시를 안 남깁니다"
+    assert "gdrive_sync.py upload" in 글, "고친 DB를 안 올립니다"
+    assert "hashFiles('.changed')" in 글, "바뀐 게 없어도 올리면 다른 변경을 덮습니다"
+
+    묶음 = _읽기(길).get("concurrency")
+    assert 묶음.get("group") == DB잠금, (
+        "DB를 고치므로 state-write여야 합니다. 겹치면 DB가 통째로 덮입니다."
+    )
+
+
+def test_버튼이_DB를_고쳤는지_스크립트가_알린다():
+    """올릴지 말지는 워크플로가 정하지만, 무엇이 바뀌었는지는 스크립트만 안다.
+
+    읽은 위치(offset)만 보면 안 된다. n8n이 넘겨주는 길에서는 offset을 아예
+    안 건드리는데, 전략 승인 버튼이 그 길로 들어온다."""
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent
+          / "scripts" / "telegram_control.py").read_text(encoding="utf-8")
+    assert "_DB고쳤나" in 글
+    assert "올릴까 = (마지막 != offset) or _DB고쳤나" in 글

@@ -182,12 +182,17 @@ def main() -> int:
     if not args.dry_run and not 마지막_고정 and 마지막 != offset:
         # **여기까지 읽었다고 남긴다.** 안 남기면 다음 실행에서 또 실행된다.
         service.set_telegram_offset(마지막)
-    print(f"■ 처리 {처리수}건 · 다음 offset {마지막}")
+    print(f"■ 처리 {처리수}건 · 다음 offset {마지막} · 상태 DB 고침 {_DB고쳤나}")
 
     # 처리한 것이 없으면 DB를 올리지 않는다. 10분마다 무조건 올리면 다른
     # 워크플로가 같은 파일을 올리는 순간과 겹칠 수 있고, 그러면 한쪽 변경이
     # 통째로 덮인다. 바뀐 게 있을 때만 올리면 그 창이 거의 사라진다.
-    if args.touch_when_changed and not args.dry_run and 마지막 != offset:
+    #
+    # **읽은 위치만 보면 안 된다.** n8n이 넘겨주는 길(`--from-payload`)에서는
+    # offset을 아예 안 건드린다. 전략 승인 버튼이 상태 DB에 쓰는데 그 길로
+    # 들어오므로, DB를 고쳤는지도 같이 봐야 한다.
+    올릴까 = (마지막 != offset) or _DB고쳤나
+    if args.touch_when_changed and not args.dry_run and 올릴까:
         Path(args.touch_when_changed).write_text("changed\n", encoding="utf-8")
     return 0
 
@@ -210,6 +215,14 @@ def _payload_updates(글: str) -> list[dict]:
     if isinstance(것, list):
         return 것
     raise SystemExit(f"업데이트를 못 읽었습니다: {type(것).__name__}")
+
+
+#: 이번 실행에서 상태 DB를 고쳤나. **여기가 켜져야 DB가 드라이브로 올라간다.**
+#:
+#: 매수 승인은 시트에만 쓰므로 이 값이 안 켜진다. 전략 승인은 상태 DB에 쓴다.
+#: 안 올리면 러너가 사라질 때 예약이 통째로 없어지고, 그런데도 화면에는
+#: "선택했습니다"가 뜬다. 조용히 성공한 척하는 실패의 전형이다.
+_DB고쳤나 = False
 
 
 def _전략이름(키: str) -> str:
@@ -257,6 +270,8 @@ def _전략버튼처리(c, 누른것: dict, cfg) -> None:
 
         if 결과.된것:
             session.commit()
+            global _DB고쳤나
+            _DB고쳤나 = True
         else:
             session.rollback()
 

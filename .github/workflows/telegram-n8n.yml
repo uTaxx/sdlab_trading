@@ -38,9 +38,14 @@ on:
         default: false
 
 concurrency:
-  # 버튼을 연달아 누르면 여러 개가 동시에 돈다. 같은 시트 칸을 두 곳에서
-  # 고치면 나중 것이 이겨야 하는데, 순서가 뒤집히면 되돌린 것이 되살아난다.
-  group: telegram-n8n
+  # 상태 DB를 고친다. 전략 승인 버튼이 예약을 `strategy_changes`에 쓴다
+  # (2026-09-01에 붙임). DB가 드라이브의 파일 하나라 겹치면 나중 것이 앞
+  # 것을 통째로 덮는다.
+  #
+  # 전에는 `telegram-n8n` 그룹이었다. 그때는 버튼이 시트에만 썼기 때문이다.
+  # 그룹은 하나만 걸 수 있어서 DB 쪽으로 맞춘다 — 버튼 처리가 잠깐 기다리는
+  # 것보다 DB가 통째로 덮이는 쪽이 훨씬 비싸다.
+  group: state-write
   cancel-in-progress: false
 
 jobs:
@@ -78,7 +83,20 @@ jobs:
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
           python scripts/telegram_control.py --from-payload "$PAYLOAD" \
+            --touch-when-changed .changed \
             ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
 
-      # 넘겨받은 것을 처리할 때는 '어디까지 읽었나'를 안 건드리므로
-      # DB에 바뀌는 것이 없다. 그래서 올리지 않는다.
+      # **전략 승인 버튼은 상태 DB에 쓴다**(2026-09-01에 붙임). 안 올리면
+      # 러너가 사라질 때 예약이 통째로 없어지고, 그런데도 텔레그램에는
+      # "선택했습니다"가 뜬다. 조용히 성공한 척하는 실패다.
+      #
+      # 매수 승인 버튼은 시트에만 쓰므로 그때는 표시가 안 켜지고 안 올린다.
+      # 버튼을 누를 때마다 무조건 올리면 다른 워크플로가 같은 파일을 올리는
+      # 순간과 겹쳐 한쪽 변경이 통째로 덮일 수 있다.
+      - name: 상태 DB 올리기 (전략 승인처럼 DB를 고쳤을 때만)
+        if: ${{ hashFiles('.changed') != '' }}
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py upload \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --path ./muwon.db
