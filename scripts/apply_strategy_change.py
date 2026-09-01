@@ -35,6 +35,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import traceback
 from datetime import datetime
@@ -51,6 +52,13 @@ from muwon.settings.service import build_settings_service
 from muwon.strategy.registry import get_definition, list_definitions
 
 서울 = ZoneInfo("Asia/Seoul")
+
+
+#: 화면의 '전략 변경 이력' 표가 읽는 탭. 칸 순서는 창구
+#: (`n8n/대시보드자료_화면모양으로.js`의 `전략변경`)와 같아야 한다.
+#: 하나만 밀려도 표의 모든 줄이 한 칸씩 어긋난다.
+탭이름 = "전략변경"
+머리 = ["열쇠", "때", "이전전략", "새전략", "근거구간", "등급", "사유"]
 
 
 def 전략이름(키: str) -> str:
@@ -113,12 +121,55 @@ def 막힘알림글(까닭: str, 새전략: str) -> str:
     ])
 
 
+def 시트에남기기(sheet_id: str, 이제, 줄, 이전이름: str, 새이름: str) -> None:
+    """반영한 것을 시트에 한 줄 남긴다.
+
+    **상태 DB에만 두면 화면이 못 읽는다.** 화면은 창구를 거쳐 시트를 보고,
+    상태 DB는 구글드라이브의 파일이라 창구가 열 수 없다.
+
+    시트가 막혀도 반영은 이미 끝난 일이라 실패로 치지 않는다. 대신 왜 못
+    남겼는지를 로그에 적는다."""
+    if not sheet_id:
+        print("시트를 못 찾아 변경 이력을 안 남깁니다.", file=sys.stderr)
+        return
+    try:
+        from muwon.cloud.sheet_log import append
+
+        append(sheet_id, 탭이름, 머리, [[
+            f"C{이제:%Y-%m-%d %H:%M}",
+            f"{이제:%Y-%m-%d %H:%M}",
+            이전이름,
+            새이름,
+            줄.근거구간 or "",
+            줄.등급 or "",
+            줄.사유 or "",
+        ]])
+        print(f"시트 '{탭이름}'에 남겼습니다.", file=sys.stderr)
+    except Exception as 탈:  # noqa: BLE001 — 반영은 이미 끝났다
+        print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
+
+
+def 시트찾기(인자) -> str:
+    """매수 후보를 뽑는 곳과 같은 길로 찾는다. 여기만 다른 길로 찾으면
+    어느 날 서로 다른 시트를 보게 된다."""
+    if 인자.sheet_id:
+        return 인자.sheet_id
+    if not 인자.folder_id:
+        return ""
+    from muwon.cloud.sector_sheet import DEFAULT_TITLE, find_or_create
+
+    sheet_id, _ = find_or_create(인자.folder_id, DEFAULT_TITLE)
+    return sheet_id
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true",
                         help="무엇을 반영할지 보기만 한다. DB를 안 고친다")
     parser.add_argument("--최소운용일", type=int, default=기본최소운용일,
                         help="직전 변경 뒤 이만큼 지나기 전에는 반영하지 않는다")
+    parser.add_argument("--sheet-id", default=os.environ.get("MUWON_SHEET_ID", ""))
+    parser.add_argument("--folder-id", default=os.environ.get("GDRIVE_FOLDER_ID", ""))
     인자 = parser.parse_args()
 
     이제 = datetime.now(서울).replace(tzinfo=None)
@@ -180,6 +231,7 @@ def main() -> int:
         session.commit()
         print("■ 전략을 바꿨습니다.")
 
+        시트에남기기(시트찾기(인자), 이제, 줄, 이전이름, 새이름)
         알리기(반영알림글(줄, 이전이름, 새이름))
     return 0
 
