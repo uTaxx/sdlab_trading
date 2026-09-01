@@ -43,7 +43,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -88,6 +88,38 @@ def 마지막반영(session: Session) -> StrategyChangeRow | None:
         .order_by(StrategyChangeRow.반영때.desc())
         .limit(1)
     ).first()
+
+
+#: 상태 DB의 시각 칸은 `datetime.utcnow()`로 적힌다. 한국 시간과 아홉 시간
+#: 차이라, 08:20에 반영한 줄은 UTC로 **전날 23:20**이다. 날짜를 그냥 비교하면
+#: 오늘 바꾼 것을 어제 것으로 읽고 "변경 없음"이라고 알린다.
+_서울시차 = timedelta(hours=9)
+
+
+def 오늘변경(session: Session, 오늘: date) -> StrategyChangeRow | None:
+    """오늘 아침 반영이 무엇을 했나. 아무 일도 없었으면 None.
+
+    `오늘`은 한국 날짜다.
+
+    바꾼 줄(`반영`)과 막힌 줄(`막힘`) 둘 다 본다. 막힌 날은 전략이 안 바뀐
+    채로 매수 후보가 나오므로, 그 사실을 아는 것이 바꾼 날보다 더 중요하다.
+
+    시각 칸이 둘이라 각각 본다. 반영한 줄은 `반영때`에, 막힌 줄은 `바뀐때`에
+    적힌다. 한쪽만 보면 다른 쪽을 통째로 놓친다."""
+    for 상태, 칸이름 in ((반영, "반영때"), (막힘, "바뀐때")):
+        칸 = getattr(StrategyChangeRow, 칸이름)
+        줄 = session.scalars(
+            select(StrategyChangeRow)
+            .where(StrategyChangeRow.상태 == 상태, 칸.is_not(None))
+            .order_by(칸.desc())
+            .limit(1)
+        ).first()
+        if 줄 is None:
+            continue
+        때 = getattr(줄, 칸이름, None)
+        if 때 is not None and (때 + _서울시차).date() == 오늘:
+            return 줄
+    return None
 
 
 def 이력(session: Session, 몇줄: int = 20) -> list[StrategyChangeRow]:

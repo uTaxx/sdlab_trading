@@ -47,10 +47,12 @@ from muwon.cloud.approval import (
     보유종목,
     승인머리,
     알림글,
+    전략변경글,
     후보,
 )
 from muwon.cloud.sector_sheet import DEFAULT_TITLE, find_or_create, read
 from muwon.cloud.sheet_log import append
+from muwon.cloud.strategy_approval import 오늘변경
 from muwon.config import bootstrap_settings
 from muwon.data.price_cache import PriceCache
 from muwon.data.yahoo_client import YahooFinanceDataSource
@@ -154,12 +156,18 @@ def main() -> int:
     strategy = build_strategies(selection.active_keys, selection.combine, selection.sell_keys)
     print(f"■ 전략: {selection.describe()}", file=sys.stderr)
 
+    오늘 = datetime.now(KST).date()
+
     with make_session_factory(bootstrap_settings.database_url)() as session:
         보유중 = list(session.scalars(select(PositionRow)))
+        # 08:20 반영이 오늘 무엇을 했는지 여기서 읽어 알림에 한 줄로 넣는다.
+        # 반영 쪽은 바꿨을 때와 막혔을 때만 알리므로, 아무 일도 없는 날에
+        # 후보가 어느 전략으로 나온 것인지 알 방법이 없었다.
+        전략변경 = 전략변경글(오늘변경(session, 오늘))
     보유심볼 = {p.symbol for p in 보유중}
+    print(f"■ {전략변경}", file=sys.stderr)
 
     source, cache = YahooFinanceDataSource(), PriceCache()
-    오늘 = datetime.now(KST).date()
     시작 = 오늘 - timedelta(days=WARMUP_DAYS)
 
     # ── 시세 받기 (섹터별로 묶어 둔다. 지수를 만들어야 하므로) ──────
@@ -300,7 +308,7 @@ def main() -> int:
         print("\n─── 텔레그램으로 갈 글 ───")
         print(알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                    전략=selection.describe(), 섹터요약=강한섹터,
-                   섹터강도=순위, 보유=보유알림))
+                   섹터강도=순위, 보유=보유알림, 전략변경=전략변경))
         print("─── 여기까지 ───")
         return 0
 
@@ -349,7 +357,7 @@ def main() -> int:
             )
             글 = 알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                      전략=selection.describe(), 섹터요약=강한섹터,
-                     섹터강도=순위, 보유=보유알림)
+                     섹터강도=순위, 보유=보유알림, 전략변경=전략변경)
             send(cfg.bot_token, cfg.chat_id, 글,
                  reply_markup=keyboard(고른것, 오늘) if 고른것 else None)
             print("텔레그램으로 알렸습니다(버튼 포함).", file=sys.stderr)

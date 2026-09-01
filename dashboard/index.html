@@ -18,6 +18,14 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="./style.css">
+<!--
+  탭 아이콘. 파일로 두지 않고 글자 그대로 넣는 이유는, 파일이면 요청이
+  한 번 더 나가고 없을 때 404가 남기 때문이다. 실제로 404가 나고 있었다.
+  폰 홈 화면에 추가했을 때 이름 없는 아이콘이 되지 않게 하려는 것이기도 하다.
+  화면이 흑백이라 아이콘도 검은 사각형에 흰 글자로 맞춘다.
+-->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2314130F'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='700' fill='%23FAFAF8' text-anchor='middle'%3E%E2%82%A9%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#14130F">
 </head>
 <body>
 <div class="싸개">
@@ -719,14 +727,17 @@
 
       <h2>전략 변경 이력</h2>
       <p class="h2곁말">
-        실제로 변경한 기록만 표시합니다. 선택 후 취소한 것은 판단 과정이므로
-        포함하지 않습니다.
+        예약한 변경을 반영한 기록과, 반영하려다 조건에 걸려 실패한 기록입니다.
+        선택 후 취소한 것은 판단 과정이므로 포함하지 않습니다.
+        <b>반영에 실패한 날은 전략이 변경되지 않은 상태로 매수 후보가
+        산출됩니다.</b>
       </p>
       <div id="변경알림"></div>
       <div class="표싸개">
         <table>
           <thead><tr>
-            <th>변경 시각</th><th>이전 전략</th><th>변경 전략</th>
+            <th>변경 시각</th><th class="가운데">결과</th>
+            <th>이전 전략</th><th>변경 전략</th>
             <th>근거 구간</th><th>등급</th><th>사유</th>
           </tr></thead>
           <tbody id="변경몸"></tbody>

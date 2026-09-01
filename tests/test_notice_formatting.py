@@ -20,7 +20,7 @@ import pandas as pd
 import pytest
 
 from muwon.cloud.approval import 알림글 as 승인알림글
-from muwon.cloud.approval import 후보
+from muwon.cloud.approval import 전략변경글, 후보
 from muwon.domain.types import OrderResult, OrderSide
 from muwon.execution.engine import ExecutedAction, 매도알림, 매수알림
 from muwon.execution.fill_settle import 보유고침, 주문고침
@@ -50,6 +50,21 @@ def _주문(방향=OrderSide.BUY):
         symbol="066970", side=방향, quantity=12, price=118300.0, order_id="1",
         is_paper=True, reference_price=121600.0, fill_confirmed=True,
     )
+
+
+class _변경줄:
+    """전략변경글이 읽는 칸만 흉내 낸다. DB를 안 켜고도 문장을 만들 수 있다."""
+
+    def __init__(self, 상태, 이전="", 새것="", 막힌까닭=""):
+        self.상태, self.이전전략, self.새전략, self.막힌까닭 = 상태, 이전, 새것, 막힌까닭
+
+
+def _바뀐줄():
+    return _변경줄("반영", 이전="volume_surge_5d_ma20", 새것="volatility_breakout_k05")
+
+
+def _막힌줄():
+    return _변경줄("막힘", 막힌까닭="예약한 전략이 목록에 없습니다: volume_surge_3d")
 
 
 def _후보():
@@ -82,6 +97,17 @@ def _상태():
     ("매수 후보 제안", lambda: 승인알림글([_후보()], 오늘, "https://예시", 살펴본수=45,
                                  전략="volume_surge_5d", 섹터요약="철강 강")),
     ("후보 없는 날", lambda: 승인알림글([], 오늘, "https://예시", 살펴본수=45)),
+    # 아침 알림에 붙는 "오늘 전략이 바뀌었나" 한 줄. 세 갈래 전부 훑는다.
+    # 막힌 갈래의 까닭에는 전략 키가 섞여 들어오므로 밑줄 검사가 특히 필요하다.
+    ("후보 + 전략 안 바뀜", lambda: 승인알림글(
+        [_후보()], 오늘, "https://예시", 살펴본수=45,
+        전략변경=전략변경글(None))),
+    ("후보 + 전략 바뀜", lambda: 승인알림글(
+        [_후보()], 오늘, "https://예시", 살펴본수=45,
+        전략변경=전략변경글(_바뀐줄()))),
+    ("후보 없고 전략 반영이 막힘", lambda: 승인알림글(
+        [], 오늘, "https://예시", 살펴본수=45,
+        전략변경=전략변경글(_막힌줄()))),
     ("후보 없고 시세도 없는 날", lambda: 승인알림글([], 오늘, "https://예시", 살펴본수=0)),
     ("매수 결과: 다 삼", lambda: 매수결과글(
         오늘, [_후보()],

@@ -19,7 +19,7 @@ from muwon.backtest.costs import TransactionCosts
 from muwon.domain.interfaces import Strategy
 from muwon.domain.types import SignalType
 from muwon.indicators.technical import add_indicators
-from muwon.risk.exits import atr_series, evaluate_exit
+from muwon.risk.exits import atr_series, evaluate_exit, 보유상한
 from muwon.risk.manager import RiskManager
 from muwon.strategy.portfolio import (
     MarketContext,
@@ -149,8 +149,6 @@ class BacktestEngine:
             if (policy0.atr_stop_enabled or policy0.trailing_stop_enabled)
             else {}
         )
-        max_holding_days = self._strategy.max_holding_days
-
         all_dates = sorted({d for df in enriched.values() for d in df.index})
 
         cash = self._initial_cash
@@ -203,6 +201,19 @@ class BacktestEngine:
                 )
             ):
                 signals_today.setdefault(signal.symbol, []).append(signal)
+
+            # 며칠까지 들고 있을 것인가를 **날마다 다시 묻는다.** 두 가지 때문이다.
+            #
+            # 하나, 답은 `risk/exits.보유상한()`이 낸다. 전에는 여기서 전략의
+            # 값을 곧장 읽어서 기초설정의 보유기간을 통째로 무시했다. 실거래
+            # 엔진(execution/engine.py:409)은 보유상한()을 쓰므로, 기초설정에
+            # 보유기간을 넣어 두면 백테스트와 실거래가 서로 다른 규칙으로 돌고
+            # 아무것도 빨개지지 않았다.
+            #
+            # 둘, 전략이 바뀌면 보유기간도 같이 바뀐다. 실거래에서 청산 판단은
+            # 살 때의 전략이 아니라 지금 설정된 전략을 본다. 실행 전에 한 번만
+            # 읽으면 도중에 전략이 바뀌는 경우를 재 볼 수가 없다.
+            max_holding_days = 보유상한(self._strategy, self._risk_manager.get_policy())
 
             # 0) 어제 정한 주문을 오늘 **시가**에 체결한다. 청산이 먼저다.
             # 판 돈으로 사야 하기 때문이다(실거래에서도 같은 순서).

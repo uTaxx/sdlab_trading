@@ -27,6 +27,12 @@
 반영하려다 조건에 걸리면 상태를 `막힘`으로 적고 까닭을 남긴 뒤 알린다.
 **조용히 안 바뀌면 원인을 못 찾는다.** 이 저장소에서 이미 세 번 겪었다.
 
+시트에도 남긴다. 전에는 바꾼 날만 시트에 남겨서, 막힌 날은 화면에 아무
+흔적이 없었다. 텔레그램 알림을 놓치면 그날 무슨 일이 있었는지 확인할 길이
+없었고, 화면의 자동 실행 일정은 막힌 날에도 "예약이 없는 날에는 아무것도
+변경하지 않습니다"만 적혀 있었다. 그래서 반영한 날과 막힌 날을 같은 탭에
+`상태` 칸으로 구별해 쌓는다.
+
 사용 예:
     python scripts/apply_strategy_change.py --dry-run
     python scripts/apply_strategy_change.py
@@ -46,6 +52,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from muwon.analysis.strategy_fit import 기본최소운용일
 from muwon.cloud import strategy_approval as 승인
+
+# 막힌 까닭은 f"...{줄.새전략}"으로 만들어져 전략 키가 그대로 섞인다.
+# 사람에게 가는 자리(알림, 시트, 화면)에서는 키가 아니라 이름이어야 한다.
+from muwon.cloud.approval import 키를이름으로
 from muwon.config import bootstrap_settings
 from muwon.db.session import ensure_schema, make_session_factory
 from muwon.settings.service import build_settings_service
@@ -58,7 +68,12 @@ from muwon.strategy.registry import get_definition, list_definitions
 #: (`n8n/대시보드자료_화면모양으로.js`의 `전략변경`)와 같아야 한다.
 #: 하나만 밀려도 표의 모든 줄이 한 칸씩 어긋난다.
 탭이름 = "전략변경"
-머리 = ["열쇠", "때", "이전전략", "새전략", "근거구간", "등급", "사유"]
+머리 = ["열쇠", "때", "이전전략", "새전략", "근거구간", "등급", "사유", "상태"]
+
+#: 시트 `상태` 칸에 쓰는 말. 화면이 이 글자를 그대로 견주므로 바꾸면 양쪽을
+#: 같이 고쳐야 한다. `tests/test_n8n_gateway_fields.py`가 묶어 둔다.
+반영함 = "반영"
+막힘 = "막힘"
 
 
 def 전략이름(키: str) -> str:
@@ -112,7 +127,7 @@ def 막힘알림글(까닭: str, 새전략: str) -> str:
         "⚠️ 전략 변경을 반영하지 못했습니다",
         "",
         f"예약  {전략이름(새전략)}",
-        f"사유  {까닭}",
+        f"사유  {키를이름으로(까닭)}",
         "",
         (
             "전략은 그대로입니다. 예약은 종료했으므로 다시 검토가 필요하면 "
@@ -121,14 +136,17 @@ def 막힘알림글(까닭: str, 새전략: str) -> str:
     ])
 
 
-def 시트에남기기(sheet_id: str, 이제, 줄, 이전이름: str, 새이름: str) -> None:
-    """반영한 것을 시트에 한 줄 남긴다.
+def 시트에남기기(
+    sheet_id: str, 이제, 이전이름: str, 새이름: str, 상태: str,
+    근거구간: str = "", 등급: str = "", 사유: str = "",
+) -> None:
+    """그날 08:20이 무엇을 했는지 시트에 한 줄 남긴다. 막힌 날도 남긴다.
 
-    **상태 DB에만 두면 화면이 못 읽는다.** 화면은 창구를 거쳐 시트를 보고,
-    상태 DB는 구글드라이브의 파일이라 창구가 열 수 없다.
+    **상태 DB에만 두면 화면이 못 읽는다.** 화면은 n8n 연결을 거쳐 시트를
+    보고, 상태 DB는 구글 드라이브의 파일이라 n8n 연결이 열 수 없다.
 
-    시트가 막혀도 반영은 이미 끝난 일이라 실패로 치지 않는다. 대신 왜 못
-    남겼는지를 로그에 적는다."""
+    시트가 막혀도 반영이나 막힘 처리는 이미 끝난 일이라 실패로 치지 않는다.
+    대신 왜 못 남겼는지를 로그에 적는다."""
     if not sheet_id:
         print("시트를 못 찾아 변경 이력을 안 남깁니다.", file=sys.stderr)
         return
@@ -140,12 +158,13 @@ def 시트에남기기(sheet_id: str, 이제, 줄, 이전이름: str, 새이름:
             f"{이제:%Y-%m-%d %H:%M}",
             이전이름,
             새이름,
-            줄.근거구간 or "",
-            줄.등급 or "",
-            줄.사유 or "",
+            근거구간,
+            등급,
+            사유,
+            상태,
         ]])
-        print(f"시트 '{탭이름}'에 남겼습니다.", file=sys.stderr)
-    except Exception as 탈:  # noqa: BLE001 (반영은 이미 끝났다)
+        print(f"시트 '{탭이름}'에 {상태}으로 남겼습니다.", file=sys.stderr)
+    except Exception as 탈:  # noqa: BLE001 (반영이나 막힘 처리는 이미 끝났다)
         print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
 
 
@@ -198,11 +217,19 @@ def main() -> int:
             print(f"■ 반영하지 못합니다: {까닭}")
             앞 = 승인.지금예약(session)
             새전략 = 앞.새전략 if 앞 else ""
+            근거구간 = 앞.근거구간 if 앞 else ""
+            등급 = 앞.등급 if 앞 else ""
             if 인자.dry_run:
                 print("dry-run이라 상태를 안 고칩니다.")
                 return 0
             승인.막힘표시(session, 까닭)
             session.commit()
+            # 막힌 날일수록 기록이 중요하다. 전략이 안 바뀐 채로 후보가
+            # 나오고, 사람은 바뀐 줄 알고 승인한다.
+            시트에남기기(
+                시트찾기(인자), 이제, 전략이름(지금키), 전략이름(새전략) if 새전략 else "",
+                막힘, 근거구간=근거구간, 등급=등급, 사유=키를이름으로(까닭),
+            )
             알리기(막힘알림글(까닭, 새전략))
             return 0
 
@@ -231,7 +258,10 @@ def main() -> int:
         session.commit()
         print("■ 전략을 바꿨습니다.")
 
-        시트에남기기(시트찾기(인자), 이제, 줄, 이전이름, 새이름)
+        시트에남기기(
+            시트찾기(인자), 이제, 이전이름, 새이름, 반영함,
+            근거구간=줄.근거구간 or "", 등급=줄.등급 or "", 사유=줄.사유 or "",
+        )
         알리기(반영알림글(줄, 이전이름, 새이름))
     return 0
 
