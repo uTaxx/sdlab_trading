@@ -169,3 +169,79 @@ def test_사람이_넣은_값을_명령줄에_직접_박지_않는다():
         "이미 고쳤는데 '아직안고친것'에 남아 있습니다. 지우세요: "
         + ", ".join(sorted(남은것))
     )
+
+
+# ── 전략 검토·반영 (2026-09-01) ────────────────────────────────
+
+
+def test_전략검토는_상태DB를_안_고치므로_잠그지_않는다():
+    """읽기만 하는 워크플로를 state-write에 묶으면 5분마다 도는 손절 감시가
+    전략 27개 계산을 기다린다. 손절이 늦는 쪽이 훨씬 나쁘다.
+
+    이 스크립트가 DB에 한 줄이라도 쓰게 되면 upload 줄이 생기고, 그러면
+    위의 `test_DB를_고치면_같은_자물쇠를_쓴다`가 잡는다."""
+    글 = (_워크플로[0].parent / "strategy-review.yml").read_text(encoding="utf-8")
+    assert "group: strategy-review" in 글
+    assert "group: state-write" not in 글
+    assert "gdrive_sync.py upload" not in 글
+
+
+def test_전략반영은_상태DB를_고치므로_state_write다():
+    """전략 키를 상태 DB에 쓴다. 겹치면 DB가 통째로 덮인다."""
+    길 = _워크플로[0].parent / "strategy-apply.yml"
+    글 = 길.read_text(encoding="utf-8")
+    assert "gdrive_sync.py upload" in 글, "반영했으면 DB를 올려야 합니다"
+    묶음 = _읽기(길).get("concurrency")
+    assert 묶음.get("group") == DB잠금
+    assert 묶음.get("cancel-in-progress") is False
+
+
+def test_전략_변경은_사람이_두_번_누른_뒤에만_된다():
+    """검토가 전략을 바꾸면 승인 단계가 없는 것과 같다.
+
+    검토 스크립트는 계산만 하고, 반영 스크립트만 전략을 쓴다. 둘이 한
+    워크플로에 섞이면 그 경계가 사라진다."""
+    검토 = (_워크플로[0].parent / "strategy-review.yml").read_text(encoding="utf-8")
+    반영 = (_워크플로[0].parent / "strategy-apply.yml").read_text(encoding="utf-8")
+    assert "apply_strategy_change.py" not in 검토, "검토가 전략을 바꾸면 안 됩니다"
+    assert "run_strategy_review.py" in 검토
+    assert "apply_strategy_change.py" in 반영
+    assert "run_strategy_review.py" not in 반영
+
+
+def test_전략_반영이_매수_후보_산출보다_먼저다():
+    """후보를 뽑은 뒤에 바꾸면 화면에 뜬 후보와 실제 전략이 하루 어긋난다.
+
+    시각은 n8n 시계가 정한다. 여기서는 그 순서를 문서에 적어 두었는지만
+    본다 — 순서를 잊으면 어긋난 뒤에야 알게 된다."""
+    글 = (_워크플로[0].parent / "strategy-apply.yml").read_text(encoding="utf-8")
+    assert "매수 후보를 뽑기 전이어야 한다" in 글
+
+
+def test_셸_변수_이름에_한글을_안_쓴다():
+    """bash가 한글 변수 이름을 못 읽는다.
+
+    `인자=""`를 쓰면 `command not found`로 죽는다. 2026-09-01에 실제로
+    겪었다. GitHub Actions 표현식만 그런 줄 알았는데 셸도 같다.
+
+    파이썬 argparse 인자 이름은 한글이어도 된다(`--최소운용일`). 셸이
+    그건 그냥 글자로 넘긴다. 막히는 것은 **대입문의 왼쪽**이다."""
+    import re
+    from pathlib import Path
+
+    나쁜것: list[str] = []
+    for 길 in sorted((Path(__file__).resolve().parent.parent
+                     / ".github" / "workflows").glob("*.yml")):
+        for ㄴ, 줄 in enumerate(길.read_text(encoding="utf-8").splitlines(), 1):
+            벗김 = 줄.strip()
+            if 벗김.startswith("#"):
+                continue
+            # `이름=값` 꼴에서 이름에 한글이 있으면 셸이 못 읽는다.
+            맞은것 = re.match(r"^([^\s=#]+)=", 벗김)
+            if 맞은것 and any("가" <= ㄱ <= "힣" for ㄱ in 맞은것.group(1)):
+                나쁜것.append(f"{길.name}:{ㄴ}  {벗김[:60]}")
+
+    assert not 나쁜것, (
+        "셸 변수 이름에 한글이 있습니다. bash가 command not found로 죽습니다:\n  "
+        + "\n  ".join(나쁜것)
+    )

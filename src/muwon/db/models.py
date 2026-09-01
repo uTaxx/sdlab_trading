@@ -218,3 +218,57 @@ class RunLogRow(Base):
     cash: Mapped[float] = mapped_column(Float, default=0.0)
     equity: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class StrategyChangeRow(Base):
+    """전략을 바꾸자는 제안 하나. 예약부터 반영이나 취소까지 한 줄로 이어진다.
+
+    ## 왜 예약과 이력을 한 테이블에 두나
+
+    "그때 왜 바꿨지"에 답하려면 바꾼 시각만으로는 모자라다. 그때 무슨 숫자를
+    보고 골랐는지, 어느 구간이 그 전략을 가리켰는지가 같이 있어야 한다. 예약할
+    때 그 근거가 이미 손에 있으므로, 그 줄을 그대로 끌고 가서 반영 표시만
+    바꾸는 것이 제일 싸고 어긋날 일도 없다.
+
+    ## 상태
+
+    - `고름`: 버튼을 한 번 눌렀다. 아직 확정이 아니다.
+    - `확정`: 확인 버튼까지 눌렀다. 다음 반영 때 실제로 바뀐다.
+    - `반영`: 실제로 바꿨다. 여기서부터 이력이다.
+    - `취소`: 사람이 되돌렸다. 반영 전이었다.
+    - `되돌림`: 반영한 뒤 이전 전략으로 복귀했다.
+    - `막힘`: 반영하려 했는데 조건에 걸려 못 했다. 까닭을 같이 적는다.
+
+    **`고름`과 `확정`은 동시에 하나만 있어야 한다.** 둘을 동시에 예약하면
+    다음 날 무엇이 반영되는지 알 수 없다. 그 규칙은 여기가 아니라
+    `cloud/strategy_approval.py`가 지킨다.
+    """
+
+    __tablename__ = "strategy_changes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    #: 제안을 낸 날. 버튼 콜백에 실려 오는 값과 같아야 한다. 어제 버튼으로
+    #: 오늘 바꾸는 것을 막는 자리다.
+    제안일: Mapped[date] = mapped_column(Date, index=True)
+    상태: Mapped[str] = mapped_column(String(10), default="고름", index=True)
+    이전전략: Mapped[str] = mapped_column(String(50), default="")
+    새전략: Mapped[str] = mapped_column(String(50), default="")
+    #: 어느 구간이 이 전략을 가리켰나. 여럿이면 쉼표로 잇는다.
+    근거구간: Mapped[str] = mapped_column(String(100), default="")
+    #: 제안을 낼 때의 등급(이상없음 / 살펴볼것 / 확인필요).
+    등급: Mapped[str] = mapped_column(String(10), default="")
+    #: 그때 두 전략의 수익률과 거래 수. 나중에 "그 숫자가 맞았나"를 되짚는다.
+    이전수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    새수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    거래수: Mapped[int] = mapped_column(Integer, default=0)
+    #: 사람이 읽는 사유. 후보글과 트렌드글을 그대로 담는다.
+    사유: Mapped[str] = mapped_column(Text, default="")
+    #: 반영이 막혔으면 왜 막혔는지. 조용히 안 바뀌면 원인을 못 찾는다.
+    막힌까닭: Mapped[str] = mapped_column(Text, default="")
+    #: 어디서 눌렀나. 지금은 텔레그램뿐이고, 나중에 화면이 붙을 수 있다.
+    승인경로: Mapped[str] = mapped_column(String(20), default="")
+    만든때: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
+    바뀐때: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    반영때: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

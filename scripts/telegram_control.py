@@ -38,10 +38,11 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 
+from muwon.cloud import strategy_approval as 전략승인
 from muwon.cloud.approval import approve_in_sheet, read_today, set_decisions
 from muwon.cloud.sector_sheet import DEFAULT_TITLE, find_or_create, read, update_setting
 from muwon.config import bootstrap_settings
-from muwon.db.session import ensure_schema
+from muwon.db.session import ensure_schema, make_session_factory
 from muwon.notify.telegram import TelegramNotifier
 from muwon.notify.telegram_api import (
     answer_callback,
@@ -54,10 +55,15 @@ from muwon.notify.telegram_buttons import (
     parse_callback,
     글에_상태붙이기,
     누른뒤말,
+    상태표시,
+    예약키보드,
+    전략상태블록,
+    확인키보드,
 )
 from muwon.notify.telegram_control import parse_command, 도움말, 바꾼말
 from muwon.settings.from_sheet import apply, describe, parse_settings, 기준표
 from muwon.settings.service import build_settings_service
+from muwon.strategy.registry import get_definition, list_definitions
 
 KST = ZoneInfo("Asia/Seoul")
 #: 한 번에 몇 개까지 처리할 것인가. 밀려 있어도 한꺼번에 다 실행하면
@@ -206,6 +212,70 @@ def _payload_updates(글: str) -> list[dict]:
     raise SystemExit(f"업데이트를 못 읽었습니다: {type(것).__name__}")
 
 
+def _전략이름(키: str) -> str:
+    try:
+        return get_definition(키).화면이름
+    except Exception:  # noqa: BLE001 — 이름을 못 찾는다고 버튼이 죽으면 안 된다
+        return 키
+
+
+def _전략버튼처리(c, 누른것: dict, cfg) -> None:
+    """전략 변경 버튼. **한 번 눌러서는 안 바뀐다.**
+
+    누르면 예약만 되고 확인 버튼이 뜬다. 확인까지 눌러도 그날 안 바뀐다.
+    다음 거래일 매수 후보 산출 전에 반영하므로 그 사이에 취소할 수 있다.
+
+    규칙은 전부 `cloud/strategy_approval.py`가 지킨다. 여기서 따로 검사하면
+    규칙이 두 벌이 되고, 둘이 어긋나도 아무것도 안 빨개진다."""
+    토큰, 질문id = cfg.bot_token, 누른것["id"]
+    메시지 = 누른것.get("message") or {}
+    chat_id = str((메시지.get("chat") or {}).get("id", ""))
+    message_id = 메시지.get("message_id")
+
+    service = build_settings_service()
+    지금키 = (service.get_strategy_selection().active_keys or ("",))[0]
+    아는것 = [ㅈ.key for ㅈ in list_definitions()]
+
+    session_factory = make_session_factory(bootstrap_settings.database_url)
+    with session_factory() as session:
+        if c.종류 == "전략취소":
+            결과 = 전략승인.취소하기(session)
+            판, 붙일글 = None, 전략상태블록()
+        elif c.종류 == "전략고름":
+            결과 = 전략승인.고르기(
+                session, c.날짜, 지금키, c.전략키, 아는것,
+                승인경로="텔레그램",
+            )
+            이름 = _전략이름(c.전략키)
+            판 = 확인키보드(c.전략키, 이름, c.날짜) if 결과.된것 else None
+            붙일글 = 전략상태블록(c.전략키, 이름, 확정됐나=False) if 결과.된것 else ""
+        else:  # 전략확정
+            결과 = 전략승인.확정하기(session, c.날짜, c.전략키)
+            이름 = _전략이름(c.전략키)
+            판 = 예약키보드(c.날짜) if 결과.된것 else None
+            붙일글 = 전략상태블록(c.전략키, 이름, 확정됐나=True) if 결과.된것 else ""
+
+        if 결과.된것:
+            session.commit()
+        else:
+            session.rollback()
+
+    if not 결과.된것:
+        # 안 됐으면 판을 안 건드린다. 화면이 지금 상태를 계속 보여 줘야
+        # 사람이 다음에 무엇을 누를지 안다.
+        answer_callback(토큰, 질문id, 결과.말, show_alert=True)
+        print(f"    → 전략 버튼 거절: {결과.말}")
+        return
+
+    if message_id:
+        # 상태 블록을 통째로 갈아 끼운다. 안 자르면 누를 때마다 글이 길어져서
+        # 정작 순위표가 화면 밖으로 밀려난다.
+        몸통 = 메시지.get("text", "").split(상태표시)[0].rstrip()
+        edit_text(토큰, chat_id, message_id, 몸통 + "\n\n" + 붙일글, 판)
+    answer_callback(토큰, 질문id, 결과.말)
+    print(f"    → 전략 버튼 {c.종류}: {c.전략키 or '(없음)'}")
+
+
 def _버튼처리(누른것: dict, sheet_id: str, cfg) -> None:
     """버튼 하나를 눌렀을 때. **누른 결과가 화면에 바로 보여야 한다.**
 
@@ -222,6 +292,13 @@ def _버튼처리(누른것: dict, sheet_id: str, cfg) -> None:
         return
 
     오늘 = datetime.now(KST).date()
+
+    # 전략 버튼은 매수 승인과 길이 다르다. 시트가 아니라 상태 DB를 보고,
+    # 날짜 검사도 저쪽에서 한다 — 어제 버튼을 눌렀을 때 돌려줄 말이 다르다.
+    if c.종류 in ("전략고름", "전략확정", "전략취소"):
+        _전략버튼처리(c, 누른것, cfg)
+        return
+
     if c.날짜 != 오늘:
         # 어제 목록의 버튼이다. 어차피 사지 않지만(승인 규칙 ②), 눌린 채로
         # 두면 나중에 기록을 읽을 때 헷갈린다.

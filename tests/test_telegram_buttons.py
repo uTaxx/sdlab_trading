@@ -43,7 +43,8 @@ def test_전부_버튼에는_종목이_없다():
 
 
 def test_모르는_버튼은_추측하지_않는다():
-    for 값 in ("", "x|2026-08-20|005930", "a", "a|어제|005930", "a|2026-08-20|12", None):
+    # `x`는 2026-09-01에 전략취소가 됐다. 안 쓰는 글자로 바꾼다.
+    for 값 in ("", "z|2026-08-20|005930", "a", "a|어제|005930", "a|2026-08-20|12", None):
         assert parse_callback(값).종류 == "모름", f"{값!r}가 명령으로 읽혔습니다"
 
 
@@ -225,3 +226,110 @@ def test_업데이트가_아니면_터진다():
 
     with pytest.raises(SystemExit, match="업데이트 같지"):
         _payload(json.dumps({"아무": "거나"}))
+
+
+# ── 전략 변경 버튼 (2026-09-01) ────────────────────────────────
+#
+# 이 버튼은 누르면 실제 매매 전략이 바뀐다. 매수 승인보다 위험한 자리라
+# 안 눌리는 조건을 더 많이 본다.
+
+from muwon.notify.telegram_buttons import (
+    MAX_KEY_LEN,
+    예약키보드,
+    전략버튼,
+    전략상태블록,
+    전략키보드,
+    확인키보드,
+)
+
+
+def _버튼(키="volume_surge_3d", 이름="거래량 급증 3일", 구간="3개월"):
+    return 전략버튼(키=키, 이름=이름, 구간=구간, 수익률=10.0)
+
+
+def test_전략_버튼과_매수_버튼은_콜백_글자가_안_겹친다():
+    """겹치면 어제 메시지의 버튼이 오늘 다른 일을 한다."""
+    from muwon.notify import telegram_buttons as ㅌ
+
+    글자 = [ㅌ.승인, ㅌ.거절, ㅌ.전부승인, ㅌ.전부거절,
+          ㅌ.전략고름, ㅌ.전략확정, ㅌ.전략취소]
+    assert len(글자) == len(set(글자)), f"겹치는 글자가 있습니다: {글자}"
+
+
+def test_한_번_누르는_것으로는_안_바뀐다():
+    """1단계 버튼은 예약만 한다. 손가락이 스쳐도 그것만으로는 안 바뀐다."""
+    c = parse_callback("s|2026-08-20|volume_surge_3d")
+    assert c.종류 == "전략고름"
+    assert c.전략키 == "volume_surge_3d"
+    # 확정은 다른 글자다.
+    assert parse_callback("c|2026-08-20|volume_surge_3d").종류 == "전략확정"
+
+
+def test_취소_버튼에는_전략이_없다():
+    c = parse_callback("x|2026-08-20")
+    assert c.종류 == "전략취소" and c.전략키 == ""
+
+
+def test_전략_이름이_이상하면_안_읽는다():
+    """우리가 만든 버튼은 영문 소문자·숫자·밑줄만 씁니다."""
+    for 값 in ("s|2026-08-20", "s|2026-08-20|", "s|2026-08-20|한글",
+               "c|2026-08-20|../etc", "s|2026-08-20|a b"):
+        assert parse_callback(값).종류 == "모름", f"{값!r}가 명령으로 읽혔습니다"
+
+
+def test_같은_전략이_여러_구간에서_앞서면_버튼_하나로_합친다():
+    판 = 전략키보드(
+        [_버튼(구간="1개월"), _버튼(구간="3개월"), _버튼(키="macd_cross", 이름="MACD 교차", 구간="1주")],
+        오늘,
+    )
+    줄들 = 판["inline_keyboard"]
+    assert len(줄들) == 2, "같은 전략이 두 줄로 나오면 무엇이 다른지 찾게 됩니다"
+    assert "1개월·3개월" in 줄들[0][0]["text"]
+
+
+def test_후보가_없으면_버튼판을_안_만든다():
+    assert 전략키보드([], 오늘) is None
+
+
+def test_전략_버튼_자료도_64바이트를_넘지_않는다():
+    from muwon.strategy.registry import list_definitions
+
+    for d in list_definitions():
+        assert len(d.key) <= MAX_KEY_LEN, f"{d.key}가 너무 깁니다"
+        판 = 전략키보드([_버튼(키=d.key, 이름=d.화면이름)], 오늘)
+        값 = 판["inline_keyboard"][0][0]["callback_data"]
+        assert len(값.encode()) <= MAX_CALLBACK_BYTES, f"{d.key}: {값}"
+
+
+def test_키가_너무_길면_조용히_넘어가지_않는다():
+    """버튼을 못 만드는 것이 조용히 넘어가면 그 전략만 승인할 길이 없어집니다."""
+    import pytest
+
+    with pytest.raises(ValueError, match="버튼을 못 만듭니다"):
+        전략키보드([_버튼(키="a" * (MAX_KEY_LEN + 1))], 오늘)
+
+
+def test_확인판에는_확정과_취소가_같이_있다():
+    """확정만 두면 잘못 눌렀을 때 되돌릴 자리가 없습니다."""
+    줄 = 확인키보드("volume_surge_3d", "거래량 급증 3일", 오늘)["inline_keyboard"][0]
+    종류들 = [parse_callback(ㄱ["callback_data"]).종류 for ㄱ in 줄]
+    assert 종류들 == ["전략확정", "전략취소"]
+
+
+def test_확정된_뒤에도_취소할_수_있다():
+    """반영이 다음 거래일이라 그 사이에 되돌릴 수 있어야 합니다."""
+    줄 = 예약키보드(오늘)["inline_keyboard"][0]
+    assert parse_callback(줄[0]["callback_data"]).종류 == "전략취소"
+
+
+def test_상태블록이_세_상태를_구별한다():
+    """예약 없음, 골랐지만 미확정, 확정됨은 전부 다른 말이어야 합니다."""
+    없음 = 전략상태블록()
+    고름 = 전략상태블록("volume_surge_3d", "거래량 급증 3일", 확정됐나=False)
+    확정 = 전략상태블록("volume_surge_3d", "거래량 급증 3일", 확정됐나=True)
+    assert "예약된 전략 변경이 없습니다" in 없음
+    assert "아직 확정되지 않았습니다" in 고름
+    assert "예약되었습니다" in 확정
+    assert "다음 거래일" in 확정
+    for 글 in (없음, 고름, 확정):
+        assert "—" not in 글, f"줄표가 있습니다: {글}"

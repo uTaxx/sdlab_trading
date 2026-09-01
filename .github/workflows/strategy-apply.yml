@@ -1,0 +1,100 @@
+name: 전략 변경 반영
+
+# 확정된 전략 변경 예약을 실제로 반영한다. **여기서만 전략이 바뀐다.**
+#
+#     17:50  검토 → 텔레그램 버튼        strategy-review.yml
+#              ↓ 사람이 두 번 누른다
+#     08:20  여기 — 확정된 것만 반영
+#              ↓
+#     08:30  새 전략으로 매수 후보를 뽑는다  propose-buys.yml
+#
+# ## 왜 08:20인가
+#
+# 매수 후보를 뽑기 전이어야 한다. 후보를 뽑은 뒤에 바꾸면 화면에 뜬 후보와
+# 실제로 쓰는 전략이 하루 어긋난다.
+#
+# ## 예약이 없는 날이 대부분이다
+#
+# 그런 날은 아무것도 안 하고 0으로 끝난다. 알림도 안 보낸다. 매일 "오늘도
+# 안 바꿨습니다"를 보내면 알림이 흔해지고, 흔해진 알림은 진짜일 때도 안
+# 읽힌다.
+#
+# ## 바꾸면 보유 종목은 어떻게 되나
+#
+# 바로 새 규칙으로 팔린다. 엔진의 청산 판단은 보유 종목이 어떤 전략으로
+# 들어왔는지가 아니라 지금 걸린 전략을 본다. 이 사실을 반영 알림에 적는다.
+#
+# ## 실패하면 무엇이 빨개지나
+#
+# 이 워크플로가 빨개지고 상태 DB가 안 올라간다. 그러면 전략은 바뀌지 않은
+# 채로 남는다. 반영에 실패했는데 조용히 성공한 척하는 길은 없다.
+#
+# 반영을 **하지 않기로 판단한** 경우는 다르다. 그건 정상 동작이라 초록불로
+# 끝나고, 대신 상태 DB에 막힘으로 남고 텔레그램으로 까닭이 간다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "무엇을 반영할지 보기만 한다. DB를 안 고친다"
+        type: boolean
+        default: false
+      min_hold_days:
+        description: "직전 변경 뒤 이만큼 지나기 전에는 반영하지 않는다 (기본 30)"
+        default: "30"
+
+concurrency:
+  # 상태 DB가 드라이브의 파일 하나라 겹치면 나중 것이 앞 것을 통째로 덮는다.
+  # 이 워크플로는 전략을 바꿔 쓰므로 반드시 묶어야 한다.
+  group: state-write
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: 확정된 예약 반영
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          MUWON_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          MUWON_MIN_HOLD: ${{ github.event.inputs.min_hold_days || '30' }}
+        run: |
+          set -o pipefail
+          # **셸 변수 이름은 영문이어야 한다.** `인자=""`를 쓰면 bash가
+          # `command not found`로 죽는다(2026-09-01에 겪음). GitHub Actions
+          # 표현식만 그런 줄 알았는데 셸도 같다.
+          ARGS=""
+          if [ "$MUWON_DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          python scripts/apply_strategy_change.py $ARGS --최소운용일 "$MUWON_MIN_HOLD"
+
+      # 반영에 실패했더라도 올린다. 스크립트가 예외로 끝나면 DB는 안 고쳐진
+      # 상태라 올려도 같은 내용이고, 막힘으로 표시한 경우는 그 표시가 남아야
+      # 다음 회차에 같은 것을 다시 시도하지 않는다.
+      - name: 상태 DB 구글드라이브에 올리기
+        if: always() && github.event.inputs.dry_run != 'true'
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py upload \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --path ./muwon.db

@@ -1,0 +1,111 @@
+name: 매일 전략 검토
+
+# 매매 대상 종목의 1주·1개월·3개월 트렌드를 재고, 같은 구간에 등록된 전략을
+# 전부 계산해 순위를 낸다. 구간마다 변경 후보를 하나씩 내고 텔레그램에 승인
+# 버튼을 붙여 보낸다.
+#
+# ## 아무것도 바꾸지 않는다
+#
+# 과거 시세로 계산만 한다. 증권사에 붙지 않고, 주문도 안 나가고, 전략도 안
+# 바뀐다. 실제로 바꾸는 것은 strategy-apply.yml이고 그것도 사람이 버튼을 두
+# 번 누른 뒤에만 한다.
+#
+# ## state-write에 안 묶는다
+#
+# 상태 DB를 읽기만 한다. 지금 무슨 전략이 걸려 있는지와 예약이 있는지를
+# 알아야 해서 내려받을 뿐이고, 도로 올리지 않는다.
+#
+# 읽기만 하는 것을 state-write에 묶으면 5분마다 도는 손절 감시가 이 검토를
+# 기다린다. 전략 27개를 세 구간에 계산하는 동안 손절이 늦는 쪽이 훨씬 나쁘다.
+# period-check.yml도 같은 이유로 따로 묶여 있다.
+#
+# **이 스크립트가 DB에 한 줄이라도 쓰게 되면 그때 state-write로 옮겨야 한다.**
+# tests/test_workflow_locks.py가 upload 줄이 생기는지 지켜본다.
+#
+# ## 왜 17:50인가
+#
+# 17:30 체결 정산 뒤여야 그날 매매가 반영된다. 그 앞에 돌리면 어제까지의
+# 상태로 오늘 전략을 판단하게 된다.
+#
+# ## 실패하면 무엇이 빨개지나
+#
+# 이 워크플로가 빨개진다. 스크립트가 예외를 잡지 않고 1로 끝낸다. 시트에
+# 실패 줄을 남기지 않는 이유는, 검토가 하루 빠지는 것이 매매에 영향을 주지
+# 않기 때문이다. 매매는 08:30과 09:05가 따로 돈다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "계산만 한다. 시트에도 안 올리고 알림도 안 보낸다"
+        type: boolean
+        default: false
+      min_hold_days:
+        description: "직전 변경 뒤 이만큼 지나기 전에는 후보를 안 낸다 (기본 30)"
+        default: "30"
+      edge_ratio:
+        description: "1위가 지금 전략보다 이 배수만큼 앞서야 후보로 낸다 (기본 1.15)"
+        default: "1.15"
+
+concurrency:
+  # 같은 검토가 두 번 겹치면 시트에 같은 시각 줄이 둘 쌓이고 텔레그램도
+  # 두 번 온다. 앞의 것을 끊는다.
+  group: strategy-review
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      # 같은 시세를 매일 새로 받으면 야후가 막는다. 검토는 3개월치라 기간
+      # 검증(5년)보다 가볍지만, 캐시를 나눠 쓰면 둘 다 덜 받는다.
+      - name: 시세 캐시 복원
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: prices-strategy-review-${{ github.run_id }}
+          restore-keys: |
+            prices-strategy-review-
+            prices-
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "${{ secrets.GDRIVE_FOLDER_ID }}" --filename muwon.db --out ./muwon.db
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
+
+      - name: 전략 검토
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          # **사람이 넣은 값은 명령 줄에 직접 박지 않는다.** `${{ }}`는 셸
+          # 스크립트 글자 안으로 그대로 치환되므로, `$(...)`가 섞인 값이 오면
+          # 그게 명령으로 실행된다.
+          MUWON_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          MUWON_MIN_HOLD: ${{ github.event.inputs.min_hold_days || '30' }}
+          MUWON_EDGE: ${{ github.event.inputs.edge_ratio || '1.15' }}
+        run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
+          # 실패가 이 저장소에서 제일 비쌌다.
+          set -o pipefail
+          # **셸 변수 이름은 영문이어야 한다.** `인자=""`를 쓰면 bash가
+          # `command not found`로 죽는다(2026-09-01에 겪음). GitHub Actions
+          # 표현식만 그런 줄 알았는데 셸도 같다.
+          ARGS=""
+          if [ "$MUWON_DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          python scripts/run_strategy_review.py $ARGS \
+            --최소운용일 "$MUWON_MIN_HOLD" --우위배수 "$MUWON_EDGE"
