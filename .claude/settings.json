@@ -13,7 +13,21 @@
       "mcp__n8n__get_workflow_best_practices",
       "mcp__n8n__search_nodes",
       "mcp__n8n__get_node_types",
-      "mcp__n8n__execute_workflow"
+      "mcp__n8n__execute_workflow",
+      "mcp__github__actions_list",
+      "mcp__github__actions_get",
+      "mcp__github__get_job_logs",
+      "mcp__github__get_check_run",
+      "mcp__github__get_file_contents",
+      "mcp__github__list_branches",
+      "mcp__github__list_commits",
+      "mcp__github__get_commit",
+      "mcp__github__pull_request_read",
+      "mcp__github__search_code",
+      "Bash(.venv/bin/pytest *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(pytest *)",
+      "Bash(ruff check *)"
     ],
     "ask": [
       "mcp__n8n__update_workflow",
