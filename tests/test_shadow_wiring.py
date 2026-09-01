@@ -16,6 +16,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import pytest
+
 from muwon.settings.schema import RiskPolicy
 from tests.price_series import breakout_entry_then_dead_cross_exit
 
@@ -56,7 +58,7 @@ def test_구간이_거꾸로면_안_잰다():
 
 
 def test_시세가_없는_구간은_None이다():
-    """None이면 그림자 표에 '못잼'으로 남는다. 0%로 남으면 안 된다."""
+    """None이면 그림자 표에 '계산못함'으로 남는다. 0%로 남으면 안 된다."""
     histories = _시세()
     먼옛날 = date(2000, 1, 1)
     재기 = 뒤재기만들기(histories, RiskPolicy())
@@ -72,7 +74,7 @@ def test_추적_시트줄은_머리와_칸수가_같다():
         지금것=False, 제안것=True, 골랐나=False, 등급="살펴볼것",
         제안시수익률=4.0, 제안시거래수=10, 상태="닫힘",
         잰날=date(2026, 8, 31), 지난날수=30, 뒤수익률=-1.5, 뒤거래수=3,
-        뒤최대낙폭=-8.0, 못잰까닭="",
+        뒤최대낙폭=-8.0, 못한까닭="",
     )
     assert len(추적시트줄(줄)) == len(_모듈.추적머리)
 
@@ -83,7 +85,7 @@ def test_안_잰_칸은_빈칸으로_둔다():
 
     줄 = StrategyShadowRow(
         제안일=date(2026, 8, 1), 구간="3개월", 전략="volume_surge_5d", 자리=1,
-        상태="못잼", 지난날수=30, 못잰까닭="시세가 모자랍니다",
+        상태="계산못함", 지난날수=30, 못한까닭="시세가 모자랍니다",
     )
     칸들 = 추적시트줄(줄)
     assert "None" not in 칸들
@@ -154,7 +156,7 @@ def test_화면과_파이썬이_같은_짝을_고른다():
         # 못 잰 줄. 양쪽 다 빼야 한다.
         {"제안일": "2026-08-03", "구간": "3개월", "전략": "지금것", "자리": 5,
          "지금것": True, "제안것": False, "골랐나": False, "뒤수익률": None,
-         "뒤거래수": 0, "지난날수": 30, "상태": "못잼"},
+         "뒤거래수": 0, "지난날수": 30, "상태": "계산못함"},
         {"제안일": "2026-08-03", "구간": "3개월", "전략": "후보", "자리": 1,
          "지금것": False, "제안것": True, "골랐나": False, "뒤수익률": 3.0,
          "뒤거래수": 1, "지난날수": 30, "상태": "닫힘"},
@@ -180,3 +182,62 @@ def test_화면과_파이썬이_같은_짝을_고른다():
 
     assert sorted(map(요점, 화면것)) == sorted(map(요점, 파이썬것))
     assert len(화면것) == 2
+
+
+# ── 사람에게 가는 문장에 저장소 말을 안 쓴다 ──────────────────
+
+
+#: CLAUDE.md의 화면 문구 지침이다. "잽니다·재 봅니다"는 "계산합니다·
+#: 검증합니다"로, "돌려 보다·돌리다"는 "계산하다·실행하다"로 쓴다.
+#: 2026-09-01에 그림자 추적 문구에서 같은 지적을 다시 받았다.
+막을말 = ("쟀", "잰 ", "잰다", "잽니", "재 봅", "잼", "돌려 보", "돌린", "돌린다")
+
+
+def _글자열(경로: Path) -> list[tuple[int, str]]:
+    """문서화 문자열이 아닌 문자열 상수만 모은다.
+
+    주석과 docstring은 사람에게 안 간다. 거기까지 막으면 왜 그렇게 했는지를
+    적을 자리가 없어진다."""
+    import ast
+
+    나무 = ast.parse(경로.read_text(encoding="utf-8"))
+    독 = set()
+    for ㄴ in ast.walk(나무):
+        묶음 = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        if isinstance(ㄴ, 묶음) and ㄴ.body:
+            첫 = ㄴ.body[0]
+            if (isinstance(첫, ast.Expr) and isinstance(첫.value, ast.Constant)
+                    and isinstance(첫.value.value, str)):
+                독.add(id(첫.value))
+    return [
+        (ㄴ.lineno, ㄴ.value)
+        for ㄴ in ast.walk(나무)
+        if isinstance(ㄴ, ast.Constant) and isinstance(ㄴ.value, str)
+        and id(ㄴ) not in 독
+    ]
+
+
+@pytest.mark.parametrize("파일", [
+    "scripts/run_strategy_review.py",
+    "src/muwon/analysis/shadow.py",
+])
+def test_문자열에_저장소_말을_안_쓴다(파일):
+    뿌리 = Path(__file__).resolve().parent.parent
+    나온것 = [
+        f"{줄번호}행 [{ㅁ}] {글[:60]}"
+        for 줄번호, 글 in _글자열(뿌리 / 파일)
+        for ㅁ in 막을말 if ㅁ in 글
+    ]
+    assert not 나온것, (
+        "사람에게 가는 문장에 저장소 말이 있습니다. 계산하다·실행하다로 "
+        f"바꿉니다: {나온것}"
+    )
+
+
+def test_학습글에도_같은_규칙이_걸린다():
+    """이 문장은 텔레그램과 시트와 화면 세 곳에 그대로 간다."""
+    from muwon.analysis.shadow import 모아보기, 학습글
+
+    for 글 in (학습글(모아보기([])), ):
+        for ㅁ in 막을말:
+            assert ㅁ not in 글, f"학습글에 '{ㅁ}'이 있습니다: {글}"

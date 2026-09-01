@@ -294,9 +294,9 @@ class StrategyShadowRow(Base):
 
     - `열림`: 아직 지평이 안 지났다. 뒤 숫자가 비어 있다.
     - `닫힘`: 지평이 지나 실제 수익률을 쟀다.
-    - `못잼`: 지평은 지났는데 시세가 모자라 못 쟀다. 까닭을 같이 적는다.
+    - `계산못함`: 지평은 지났는데 시세가 모자라 못 쟀다. 까닭을 같이 적는다.
 
-    **`못잼`을 `닫힘`과 같이 두면 안 된다.** 못 잰 것을 0%로 세면 신호가
+    **`계산못함`을 `닫힘`과 같이 두면 안 된다.** 못 잰 것을 0%로 세면 신호가
     실제보다 밋밋해진다.
     """
 
@@ -328,7 +328,7 @@ class StrategyShadowRow(Base):
     뒤수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
     뒤거래수: Mapped[int] = mapped_column(Integer, default=0)
     뒤최대낙폭: Mapped[float | None] = mapped_column(Float, nullable=True)
-    못잰까닭: Mapped[str] = mapped_column(Text, default="")
+    못한까닭: Mapped[str] = mapped_column(Text, default="")
     만든때: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, index=True
     )

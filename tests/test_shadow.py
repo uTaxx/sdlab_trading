@@ -20,11 +20,11 @@ from sqlalchemy.orm import Session
 from muwon.analysis.period_check import 기간성적
 from muwon.analysis.shadow import (
     견주기,
+    계산못함,
     골랐나확인,
     기록하기,
     닫힘,
     모아보기,
-    못잼,
     열림,
     재기,
     잰줄들,
@@ -174,9 +174,9 @@ def test_못_잰_것을_영퍼센트로_채우지_않는다(ㅅ):
     줄 = _남기기(ㅅ, 오늘 - timedelta(days=30), "3개월", "가", 상태=열림)
     센것, 못센것 = 재기(ㅅ, [줄], lambda 키, 시작, 끝: None, 오늘)
     assert (센것, 못센것) == (0, 1)
-    assert 줄.상태 == 못잼
+    assert 줄.상태 == 계산못함
     assert 줄.뒤수익률 is None
-    assert 줄.못잰까닭
+    assert 줄.못한까닭
 
 
 def test_하나가_터져도_나머지는_잰다(ㅅ):
@@ -189,8 +189,8 @@ def test_하나가_터져도_나머지는_잰다(ㅅ):
         return _성적(3.0)
 
     재기(ㅅ, [ㄱ, ㄴ], 재보기, 오늘)
-    assert ㄱ.상태 == 못잼
-    assert "ValueError" in ㄱ.못잰까닭
+    assert ㄱ.상태 == 계산못함
+    assert "ValueError" in ㄱ.못한까닭
     assert ㄴ.상태 == 닫힘
 
 
