@@ -14,6 +14,19 @@
       "mcp__n8n__search_nodes",
       "mcp__n8n__get_node_types",
       "mcp__n8n__execute_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__search_workflows",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_details",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_version",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_history",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__search_workflow_executions",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_execution",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__list_workflow_tags",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__validate_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_sdk_reference",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_best_practices",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__search_nodes",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_node_types",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__execute_workflow",
       "mcp__github__actions_list",
       "mcp__github__actions_get",
       "mcp__github__get_job_logs",
@@ -35,7 +48,13 @@
       "mcp__n8n__unpublish_workflow",
       "mcp__n8n__archive_workflow",
       "mcp__n8n__create_workflow_from_code",
-      "mcp__n8n__restore_workflow_version"
+      "mcp__n8n__restore_workflow_version",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__update_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__publish_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__unpublish_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__archive_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__create_workflow_from_code",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__restore_workflow_version"
     ]
   }
 }
