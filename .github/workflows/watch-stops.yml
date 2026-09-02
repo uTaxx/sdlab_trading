@@ -16,7 +16,7 @@ name: 장중 손절 감시
 #
 # ## 누가 부르나
 #
-# n8n 시계가 장중에 5~10분마다 부른다. GitHub의 schedule은 몇십 분씩
+# n8n 시계가 장중에 30분마다 부른다. GitHub의 schedule은 몇십 분씩
 # 늦게 도는 일이 있어 손절 감시에는 못 쓴다.
 #
 #   POST .../watch-stops.yml/dispatches   { dry_run: "false" }
