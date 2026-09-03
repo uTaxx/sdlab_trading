@@ -478,7 +478,7 @@ REGISTRY: list[StrategyDefinition] = [
             "팝니다."
         ),
         쉬운참고=(
-            "얼마나 빨리 파는 것이 나은지 견주려고 나란히 둔 것입니다."
+            "얼마나 빨리 파는 것이 나은지 비교하려고 나란히 둔 것입니다."
         ),
     ),
     StrategyDefinition(

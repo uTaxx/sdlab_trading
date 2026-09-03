@@ -197,7 +197,7 @@ def main() -> int:
         try:
             update_setting(
                 sheet_id, "sell_strategy", 매도키,
-                설명="파는 쪽에만 따로 걸어 둔 전략. 비어 있으면 사는 쪽이 양쪽을 다 맡습니다",
+                설명="파는 쪽에만 따로 설정한 전략. 비어 있으면 사는 쪽이 양쪽을 다 맡습니다",
             )
             올린것["설정!sell_strategy"] = 1
         except Exception as e:  # noqa: BLE001

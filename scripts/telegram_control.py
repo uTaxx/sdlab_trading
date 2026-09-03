@@ -386,7 +386,7 @@ def _처리(글: str, sheet_id: str, service) -> str:
         종목수 = sum(len(s.활성종목) for s in 내용.섹터 if s.활성)
         return (
             describe(정책, 출처, 시트)
-            + f"\n\n  유니버스: 섹터 {섹터수}개 · 종목 {종목수}개"
+            + f"\n\n  매매 대상: 섹터 {섹터수}개 · 종목 {종목수}개"
             + "\n\n바꾸려면: /설정 <이름> <값>"
         )
 
