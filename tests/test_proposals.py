@@ -89,3 +89,74 @@ def test_제안이_없으면_없다고_말한다():
 def test_급한_것이_위로_온다():
     글 = 모아서([아직_모르는것(0)[0], 현금이_모자라나(15, 8)])
     assert 글.index("동시 보유") < 글.index("슬리피지 실측 표본이 없")
+
+
+# ── 오늘 후보가 어느 조건에서 나왔나 (2026-09-01) ────────────────
+
+
+def _기초설정글(설정덮개, **정책값):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    from muwon.settings.schema import RiskPolicy
+
+    길 = Path(__file__).resolve().parent.parent / "scripts" / "propose_buys.py"
+    스펙 = importlib.util.spec_from_file_location("pb_for_settings", 길)
+    모듈 = importlib.util.module_from_spec(스펙)
+    sys.modules["pb_for_settings"] = 모듈
+    스펙.loader.exec_module(모듈)
+
+    class _설정:
+        덮개 = 설정덮개
+
+    class _서비스:
+        def get_risk_policy(self):
+            return RiskPolicy(**정책값)
+
+    return 모듈.기초설정글, _설정(), _서비스()
+
+
+def test_아침_로그가_지금_걸린_기초설정을_적는다():
+    """**조건 없는 숫자는 나중에 검증할 수 없다.** 후보가 왜 셋뿐인지 물으면
+    답이 여기에 있다. 자리가 여섯인지 여덟인지가 후보 수를 그대로 바꾼다.
+
+    2026-09-01에 이 줄이 없어서 지금 걸린 값을 확인할 방법이 화면 말고는
+    없었다. 같은 날 워크플로가 시트의 섹터당 상한을 통째로 무시하고 있던
+    것도 이 줄이 있었으면 한 번에 보였다."""
+    글만들기, 설정, 서비스 = _기초설정글(
+        {"max_concurrent_positions": "6"},
+        max_position_weight=0.15, stop_loss_pct=-0.05,
+        daily_loss_limit_pct=-0.03, take_profit_pct=0.0, max_holding_days=0,
+    )
+    글 = 글만들기(설정, 서비스, 3)
+
+    for 있어야 in ("비중 15%", "동시보유 6종목", "섹터당 3종목",
+                "손절 -5%", "하루손실 -3%"):
+        assert 있어야 in 글, f"{있어야}가 없습니다: {글}"
+
+
+def test_0이_뜻을_가진_칸을_숫자로_적지_않는다():
+    """익절 0은 끔, 보유기간 0은 전략에게 맡김, 섹터당 0은 제한 없음이다.
+    0으로 적으면 '0일 보유'나 '0% 익절'로 읽힌다."""
+    글만들기, 설정, 서비스 = _기초설정글(
+        {"max_concurrent_positions": "6"},
+        take_profit_pct=0.0, max_holding_days=0,
+    )
+    글 = 글만들기(설정, 서비스, 0)
+
+    assert "익절 끔" in 글, 글
+    assert "보유 전략이 정한 대로" in 글, 글
+    assert "섹터당 제한 없음" in 글, 글
+
+
+def test_값이_있으면_그_값을_적는다():
+    글만들기, 설정, 서비스 = _기초설정글(
+        {"max_concurrent_positions": "8"},
+        take_profit_pct=0.1, max_holding_days=3,
+    )
+    글 = 글만들기(설정, 서비스, 2)
+
+    assert "익절 10%" in 글, 글
+    assert "보유 3일" in 글, 글
+    assert "동시보유 8종목" in 글, 글

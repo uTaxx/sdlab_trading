@@ -140,7 +140,7 @@ def format_ranking(결과: list[섹터점수], lookback: int = LOOKBACK) -> str:
 MAX_PER_SECTOR = 2
 
 
-def cap_per_sector(후보들, 상한: int = MAX_PER_SECTOR, 섹터키=None):
+def cap_per_sector(후보들, 상한: int = MAX_PER_SECTOR, 섹터키=None, 시작=None):
     """한 섹터에서 몇 종목까지만 남긴다. **예측이 아니라 제약이다.**
 
     45종목을 한 줄로 세워 놓고 신호가 난 것을 사면 어떤 날은 반도체 다섯
@@ -155,9 +155,15 @@ def cap_per_sector(후보들, 상한: int = MAX_PER_SECTOR, 섹터키=None):
     후보들은 점수가 높은 순으로 들어와야 한다. 돌려주는 것은
     (남긴 것, 밀려난 것)이며, **밀려난 것도 돌려주는 이유는 왜 안 샀는지가
     왜 샀는지만큼 중요하기 때문**이다.
+
+    `시작`은 **이미 들고 있는 종목의 섹터별 개수**다(2026-09-02에 더함).
+    안 주면 0부터 세는데, 그러면 반도체를 두 종목 들고 있어도 그날 후보에
+    반도체를 상한만큼 더 넣는다. 다 승인하면 상한을 넘긴 채로 보유하게
+    된다. 09:05 실행이 같은 상한을 진짜 보유 기준으로 다시 보므로, 여기서
+    안 세면 후보와 실제 매수가 어긋나 "승인했는데 왜 안 샀지"가 남는다.
     """
     섹터키 = 섹터키 or (lambda c: getattr(c, "sector", ""))
-    센것: dict[str, int] = {}
+    센것: dict[str, int] = dict(시작 or {})
     남김, 밀림 = [], []
     for c in 후보들:
         키 = 섹터키(c)

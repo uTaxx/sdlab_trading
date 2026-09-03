@@ -24,8 +24,8 @@
   폰 홈 화면에 추가했을 때 이름 없는 아이콘이 되지 않게 하려는 것이기도 하다.
   화면이 흑백이라 아이콘도 검은 사각형에 흰 글자로 맞춘다.
 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2314130F'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='700' fill='%23FAFAF8' text-anchor='middle'%3E%E2%82%A9%3C/text%3E%3C/svg%3E">
-<meta name="theme-color" content="#14130F">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111111'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='20' font-weight='700' fill='%23FFFFFF' text-anchor='middle'%3E%E2%82%A9%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#FFFFFF">
 </head>
 <body>
 <div class="싸개">
@@ -132,6 +132,7 @@
       <button class="탭" role="tab" data-탭="기준"  aria-selected="false">전략 및 설정</button>
       <button class="탭" role="tab" data-탭="검증"  aria-selected="false">백테스트</button>
       <button class="탭" role="tab" data-탭="검토"  aria-selected="false">전략 검토</button>
+      <button class="탭" role="tab" data-탭="시장"  aria-selected="false">시장 트렌드</button>
       <button class="탭" role="tab" data-탭="도움말" aria-selected="false">용어 안내</button>
     </div>
 
@@ -172,6 +173,15 @@
       </div>
       <div class="때" id="때"></div>
 
+      <h2>자산 추이</h2>
+      <p class="h2곁말">매매 엔진이 실행될 때마다 기록한 평가금액입니다.
+        <b>실제 계좌의 기록이며 백테스트 결과가 아닙니다.</b> 회차마다 남기므로
+        엔진이 실행되지 않은 날은 점이 없습니다. 현금은 같은 시점의 주문 가능
+        현금입니다.</p>
+      <div id="자산알림"></div>
+      <div id="자산요약" class="칸 넓게"></div>
+      <div id="자산그림"></div>
+
       <h2>자동 실행 일정</h2>
       <p class="h2곁말">거래일 기준으로 실행됩니다. 휴장일에는 자동 매매가 실행되지 않습니다.</p>
       <div id="다음실행" class="칸 넓게"></div>
@@ -203,6 +213,35 @@
         <button id="승인다시">🔄 새로고침</button>
       </div>
       <div class="때" id="승인때"></div>
+
+      <h2>승인 결정 되짚기</h2>
+      <p class="h2곁말">과거에 승인한 종목과 거절한 종목이 그 뒤 어떻게
+        움직였는지 비교합니다. 결정한 날의 <b>다음 거래일 시가</b>를 기준으로
+        계산합니다. 실제 매수가 그 시점에 이루어지기 때문입니다.</p>
+      <div id="되짚기알림"></div>
+      <div class="줄">
+        <label for="되짚기지평">비교 기간</label>
+        <select id="되짚기지평">
+          <option value="d5">5거래일</option>
+          <option value="d20" selected>20거래일</option>
+        </select>
+      </div>
+      <div id="되짚기요약" class="칸 넓게"></div>
+      <div id="되짚기그림"></div>
+      <div class="표싸개">
+        <table>
+          <thead><tr>
+            <th>결정일</th><th>종목</th><th class="가운데">판단</th>
+            <th>기준가</th><th>5거래일</th><th>20거래일</th>
+          </tr></thead>
+          <tbody id="되짚기몸"></tbody>
+        </table>
+      </div>
+      <p class="설명"><b>이 수치를 그대로 비교하면 안 됩니다.</b> 거절한
+        종목에는 수수료와 슬리피지가 반영되어 있지 않습니다. 승인한 종목의
+        등락률도 실제 손익이 아니라 계속 보유했을 경우의 값이며, 실거래는
+        손절과 최대 보유기간으로 중간에 매도합니다. 실제 손익은 거래 기록
+        탭에서 확인하십시오.</p>
 
       <details>
         <summary>매수 승인 규칙</summary>
@@ -299,8 +338,56 @@
           가능합니다.</li>
       </ul>
 
+      <!-- ── 판단 지침 ───────────────────────────────
+           맨 위에 둔다. 아래의 모든 표와 순위가 이 순서로 매겨지므로,
+           이것을 모르고 표를 보면 수익률이 낮은 전략이 위에 있는 이유를
+           알 수 없다. -->
+      <h2>🧭 판단 지침</h2>
+      <p class="h2곁말">전략을 견줄 때 <b>무엇을 먼저 볼지</b>를 정합니다.
+        매일 저녁 전략 검토와 기간 검증의 순위가 이 순서로 매겨집니다.
+        <b>이 설정은 주문을 발생시키지 않습니다.</b> 순위를 매기는 기준만
+        바뀌며, 전략 변경은 별도의 워크플로에서만 처리합니다.</p>
+      <div class="짝">
+        <div>
+          <label for="일순위">1순위 지침</label>
+          <select id="일순위"></select>
+          <p class="설명" id="일순위설명"></p>
+        </div>
+        <div>
+          <label for="이순위">2순위 지침</label>
+          <select id="이순위"></select>
+          <p class="설명" id="이순위설명"></p>
+        </div>
+        <div>
+          <label for="삼순위">3순위 지침</label>
+          <select id="삼순위"></select>
+          <p class="설명" id="삼순위설명"></p>
+        </div>
+      </div>
+      <div id="지침요약" class="칸 넓게" style="margin-top:12px"></div>
+      <div class="줄">
+        <button id="지침저장">판단 지침 저장</button>
+        <span class="때" id="지침때"></span>
+      </div>
+      <details style="margin-top:10px">
+        <summary>순위가 비슷할 때 다음 순위로 넘어가는 기준</summary>
+        <p style="margin:8px 0 0">지침마다 <b>이 정도 차이는 같다고 본다</b>는
+          폭이 정해져 있습니다. 1순위 값의 차이가 그 폭 안이면 2순위로,
+          2순위도 폭 안이면 3순위로 판정합니다.</p>
+        <p style="margin:6px 0 0">폭을 두지 않으면 소수점 아래의 차이가
+          순위를 가르게 되고, 2순위와 3순위는 실제로 사용되지 않습니다.</p>
+        <div id="지침폭"></div>
+      </details>
+      <details>
+        <summary>순위로 판정하지 않고 사람이 확인하는 지침</summary>
+        <p style="margin:8px 0 0">아래 항목은 계산으로 순위를 매길 수 없어
+          설정 대상이 아닙니다. 전략을 채택하기 전에 확인하는 기준이며,
+          분석 보고서와 설계 문서에 근거를 남깁니다.</p>
+        <div id="확인지침"></div>
+      </details>
+
       <!-- ── 매수 ──────────────────────────────────── -->
-      <h2>🟢 매수</h2>
+      <h2 style="margin-top:28px">🟢 매수</h2>
 
       <h3 class="쪽제목">기본 전략: 모든 세부 전략에 공통 적용</h3>
       <div class="칸 넓게">
@@ -378,7 +465,9 @@
         <div>
           <label for="익절">익절 기준 (%)</label>
           <input id="익절" type="number" step="0.5" min="0" max="100">
-          <p class="설명">평균매입가 대비 설정된 상승률에 도달하면 매도합니다. <b>0은 비활성화</b>를 의미합니다.</p>
+          <p class="설명">평균매입가 대비 설정된 상승률에 도달하면 매도합니다.
+            <b>0은 개별 전략이 정한 값을 사용</b>한다는 의미이며, 숫자를 입력하면
+            전략의 설정을 덮어씁니다.</p>
         </div>
         <div>
           <label for="보유기간">최대 보유기간 (거래일)</label>
@@ -394,7 +483,8 @@
         <ol style="margin:8px 0 0; padding-left:20px">
           <li><b>손절</b>: 평균매입가 대비 손절 기준에 도달하면 매도합니다.
             ATR 손절이 활성화된 경우 ATR 기준을 먼저 적용합니다.</li>
-          <li><b>익절</b>: 익절 기준이 0보다 클 때만 적용합니다.</li>
+          <li><b>익절</b>: 익절 기준이 0보다 클 때 적용합니다. 0이면 매수 시점의
+            전략이 정한 값을 따릅니다.</li>
           <li><b>트레일링 스톱</b>: 활성화된 경우에만 적용합니다.
             현재 설정에서는 비활성 상태입니다.</li>
           <li><b>최대 보유기간</b>: 설정된 거래일 수에 도달하면 매도합니다.</li>
@@ -576,6 +666,38 @@
       <div id="비교총평"></div>
       <div id="비교조건"></div>
 
+      <!-- 전략별 연도 성과 ──────────────────────────────
+        위의 두 표는 한 기간을 통째로 계산한 값이라, 5년 수익률이 높은 전략이
+        어느 한 해에 무너졌는지가 보이지 않습니다. 이 격자는 전략마다 해마다의
+        수익률을 나란히 놓습니다. 한 해로 평균을 만든 전략과 매년 비슷했던
+        전략을 구분하려고 만들었습니다.
+
+        자료는 화면에 같이 올리는 고정 파일(자료/연도별성적.json)입니다.
+        n8n 연결이나 시트를 거치지 않으므로 연결이 끊겨도 그려집니다. -->
+      <h2>전략별 연도 성과</h2>
+      <p class="h2곁말">등록된 전략을 2021년부터 2025년까지 해마다 계산한
+        결과입니다. 한 실행에서 나온 숫자만 담았습니다.
+        <b>평균이 높아도 특정 연도의 손실이 크면 실제 운용에서는 중단하게
+        됩니다.</b> 이 저장소가 1순위로 보는 값은 평균이 아니라 성과가 가장
+        낮았던 구간입니다.</p>
+
+      <div class="칸들">
+        <div class="칸">
+          <label for="연도정렬">정렬 기준</label>
+          <select id="연도정렬" aria-label="어느 값으로 줄을 세울 것인가">
+            <option value="최악">가장 낮았던 해</option>
+            <option value="평균">연평균 수익률</option>
+            <option value="낙폭">최대낙폭</option>
+            <option value="거래">거래 횟수</option>
+            <option value="이름">전략 이름</option>
+          </select>
+          <div class="곁말">기본값은 가장 낮았던 해입니다.</div>
+        </div>
+      </div>
+      <div id="연도알림"></div>
+      <div id="연도격자"></div>
+      <div id="연도조건"></div>
+
       <details style="margin-top:14px">
         <summary>백테스트 결과 해석 가이드</summary>
         <ul>
@@ -746,6 +868,58 @@
     </section>
 
     <!-- 탭 7 · 용어 ──────────────────────────────────── -->
+    <!-- 탭 7 · 시장 트렌드 ─────────────────────────────
+         섹터가 최근에 어떻게 움직였나. 08:30 매수 후보 산출이 섹터별 지수를
+         이미 만들고 있어서, 그 숫자를 시트에 남기고 여기서 그린다. -->
+    <section id="쪽-시장" role="tabpanel" class="숨김">
+      <div id="시장알림"></div>
+
+      <h2>섹터별 등락률</h2>
+      <p class="h2곁말">매매 대상 섹터의 지수를 동일가중으로 만들어 구간별
+        등락률을 계산합니다. 같은 기간의 코스피를 함께 표시합니다. 시장 전체가
+        하락한 구간에서는 섹터 등락률만으로 판단할 수 없기 때문입니다.
+        <b>이 값은 매수 판단에 사용하지 않습니다.</b> 섹터 강도로 종목을
+        거르는 방식은 별도로 검증했고 근거를 확인하지 못했습니다.</p>
+
+      <div class="칸들">
+        <div class="칸">
+          <label for="시장회차">산출 일자</label>
+          <select id="시장회차" aria-label="언제 계산한 것을 볼 것인가"></select>
+          <div class="곁말">평일 08:30 매수 후보 산출 시점에 계산합니다.</div>
+        </div>
+        <div class="칸">
+          <label for="시장구간">구간</label>
+          <select id="시장구간" aria-label="어느 구간의 등락률을 볼 것인가"></select>
+          <div class="곁말">거래일 기준입니다. 휴장일은 세지 않습니다.</div>
+        </div>
+      </div>
+      <div class="줄">
+        <button id="시장다시">🔄 새로고침</button>
+      </div>
+      <div id="시장요약" class="칸 넓게"></div>
+      <div id="시장그림"></div>
+
+      <h2>구간별 수치</h2>
+      <p class="h2곁말">구간은 <b>거래일</b> 기준입니다. 다른 탭의 1주·1개월은
+        달력 기준이므로 이 표의 값과 다릅니다. 시세가 부족해 계산하지 못한
+        구간은 빈칸으로 표시하며, 0%로 채우지 않습니다.</p>
+      <div class="표싸개">
+        <table>
+          <thead><tr>
+            <th>섹터</th><th>종목 수</th><th>5거래일</th><th>20거래일</th>
+            <th>60거래일</th><th>상대강도</th><th>20일선</th>
+          </tr></thead>
+          <tbody id="시장몸"></tbody>
+        </table>
+      </div>
+      <p class="설명"><b>상대강도</b>는 60거래일 등락률에서 같은 기간 코스피
+        등락률을 뺀 값입니다. 양수이면 시장보다 더 올랐다는 의미입니다.
+        <b>20일선</b>은 섹터 지수의 마지막 값이 20거래일 이동평균 위에 있는지를
+        나타냅니다. 이미 상승한 뒤에 위로 올라오는 값이므로 매수 시점을
+        의미하지 않습니다.</p>
+      <div class="때" id="시장때"></div>
+    </section>
+
     <section id="쪽-도움말" role="tabpanel" class="숨김">
       <h2>용어 안내</h2>
       <p class="h2곁말">

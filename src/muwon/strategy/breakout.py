@@ -181,7 +181,7 @@ class PriceChannelParams:
 class PriceChannelBreakoutStrategy(Strategy):
     """종가 기준 N일 신고가 돌파: 돈치안(고가 기준)의 종가 버전이다.
 
-    장중 잠깐 찍은 고가가 아니라 종가로만 판정하기 때문에 장중 흔들림에
+    장중 잠깐 찍은 고가가 아니라 종가로만 판정하기 때문에 장중 변동성에
     덜 반응한다. breakout_pct를 주면 "신고가를 살짝 넘긴 정도"는 무시하고
     확실히 뚫었을 때만 진입한다."""
 

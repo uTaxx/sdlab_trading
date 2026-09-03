@@ -1,22 +1,27 @@
 /* ─────────────────────────────────────────────────────────────
    sdlab 대시보드. 색과 글꼴은 전부 여기 토큰으로만 정한다.
 
-   ## 왜 명세서 모양인가 (2026-09-01)
+   ## 왜 이 모양인가 (2026-09-01에 바꿈)
 
-   주인이 인보이스 서식을 보여 주면서 이 느낌으로 바꿔 달라고 했다.
-   지키는 것은 넷이다.
+   주인이 sondullab 소개 화면을 보여 주면서 그 느낌으로 맞춰 달라고 했다.
+   전에는 인보이스 서식을 본떠서 베이지색 종이 한 장을 책상 위에 올린
+   모양이었다. 지금은 아니다. 지키는 것은 다섯이다.
 
-   1. 종이 한 장. 회색 바탕 위에 흰 판을 한 장 올리고 그 안에 다 담는다.
+   1. 흰 바탕에 여백. 종이 한 장을 걷어냈다. 화면이 곧 바탕이다.
    2. 흑백. 색은 정보를 나를 때만 쓴다. 장식으로는 안 쓴다.
-   3. 실선 대신 머리카락 선. 카드 그림자와 둥근 모서리를 걷어냈다.
-   4. 표가 중심이다. 칸 사이에 세로 선을 넣어 숫자를 눈으로 따라가게 한다.
+   3. 연한 회색 머리카락 선과 둥근 모서리. 선을 진하게 긋는 대신 여백으로
+      구역을 가른다.
+   4. 눌러야 할 곳만 검게 채운다. 한 화면에 검은 덩어리가 여럿이면 어디를
+      눌러야 하는지 알 수 없다.
+   5. 제목은 크고 굵게. 전에는 제목을 작은 대문자로 눌러 두었는데, 그러면
+      긴 화면에서 어디가 새 구역인지 안 보인다.
 
    ## 색을 남겨 둔 두 자리
 
    전부 흑백으로 두면 읽을 수 없게 되는 것이 둘 있어서 남겼다.
 
-   - 오름과 내림. 한국 증시 관례로 오르면 빨강, 내리면 파랑이다. 종이
-     색조에 맞춰 채도를 낮췄지만 없애지는 않았다.
+   - 오름과 내림. 한국 증시 관례로 오르면 빨강, 내리면 파랑이다. 흰 바탕에
+     맞춰 채도를 낮췄지만 없애지는 않았다.
    - 매도 스위치가 꺼진 상태. 이때는 손절이 실행되지 않는다. 회색으로
      두면 그냥 꺼진 것처럼 보여서 경고색을 그대로 뒀다.
 
@@ -25,80 +30,79 @@
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* 종이와 글 */
-  --바탕: #E4E3DF;      /* 책상 */
-  --판: #FAFAF8;        /* 종이 한 장 */
-  --판2: #F0EFEB;       /* 표 머리처럼 한 단 눌러 둔 자리 */
-  --선: #C9C7C0;        /* 머리카락 선 */
-  --선연함: #E0DED8;
-  --선진함: #1C1B18;    /* 표 위아래를 닫는 굵은 선 */
-  --글: #14130F;
-  --글2: #45433D;
-  --흐린글: #7C7A72;
+  /* 바탕과 글 */
+  --바탕: #FFFFFF;      /* 화면 전체 */
+  --판: #FFFFFF;        /* 카드 안쪽 */
+  --판2: #F5F5F5;       /* 한 단 눌러 둔 자리. 회색 띠와 표 머리 */
+  --선: #E5E5E5;        /* 카드 테두리 */
+  --선연함: #EFEFEF;    /* 표 안쪽 칸막이 */
+  --선진함: #111111;    /* 글자색과 같은 진한 선 */
+  --글: #111111;
+  --글2: #444444;
+  --흐린글: #8A8A8A;
 
-  /* 강조는 검정이다. 명세서에는 파란 단추가 없다. */
-  --강조: #14130F;
-  --강조연함: #EDEBE5;
+  /* 강조는 검정이다. 이 화면에 파란 단추는 없다. */
+  --강조: #111111;
+  --강조연함: #F5F5F5;
 
   /* 한국 증시 관례: 오르면 빨강, 내리면 파랑 */
-  --오름: #A32A26;
-  --내림: #1F4E86;
-  --중립: #7C7A72;
+  --오름: #C0392B;
+  --내림: #2C5AA0;
+  --중립: #8A8A8A;
 
   /* 동작 중과 중지 */
-  --켜짐: #14130F;
-  --켜짐연함: #E6E4DD;
-  --꺼짐: #A32A26;
-  --꺼짐연함: #F4E7E4;
+  --켜짐: #111111;
+  --켜짐연함: #F0F0F0;
+  --꺼짐: #C0392B;
+  --꺼짐연함: #FDF3F2;
 
-  --그림자: 0 1px 0 rgba(20, 19, 15, .04), 0 18px 40px -28px rgba(20, 19, 15, .45);
-  --둥글: 0;
+  --그림자: none;
+  --둥글: 12px;         /* 카드 */
+  --둥글작게: 6px;      /* 단추와 입력칸 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --바탕: #100F0D;
-    --판: #1A1917;
-    --판2: #232220;
-    --선: #383632;
-    --선연함: #2A2926;
-    --선진함: #E8E5DE;
-    --글: #F0EDE6;
-    --글2: #C4C0B8;
-    --흐린글: #8C8981;
-    --강조: #F0EDE6;
-    --강조연함: #2A2926;
-    --오름: #E4736C;
-    --내림: #7BA6E0;
-    --중립: #8C8981;
-    --켜짐: #F0EDE6;
-    --켜짐연함: #2A2926;
-    --꺼짐: #E4736C;
-    --꺼짐연함: #33211F;
-    --그림자: 0 18px 40px -28px rgba(0, 0, 0, .9);
+    --바탕: #0E0E0E;
+    --판: #161616;
+    --판2: #1E1E1E;
+    --선: #2A2A2A;
+    --선연함: #232323;
+    --선진함: #F2F2F2;
+    --글: #F2F2F2;
+    --글2: #C2C2C2;
+    --흐린글: #8A8A8A;
+    --강조: #F2F2F2;
+    --강조연함: #1E1E1E;
+    --오름: #E0736A;
+    --내림: #7FA8E2;
+    --중립: #8A8A8A;
+    --켜짐: #F2F2F2;
+    --켜짐연함: #1E1E1E;
+    --꺼짐: #E0736A;
+    --꺼짐연함: #2A1B1A;
   }
 }
 
 :root[data-theme="dark"] {
-  --바탕: #100F0D;
-  --판: #1A1917;
-  --판2: #232220;
-  --선: #383632;
-  --선연함: #2A2926;
-  --선진함: #E8E5DE;
-  --글: #F0EDE6;
-  --글2: #C4C0B8;
-  --흐린글: #8C8981;
-  --강조: #F0EDE6;
-  --강조연함: #2A2926;
-  --오름: #E4736C;
-  --내림: #7BA6E0;
-  --중립: #8C8981;
-  --켜짐: #F0EDE6;
-  --켜짐연함: #2A2926;
-  --꺼짐: #E4736C;
-  --꺼짐연함: #33211F;
-  --그림자: 0 18px 40px -28px rgba(0, 0, 0, .9);
+  --바탕: #0E0E0E;
+  --판: #161616;
+  --판2: #1E1E1E;
+  --선: #2A2A2A;
+  --선연함: #232323;
+  --선진함: #F2F2F2;
+  --글: #F2F2F2;
+  --글2: #C2C2C2;
+  --흐린글: #8A8A8A;
+  --강조: #F2F2F2;
+  --강조연함: #1E1E1E;
+  --오름: #E0736A;
+  --내림: #7FA8E2;
+  --중립: #8A8A8A;
+  --켜짐: #F2F2F2;
+  --켜짐연함: #1E1E1E;
+  --꺼짐: #E0736A;
+  --꺼짐연함: #2A1B1A;
 }
 
 * { box-sizing: border-box; }
@@ -110,40 +114,40 @@ body {
   font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
                "Malgun Gothic", "맑은 고딕", sans-serif;
   font-size: 15px;
-  line-height: 1.62;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   word-break: keep-all;
 }
 
-/* 종이 한 장. 책상 위에 놓인 것처럼 위아래로 여백을 준다. */
+/* 종이 한 장을 걷어냈다. 화면 바탕이 곧 흰색이고, 가운데에 글 폭만
+   잡아 준다. 위아래 여백을 크게 두는 것이 이 모양의 전부다. */
 .싸개 {
-  max-width: 940px;
-  margin: 28px auto;
-  padding: 40px 44px 64px;
-  background: var(--판);
-  border: 1px solid var(--선);
-  box-shadow: var(--그림자);
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 56px 40px 112px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 /* ── 머리 ─────────────────────────────
-   명세서의 제목 자리다. 왼쪽에 이름, 오른쪽에 지금 상태를 둔다. */
+   제목을 크고 굵게 둔다. 아래는 연한 선 하나로만 닫는다. */
 .머리 {
   display: flex; align-items: flex-start; gap: 16px;
-  padding-bottom: 18px; border-bottom: 2px solid var(--선진함);
+  padding-bottom: 28px; border-bottom: 1px solid var(--선);
 }
 h1 {
-  font-size: 34px; font-weight: 800; margin: 0;
-  letter-spacing: -.035em; line-height: 1.1;
+  font-size: 38px; font-weight: 800; margin: 0;
+  letter-spacing: -.04em; line-height: 1.18;
 }
 .부제 {
-  color: var(--흐린글); font-size: 11px; margin: 8px 0 0;
-  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--흐린글); font-size: 14px; margin: 10px 0 0;
+  letter-spacing: 0; text-transform: none;
 }
 .머리 .오른쪽 { margin-left: auto; display: flex; align-items: flex-start; gap: 8px; }
 
 /* ── 탭 ───────────────────────────────
-   명세서에는 탭이 없다. 그래서 단추처럼 보이게 하지 않고, 아래 굵은
-   선 위에 얹힌 목차처럼 둔다. */
+   단추처럼 보이게 하지 않고, 연한 선 위에 얹힌 목차처럼 둔다. */
 /* 탭은 줄바꿈한다.
 
    전에는 한 줄로 두고 가로 스크롤에 맡겼는데, 스크롤바를 숨겨 놓아서
@@ -151,106 +155,126 @@ h1 {
    보이고 백테스트·전략 검토·용어 안내는 화면 밖에 있었다. 밀어서 볼 수는
    있지만 밀 수 있다는 것을 알려 주는 것이 없으면 없는 탭이다. */
 .탭줄 {
-  display: flex; flex-wrap: wrap; gap: 0; margin: 26px 0 22px;
+  display: flex; flex-wrap: wrap; gap: 0; margin: 32px 0 28px;
   border-bottom: 1px solid var(--선);
 }
 .탭 {
-  font: inherit; font-size: 12px; font-weight: 600;
-  letter-spacing: .06em;
+  font: inherit; font-size: 13.5px; font-weight: 600;
+  letter-spacing: -.01em;
   background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--흐린글); padding: 10px 16px 9px; cursor: pointer; white-space: nowrap;
+  color: var(--흐린글); padding: 11px 16px 10px; cursor: pointer; white-space: nowrap;
   margin-bottom: -1px; border-radius: 0;
 }
 .탭:first-child { padding-left: 0; }
-/* 탭도 button이라 아래의 단추 규칙(마우스를 올리면 검게 채움)을 같이 받는다.
-   그대로 두면 탭 하나가 검은 덩어리가 되어 어느 탭이 선택된 것인지 알 수
-   없다. 그래서 여기서 되돌려 준다. */
+/* 탭도 button이라 아래의 단추 규칙을 같이 받는다. 그대로 두면 탭 하나가
+   회색 덩어리가 되어 어느 탭이 선택된 것인지 알 수 없다. 여기서 되돌린다. */
 .탭:hover:not(:disabled) { background: none; color: var(--글); border-color: transparent; }
 .탭:hover[aria-selected="true"] { border-bottom-color: var(--선진함); }
 .탭[aria-selected="true"] { color: var(--글); border-bottom-color: var(--선진함); }
 
 /* ── 숫자 칸 ──────────────────────────
-   명세서의 SUB TOTAL 묶음처럼 이름표를 작게 위에 올리고 값을 크게
-   아래에 둔다. 칸끼리는 세로 선으로만 가른다. */
-/* 칸 하나만 따로 놓이는 자리가 일곱 군데 있다(일정표, 킬스위치, 그림자
-   추적 요약 등). 그때는 테두리가 있어야 어디까지가 한 덩어리인지 보인다. */
+   이름표를 작게 위에 올리고 값을 크게 아래에 둔다. 칸끼리는 선을 겹치지
+   않고 사이를 띄운다. 여백으로 가르는 것이 이 화면의 방식이다. */
 .칸 {
-  background: transparent; border: 1px solid var(--선); border-radius: 0;
-  padding: 16px 18px 18px; box-shadow: none;
+  background: var(--판); border: 1px solid var(--선); border-radius: var(--둥글);
+  padding: 20px 22px; box-shadow: none;
 }
-/* 여럿이 나란히 놓일 때는 바깥 테두리를 한 번만 두르고 안쪽은 세로 선으로
-   가른다. 칸마다 테두리를 두르면 선이 두 겹으로 겹쳐 보인다. */
-/* 칸마다 위와 왼쪽에 선을 긋고 1px씩 당겨 겹친다. 바깥으로 삐져나가는
-   첫 줄과 첫 칸의 선은 overflow로 잘라 낸다.
+/* grid가 아니라 flex다.
 
-   1px 틈(gap)으로 선을 만드는 방법을 먼저 썼는데, 칸이 셋 들어갈 자리에
-   둘만 있으면 남은 자리가 선 색으로 채워져 어두운 화면에서 빈 블록이
-   보였다. 이 방법은 칸이 있는 자리에만 선이 생긴다. */
+   grid + auto-fit으로 두면 `넓게`가 만든 열 개수가 아랫줄까지 그대로
+   남는다. 손익 탭이 그랬다. 평가손익이 한 줄을 다 쓰면서 열이 넷으로
+   잡히고, 그 아래 순자산과 주문 가능 현금 둘이 넷 중 앞의 둘만 차지해서
+   오른쪽 절반이 비었다. flex는 그 줄에 있는 칸끼리만 남은 폭을 나눈다. */
 .칸들 {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0; border: 1px solid var(--선); margin-top: 4px; overflow: hidden;
+  display: flex; flex-wrap: wrap;
+  gap: 12px; border: none; margin-top: 12px; overflow: visible;
 }
 .칸들 > .칸 {
-  border: none;
-  border-top: 1px solid var(--선연함);
-  border-left: 1px solid var(--선연함);
-  margin-top: -1px; margin-left: -1px;
+  flex: 1 1 200px; min-width: 0;
+  border: 1px solid var(--선);
+  border-radius: var(--둥글);
+  margin: 0;
 }
-.칸들 > .칸.넓게 { grid-column: 1 / -1; }
+.칸들 > .칸.넓게 { flex-basis: 100%; }
 .이름표 {
-  font-size: 10.5px; color: var(--흐린글); margin-bottom: 6px;
-  letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+  font-size: 12px; color: var(--흐린글); margin-bottom: 8px;
+  letter-spacing: 0; text-transform: none; font-weight: 500;
 }
 .값 {
-  font-size: 26px; font-weight: 700; letter-spacing: -.03em;
-  font-variant-numeric: tabular-nums; line-height: 1.15;
+  font-size: 27px; font-weight: 700; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; line-height: 1.2;
 }
 .칸.넓게 .값 { font-size: 36px; }
-.곁말 { font-size: 12px; color: var(--흐린글); margin-top: 5px; }
+.곁말 { font-size: 12.5px; color: var(--흐린글); margin-top: 6px; }
 
 .오름 { color: var(--오름); }
 .내림 { color: var(--내림); }
 .중립 { color: var(--중립); }
 
 /* ── 표 ───────────────────────────────
-   여기가 이 화면의 중심이다. 명세서 표를 그대로 따른다. 머리 위아래를
-   굵은 선으로 닫고, 줄 사이는 머리카락 선으로 가르고, 숫자 칸 사이에
-   세로 선을 넣는다. 세로 선이 있어야 눈이 한 칸을 따라 내려간다. */
+   바깥을 카드처럼 두르고 안쪽은 줄 사이 선으로만 가른다. 칸 사이 세로
+   선은 아주 연하게 남겼다. 없애면 숫자 칸을 눈으로 따라 내려가기 어렵고,
+   진하게 그으면 이 화면의 여백이 무너진다. */
 .표싸개 {
-  margin-top: 16px; overflow-x: auto; background: transparent;
-  border: none; border-radius: 0; box-shadow: none;
-  border-top: 2px solid var(--선진함);
-  border-bottom: 2px solid var(--선진함);
+  margin-top: 16px; overflow-x: auto; background: var(--판);
+  border: 1px solid var(--선); border-radius: var(--둥글);
 }
 table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
 th, td {
-  padding: 12px 14px; text-align: right;
+  padding: 13px 16px; text-align: right;
   border-bottom: 1px solid var(--선연함);
   border-left: 1px solid var(--선연함);
   white-space: nowrap;
 }
 th:first-child, td:first-child { text-align: left; border-left: none; }
 thead th {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--글2);
-  background: transparent; border-bottom: 1px solid var(--선진함);
-  padding-top: 10px; padding-bottom: 10px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--흐린글);
+  background: var(--판2); border-bottom: 1px solid var(--선);
+  padding-top: 11px; padding-bottom: 11px;
 }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: var(--판2); }
 td { font-variant-numeric: tabular-nums; }
 td.가운데, th.가운데 { text-align: center; }
 
-/* ── 단추 ─────────────────────────────
-   명세서에 어울리게 모서리를 세우고 색을 뺐다. 주된 단추만 검정으로
-   채워서 한 화면에 눌러야 할 곳이 하나라는 것을 보여 준다. */
-button {
-  font: inherit; cursor: pointer; border-radius: 0;
-  border: 1px solid var(--선진함); background: transparent; color: var(--글);
-  padding: 9px 18px; font-size: 12.5px; font-weight: 600; letter-spacing: .03em;
-  transition: background .12s, color .12s;
+/* ── 연도 성과 격자 ─────────────────────────────
+   색으로 크기를 나타내는 칸이다. 한국 증시 관례를 그대로 따른다.
+   오르면 빨강, 내리면 파랑이고, 진할수록 값이 크다.
+
+   **투명도로 진하기를 조절한다.** 색을 미리 여러 단계 만들어 두면 밝은
+   화면과 어두운 화면에서 각각 다시 만들어야 하고, 그러다 한쪽만 고치면
+   어두운 화면에서 글씨가 안 읽힌다. 칠은 밑에 깔고 글자는 그 위에 둔다.
+
+   **색만으로 값을 전하지 않는다.** 칸마다 숫자를 그대로 적는다. 색을 못
+   가리는 사람에게 격자가 통째로 빈 표가 되면 안 된다. */
+/* 칸이 열이라 기본 여백이면 PC 폭에서도 마지막 칸이 잘린다. 표 안에서
+   가로로 밀어 볼 수는 있지만, 한눈에 보려고 만든 표라 다 보이는 편이 낫다. */
+table.격자표 th, table.격자표 td { padding: 9px 10px; }
+table.격자표 th:first-child, table.격자표 td:first-child { padding-left: 14px; }
+td.격자칸 { position: relative; text-align: right; }
+.격자칠 {
+  position: absolute; inset: 2px; border-radius: 4px; pointer-events: none;
 }
-button:hover:not(:disabled) { background: var(--강조); color: var(--판); border-color: var(--강조); }
+.격자값 { position: relative; }
+/* 지금 설정된 전략 줄. 배경으로 칠하면 칸의 색과 겹쳐 값이 잘못 읽힌다.
+   그래서 왼쪽에 선만 긋고 이름을 굵게 둔다. */
+tbody tr.지금줄 td:first-child {
+  border-left: 3px solid var(--강조); font-weight: 700;
+}
+
+/* ── 단추 ─────────────────────────────
+   주된 단추만 검정으로 채운다. 나머지는 흰 바탕에 연한 테두리로 둔다.
+   한 화면에 검은 덩어리가 여럿이면 어디를 눌러야 하는지 알 수 없다. */
+button {
+  font: inherit; cursor: pointer; border-radius: var(--둥글작게);
+  border: 1px solid var(--선); background: var(--판); color: var(--글);
+  padding: 10px 20px; font-size: 13px; font-weight: 600; letter-spacing: -.01em;
+  transition: background .12s, color .12s, border-color .12s;
+}
+/* 곁 단추는 마우스를 올려도 검게 채우지 않는다. 검정은 주된 단추의
+   자리다. 연한 회색으로만 눌러 준다. */
+button:hover:not(:disabled) { background: var(--판2); border-color: var(--선); }
 /* 잠긴 단추도 단추로 보여야 한다.
    투명도 0.35로 두었더니 흰 바탕에서 거의 사라졌고, 그 옆의 잠기지 않은
    '변경 취소'만 진하게 남아서 저장 단추가 아예 없는 것처럼 보였다. */
@@ -263,8 +287,8 @@ button.주된:disabled {
   border-color: var(--선); border-style: dashed;
 }
 button.주된 { background: var(--강조); border-color: var(--강조); color: var(--판); }
-button.주된:hover:not(:disabled) { background: transparent; color: var(--글); }
-button.작게 { padding: 6px 12px; font-size: 11.5px; }
+button.주된:hover:not(:disabled) { background: var(--글2); border-color: var(--글2); color: var(--판); }
+button.작게 { padding: 7px 14px; font-size: 12px; }
 /* 단추 글자에 이모지가 섞여 있다(새로고침, 검증 시작). 화면 전체가 흑백인데
    거기만 색이 튀어서 눈이 먼저 그리로 간다. 글자는 이미 검정과 흰색이라
    회색으로 눌러도 달라지지 않는다. */
@@ -275,29 +299,30 @@ button.고름, button.거름 { filter: none; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
   outline: 2px solid var(--강조); outline-offset: 2px;
 }
-.줄 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
+.줄 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; align-items: center; }
 
 /* 승인과 거절. 누른 쪽이 채워진다. */
 button.고름[aria-pressed="true"] { background: var(--켜짐); border-color: var(--켜짐); color: var(--판); }
 button.거름[aria-pressed="true"] { background: var(--꺼짐); border-color: var(--꺼짐); color: #FFF; }
 
 /* ── 알림 ─────────────────────────────
-   명세서의 Terms & Condition처럼 왼쪽에 굵은 선을 세우고 본문을 붙인다. */
+   왼쪽에 굵은 선을 세우고 본문을 붙인다. 모서리는 카드와 같이 둥글게. */
 .알림 {
-  background: var(--꺼짐연함); border: none; border-left: 3px solid var(--꺼짐);
-  border-radius: 0; padding: 13px 16px; font-size: 13.5px; color: var(--글2);
+  background: var(--꺼짐연함); border: 1px solid var(--선);
+  border-left: 3px solid var(--꺼짐);
+  border-radius: var(--둥글); padding: 16px 18px; font-size: 13.5px; color: var(--글2);
 }
-.알림.순한 { background: var(--강조연함); border-left-color: var(--선진함); }
+.알림.순한 { background: var(--판2); border-left-color: var(--선진함); }
 .알림 strong { color: var(--글); }
 .알림 + * { margin-top: 16px; }
 
 /* ── 표딱지 ───────────────────────────
-   둥근 알약을 걷어내고 네모난 도장처럼 둔다. */
+   작고 각이 살짝 둥근 도장. */
 .딱지 {
   display: inline-block;
-  font-size: 10px; font-weight: 700; letter-spacing: .09em;
-  text-transform: uppercase;
-  padding: 3px 7px; border-radius: 0; white-space: nowrap;
+  font-size: 11px; font-weight: 600; letter-spacing: 0;
+  text-transform: none;
+  padding: 3px 9px; border-radius: 4px; white-space: nowrap;
   border: 1px solid transparent;
 }
 .딱지.켜짐 { background: var(--켜짐); color: var(--판); border-color: var(--켜짐); }
@@ -306,12 +331,12 @@ button.거름[aria-pressed="true"] { background: var(--꺼짐); border-color: va
 
 /* ── 입력 ───────────────────────────── */
 label {
-  display: block; font-size: 10.5px; color: var(--흐린글); margin: 18px 0 6px;
-  letter-spacing: .09em; text-transform: uppercase; font-weight: 600;
+  display: block; font-size: 12px; color: var(--흐린글); margin: 20px 0 7px;
+  letter-spacing: 0; text-transform: none; font-weight: 500;
 }
 input, select {
-  font: inherit; width: 100%; padding: 10px 12px;
-  border: 1px solid var(--선); border-radius: 0;
+  font: inherit; width: 100%; padding: 11px 13px;
+  border: 1px solid var(--선); border-radius: var(--둥글작게);
   background: var(--판); color: var(--글);
 }
 input:focus, select:focus { border-color: var(--선진함); }
@@ -326,62 +351,86 @@ input:disabled, select:disabled, textarea:disabled {
   background: var(--판2); color: var(--흐린글);
   border-style: dashed; cursor: not-allowed;
 }
-.설명 { font-size: 12.5px; color: var(--흐린글); margin: 6px 0 0; }
-.짝 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 20px; }
+.설명 { font-size: 12.5px; color: var(--흐린글); margin: 7px 0 0; }
+
+/* 전략을 고르면 그 아래에 뜨는 쉬운 설명.
+
+   연한 회색 상자에 담는다. 곁말 색(흐린글)으로 두면 "안 읽어도 되는 글"로
+   보이는데, 처음 보는 사람에게는 여기가 제일 먼저 읽어야 하는 자리다.
+   정확한 조건은 그 아래 매수 조건 묶음이 적는다. */
+.쉬운말 {
+  font-size: 13.5px; line-height: 1.7; color: var(--글2);
+  background: var(--판2); border: none; border-radius: var(--둥글작게);
+  padding: 12px 14px; margin: 10px 0 0;
+}
+.쉬운말 .곁말 { color: var(--흐린글); }
+.짝 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 22px; }
 
 /* ── 기타 ───────────────────────────── */
 .숨김 { display: none !important; }
-.때 { color: var(--흐린글); font-size: 11px; margin-top: 14px; letter-spacing: .04em; }
-details { margin-top: 18px; font-size: 13px; color: var(--흐린글); }
+.때 { color: var(--흐린글); font-size: 12px; margin-top: 16px; letter-spacing: 0; }
+details { margin-top: 20px; font-size: 13px; color: var(--흐린글); }
 summary { cursor: pointer; }
-.빔 { text-align: center; color: var(--흐린글); padding: 30px 12px; font-size: 13.5px; }
+/* 아직 아무것도 없는 자리.
+
+   점선 상자는 **표 밖에 홀로 놓일 때만** 두른다. 표 안에서는 `<td>`로
+   들어가는데, 이미 테두리를 두른 표 안에 점선이 또 생기면 상자가 두 겹으로
+   보인다. 소개 화면의 '02' 빈 카드처럼 "자료를 못 받았다"가 아니라 "아직
+   비어 있다"로 읽히게 하려는 것이므로, 홀로 놓일 때만 있으면 된다. */
+.빔 { text-align: center; color: var(--흐린글); padding: 36px 16px; font-size: 13.5px; }
+div.빔 { border: 1px dashed var(--선); border-radius: var(--둥글); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em;
-       background: var(--판2); padding: 1px 5px; border-radius: 0;
+       background: var(--판2); padding: 2px 6px; border-radius: 4px;
        overflow-wrap: anywhere; }
 
-/* 제목은 명세서의 구역 이름처럼 작고 넓게 벌린다. 큰 글씨는 맨 위
-   제목 하나로 충분하고, 여러 개면 어디가 중요한지 알 수 없다. */
+/* 제목은 크고 굵게 둔다. 밑줄을 긋는 대신 위 여백을 넉넉히 준다.
+   전에는 작은 대문자로 눌러 두었는데, 탭 하나가 열 화면씩 되다 보니
+   어디서 새 구역이 시작되는지 보이지 않았다. */
 h2 {
-  font-size: 12px; font-weight: 700; margin: 34px 0 4px;
-  letter-spacing: .11em; text-transform: uppercase;
-  padding-bottom: 7px; border-bottom: 1px solid var(--선);
+  font-size: 21px; font-weight: 700; margin: 52px 0 0;
+  letter-spacing: -.03em; text-transform: none;
+  padding-bottom: 0; border-bottom: none; line-height: 1.35;
 }
 h2:first-child { margin-top: 0; }
-.h2곁말 { font-size: 12.5px; color: var(--흐린글); margin: 9px 0 14px; }
+.h2곁말 { font-size: 13.5px; color: var(--흐린글); margin: 8px 0 18px; }
 /* 한 화면 안에서 사는 쪽과 파는 쪽을 가르는 제목. h2보다 한 단 작게 두어
    '쓰는 전략' 아래에 속한 것으로 읽히게 한다. */
 .쪽제목 {
-  font-size: 11px; font-weight: 700; margin: 24px 0 8px;
-  letter-spacing: .1em; text-transform: uppercase; color: var(--글2);
+  font-size: 15px; font-weight: 700; margin: 28px 0 10px;
+  letter-spacing: -.02em; text-transform: none; color: var(--글);
 }
 
 /* ── 승인 후보 줄 ────────────────────────────────────
    표로 두면 폰에서 단추가 가로 스크롤 뒤로 숨는다. 하루 중 유일하게
-   손대는 자리라 어떤 폭에서도 바로 보여야 한다. 명세서의 품목 줄처럼
-   위아래를 선으로만 가른다. */
+   손대는 자리라 어떤 폭에서도 바로 보여야 한다. 카드 하나에 담고 안쪽만
+   줄로 가른다. */
 .후보들 {
   display: flex; flex-direction: column; gap: 0; margin-top: 16px;
-  border-top: 2px solid var(--선진함); border-bottom: 2px solid var(--선진함);
+  border: 1px solid var(--선); border-radius: var(--둥글); overflow: hidden;
 }
 .후보 {
-  background: transparent; border: none; border-radius: 0;
+  background: var(--판); border: none; border-radius: 0;
   border-bottom: 1px solid var(--선연함);
-  padding: 14px 2px; box-shadow: none;
+  padding: 16px 18px; box-shadow: none;
   display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
 }
 .후보들 > .후보:last-child { border-bottom: none; }
 .후보 .누구 { flex: 1 1 190px; min-width: 0; }
-.후보 .이름 { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
-.후보 .잔글 { font-size: 12.5px; color: var(--흐린글); margin-top: 2px;
+.후보 .이름 { font-weight: 700; font-size: 15.5px; letter-spacing: -.02em; }
+.후보 .잔글 { font-size: 12.5px; color: var(--흐린글); margin-top: 3px;
               font-variant-numeric: tabular-nums; }
 .후보 .고르기 { display: flex; gap: 6px; margin-left: auto; }
 .후보.정해짐 { background: var(--판2); }
-.후보 .빔 { padding: 0; }
+/* 후보가 하나도 없을 때의 안내문은 이 카드 **안쪽에** 들어간다. 점선
+   상자를 그대로 두면 테두리 안에 테두리가 하나 더 생겨 상자가 두 겹으로
+   보인다. `.후보들 .빔`으로 잡는 이유는 그 안내문이 `.후보` 밖에, 카드의
+   바로 아래에 붙기 때문이다. */
+.후보들 .빔 { padding: 28px 16px; border: none; }
 
 /* ── 용어 사전 ───────────────────────────────────────
    65개를 다 펼치면 폰에서 서른 화면이 넘는다. 이름만 훑다가 궁금한
    것만 연다. details는 브라우저가 접기를 맡아 줘서 코드가 없다. */
-.낱말 { display: block; margin-top: 0; padding: 13px 2px; }
+.낱말 { display: block; margin-top: 0; padding: 14px 4px; border-radius: var(--둥글작게); }
 .낱말 > summary {
   list-style: none; cursor: pointer;
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
@@ -391,52 +440,52 @@ h2:first-child { margin-top: 0; }
   content: "＋"; margin-left: auto; color: var(--흐린글); font-size: 12px;
 }
 .낱말[open] > summary::after { content: "－"; }
-.낱말[open] { background: var(--판2); padding-left: 12px; padding-right: 12px; }
+.낱말[open] { background: var(--판2); padding-left: 14px; padding-right: 14px; }
 .낱말 .잔글 { margin-top: 0; }
-.낱말 p { font-size: 14px; line-height: 1.68; }
+.낱말 p { font-size: 14px; line-height: 1.7; }
 #용어찾기 { margin-top: 4px; }
 
 /* ── 머리의 매수·매도 스위치 ─────────────────────────
    하루 중 제일 급할 때 찾는 것이라 어느 탭에서도 늘 보인다.
    세로 두 줄로 두는 이유는 폰 폭(390px)에서 가로로 놓으면 제목과
    부딪혀 줄이 넘치기 때문이다. */
-.스위치들 { display: flex; flex-direction: column; gap: 7px; }
+.스위치들 { display: flex; flex-direction: column; gap: 8px; }
 
 .스위치 {
   display: grid;
-  grid-template-columns: auto 34px auto;
+  grid-template-columns: auto 36px auto;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   margin: 0;
   cursor: pointer;
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--글2);
   user-select: none;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
-.스위치 .이름 { font-weight: 700; }
+.스위치 .이름 { font-weight: 600; }
 
 /* 진짜 체크박스는 숨기지 않고 투명하게 겹쳐 둔다. 안 그러면 키보드로
    못 옮기고 화면낭독기가 못 읽는다. */
 .스위치 input {
   grid-column: 2; grid-row: 1;
-  width: 34px; height: 18px; margin: 0; padding: 0;
+  width: 36px; height: 20px; margin: 0; padding: 0;
   opacity: 0; cursor: pointer;
 }
-/* 홈도 둥근 알약이 아니라 네모다. 화면 전체가 각진 명세서라 여기만
-   둥글면 따로 논다. */
+/* 홈은 알약 모양이다. 화면의 모서리가 전부 둥글어서 여기만 각지면
+   따로 논다. */
 .스위치 .홈 {
   grid-column: 2; grid-row: 1;
-  width: 34px; height: 18px; border-radius: 0;
-  background: transparent; border: 1px solid var(--선진함);
+  width: 36px; height: 20px; border-radius: 999px;
+  background: var(--판2); border: 1px solid var(--선);
   transition: background .15s, border-color .15s;
   pointer-events: none;
 }
 .스위치 .홈::after {
   content: ""; display: block;
-  width: 12px; height: 12px; margin: 2px; border-radius: 0;
-  background: var(--선진함);
+  width: 14px; height: 14px; margin: 2px; border-radius: 999px;
+  background: var(--흐린글);
   transition: transform .15s, background .15s;
 }
 .스위치 input:checked + .홈 { background: var(--켜짐); border-color: var(--켜짐); }
@@ -445,7 +494,7 @@ h2:first-child { margin-top: 0; }
 .스위치 input:disabled + .홈 { opacity: .4; }
 .스위치 input:disabled ~ .상태 { opacity: .5; }
 
-.스위치 .상태 { font-variant-numeric: tabular-nums; min-width: 36px; font-weight: 600; }
+.스위치 .상태 { font-variant-numeric: tabular-nums; min-width: 40px; font-weight: 600; }
 .스위치 input:checked ~ .상태 { color: var(--글); font-weight: 700; }
 
 /* 매도가 꺼진 것은 매수가 꺼진 것보다 위험하다. 손절이 실행되지 않는다.
@@ -453,40 +502,43 @@ h2:first-child { margin-top: 0; }
    쓰는 자리가 여기와 손익 둘뿐이라 오히려 눈에 잘 띈다. */
 .스위치.위험 .홈 { background: var(--꺼짐); border-color: var(--꺼짐); }
 .스위치.위험 .홈::after { background: #FFF; }
-.스위치.위험 .상태 { color: var(--꺼짐); font-weight: 800; }
+.스위치.위험 .상태 { color: var(--꺼짐); font-weight: 700; }
 
 /* ── 지금 설정된 전략 띠 ──────────────────────────────
    스위치 바로 밑, 어느 탭에서든 보인다. 스위치는 동작 중인지만 말하고
    무엇이 동작 중인지는 말하지 않는다.
 
    사는 쪽과 파는 쪽을 갈라 둔다. 둘이 다른 전략일 수 있고, 그 사실이
-   한눈에 안 보이면 "사는 전략의 규칙으로 팔고 있다"고 잘못 읽는다. */
+   한눈에 안 보이면 "사는 전략의 규칙으로 팔고 있다"고 잘못 읽는다.
+
+   연한 회색 상자에 담는다. 전에는 선도 배경도 없이 글자만 두었는데,
+   흰 바탕이 되면서 머리와 탭줄 사이에 떠 있는 글처럼 보였다. */
 .전략띠 {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 28px;
-  margin-top: 0;
-  padding: 12px 0 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  font-size: 10.5px;
-  letter-spacing: .09em;
-  text-transform: uppercase;
+  gap: 6px 32px;
+  margin-top: 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--선);
+  border-radius: var(--둥글);
+  background: var(--판2);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--흐린글);
 }
 .전략띠 b {
-  color: var(--글); font-weight: 700; font-size: 13px;
-  letter-spacing: -.01em; text-transform: none; margin-left: 6px;
+  color: var(--글); font-weight: 700; font-size: 14px;
+  letter-spacing: -.02em; text-transform: none; margin-left: 7px;
 }
-.전략띠 .쪽::before { margin-right: 7px; font-size: 9px; }
+.전략띠 .쪽::before { margin-right: 8px; font-size: 9px; }
 .전략띠 .사는쪽::before { content: "●"; }
 .전략띠 .파는쪽::before { content: "○"; }
 
 /* 폰 폭에서는 한 줄에 둘을 넣으면 전략 이름이 잘린다. 이름이 잘리면
    "거래량 급증 + 20…"이 되어 무엇인지 알 수 없다. 한 줄에 하나씩. */
 @media (max-width: 420px) {
-  .전략띠 { gap: 5px; }
+  .전략띠 { gap: 6px; }
   .전략띠 .쪽 { width: 100%; }
 }
 
@@ -495,16 +547,19 @@ h2:first-child { margin-top: 0; }
    급할 때 엉뚱한 쪽을 누른다. 하나는 기회를 놓치는 것이고 다른 하나는
    손절이 멈추는 것이라, 헷갈리는 값이 서로 너무 다르다. */
 @media (max-width: 560px) {
-  .싸개 { margin: 0; padding: 26px 18px 52px; border-left: none; border-right: none; }
-  h1 { font-size: 26px; }
-  .부제 { font-size: 10px; }
-  .머리 { padding-bottom: 14px; }
-  .탭 { padding: 9px 12px 8px; }
-  .칸 { padding: 14px 15px 15px; }
+  .싸개 { padding: 32px 18px 72px; }
+  h1 { font-size: 27px; }
+  .부제 { font-size: 13px; }
+  .머리 { padding-bottom: 20px; }
+  .탭 { padding: 10px 12px 9px; font-size: 13px; }
+  .칸 { padding: 16px 17px; }
+  .칸들 { gap: 10px; }
   .칸.넓게 .값 { font-size: 30px; }
-  .값 { font-size: 23px; }
-  .스위치 { grid-template-columns: auto 30px auto; gap: 6px; font-size: 9.5px; }
-  .스위치 input, .스위치 .홈 { width: 30px; height: 17px; }
-  .스위치 .홈::after { width: 11px; height: 11px; }
+  .값 { font-size: 24px; }
+  h2 { font-size: 19px; margin-top: 42px; }
+  .후보 { padding: 14px 15px; }
+  .스위치 { grid-template-columns: auto 32px auto; gap: 7px; font-size: 11.5px; }
+  .스위치 input, .스위치 .홈 { width: 32px; height: 19px; }
+  .스위치 .홈::after { width: 13px; height: 13px; }
   .스위치 input:checked + .홈::after { transform: translateX(13px); }
 }

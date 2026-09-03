@@ -26,6 +26,7 @@ import json
 import sys
 from pathlib import Path
 
+from muwon.analysis.judgment import 순위지침들, 확인지침들
 from muwon.analysis.period_check import 기간들
 from muwon.dashboard.glossary import TERMS
 from muwon.dashboard.strategy_rules import describe
@@ -38,8 +39,12 @@ from muwon.strategy.registry import REGISTRY, build_strategy
 
 
 def 용어사전() -> list[dict]:
-    """검색하기 쉽게 목록으로 편다. 화면에서 훑어 내리며 찾는 자료다."""
-    return [
+    """검색하기 쉽게 목록으로 편다. 화면에서 훑어 내리며 찾는 자료다.
+
+    전략 이름도 같이 넣는다. 표에서 "변동성 돌파"를 보고 그게 뭔지 찾을 때,
+    전략 이름만 용어집에 없으면 찾을 곳이 없다. **손으로 옮겨 적지 않고
+    registry에서 만든다.** 두 곳에 적으면 한쪽만 고치게 된다."""
+    나온것 = [
         {
             "열쇠": 열쇠,
             "이름": 낱말.이름,
@@ -49,6 +54,18 @@ def 용어사전() -> list[dict]:
         }
         for 열쇠, 낱말 in TERMS.items()
     ]
+    나온것 += [
+        {
+            "열쇠": f"전략:{정의.key}",
+            "이름": 정의.화면이름,
+            "뜻": 정의.쉬운설명,
+            "읽는법": 정의.쉬운참고,
+            "영문": 정의.key,
+        }
+        for 정의 in REGISTRY
+        if 정의.쉬운설명
+    ]
+    return 나온것
 
 
 def 전략설명() -> list[dict]:
@@ -64,6 +81,10 @@ def 전략설명() -> list[dict]:
             "이름": 정의.화면이름,
             "자세한이름": 정의.display_name,
             "한줄": 정의.description,
+            # 처음 보는 사람이 읽을 글. `한줄`은 "단기선 상향돌파+거래량급증"
+            # 처럼 적혀 있어서 뜻을 모르면 한 단어도 못 읽는다.
+            "쉬운설명": 정의.쉬운설명,
+            "쉬운참고": 정의.쉬운참고,
             "계열": 정의.category,
             "상태": 정의.status,
         }
@@ -187,9 +208,22 @@ def 종목이름() -> list[dict]:
     return [{"코드": 코드, "이름": 이름} for 코드, 이름 in sorted(이름표.items())]
 
 
+def 판단지침() -> list[dict]:
+    """전략을 견줄 때 무엇을 먼저 보나. 화면의 1~3순위 목록이 이것을 읽는다.
+
+    원본은 `analysis/judgment.py` 하나다. 화면에 목록을 또 적으면 지침을
+    더할 때마다 두 곳을 고쳐야 하고, 한쪽만 고치면 화면에서 고른 값이
+    파이썬에는 없는 값이 된다. 그러면 저장은 되는데 순위는 안 바뀐다."""
+    return [
+        {"열쇠": ㄱ.열쇠, "이름": ㄱ.이름, "설명": ㄱ.설명,
+         "갈래": ㄱ.갈래, "단위": ㄱ.단위, "비긴폭": ㄱ.비긴폭}
+        for ㄱ in 순위지침들 + 확인지침들
+    ]
+
+
 자료들 = {"용어사전.json": 용어사전, "전략설명.json": 전략설명,
          "기준설명.json": 기준이름, "기간설명.json": 기간설명,
-         "종목이름.json": 종목이름}
+         "종목이름.json": 종목이름, "판단지침.json": 판단지침}
 
 
 def 글로(값) -> str:

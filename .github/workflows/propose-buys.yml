@@ -39,10 +39,14 @@ on:
         description: "후보를 몇 개까지 (0이면 설정의 동시보유 수)"
         default: "0"
       max_per_sector:
-        description: "한 섹터에서 몇 종목까지 (0이면 제한 없음)"
-        default: "2"
+        description: "한 섹터에서 몇 종목까지 (비우거나 -1이면 시트 값, 0이면 제한 없음)"
+        default: "-1"
       sector_filter:
         description: "강도 상위 섹터만 매수 대상으로: 근거 없음(docs/섹터선정_검증.md)"
+        type: boolean
+        default: false
+      force:
+        description: "오늘 후보가 이미 시트에 있어도 다시 뽑는다 (전략을 바꾸고 다시 제안할 때)"
         type: boolean
         default: false
 
@@ -93,17 +97,31 @@ jobs:
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          # 입력을 `run:` 글자 안으로 치환하지 않고 환경변수로 넘긴다.
+          # 치환하면 값 안의 `$(...)`가 명령으로 실행된다.
+          MUWON_FORCE: ${{ github.event.inputs.force }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 파이프라인의 결과는
           # 맨 끝 tee의 것이고 tee는 거의 안 죽는다. 2026-08-25에 매수가
           # KIS 403으로 통째로 터졌는데 워크플로는 초록불로 끝났다.
           # 조용히 성공한 척하는 실패라 여기서 막는다.
           set -o pipefail
+          # 셸 변수 이름에 한글을 쓰면 bash가 command not found로 죽는다.
+          FORCE_ARG=""
+          if [ "$MUWON_FORCE" = "true" ]; then FORCE_ARG="--force"; fi
+          echo "■ 다시 뽑기: ${FORCE_ARG:-아니오}"
+          # `--max-per-sector`의 기본값은 **-1이어야 한다.** 여기에 숫자를
+          # 박아 두면 `propose_buys.py`가 `args.max_per_sector >= 0`을 보고
+          # 시트의 `max_per_sector`를 아예 안 읽는다. 예약 실행은 inputs가
+          # 비어서 `|| '2'`로 떨어지므로, 08:30이 매일 시트를 무시하고 2를
+          # 쓰고 있었다(2026-09-01에 찾음). 시트에서 값을 바꿔도 아무 일도
+          # 일어나지 않았고, 아무것도 빨개지지 않았다.
           python scripts/propose_buys.py \
             --max "${{ github.event.inputs.max || '0' }}" \
-            --max-per-sector "${{ github.event.inputs.max_per_sector || '2' }}" \
+            --max-per-sector "${{ github.event.inputs.max_per_sector || '-1' }}" \
             ${{ github.event.inputs.sector_filter == 'true' && '--sector-filter' || '' }} \
             ${{ github.event_name != 'schedule' && github.event.inputs.dry_run != 'false' && '--dry-run' || '' }} \
+            $FORCE_ARG \
             | tee propose.txt
 
       - name: 결과 아티팩트로 올리기

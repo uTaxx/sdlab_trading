@@ -46,7 +46,7 @@ from muwon.config import bootstrap_settings
 from muwon.db.models import PositionRow
 from muwon.db.scratch import 사본으로
 from muwon.db.session import ensure_schema, make_session_factory
-from muwon.execution.approved_universe import build_universe
+from muwon.execution.approved_universe import build_universe, 섹터표만들기
 from muwon.execution.engine import TradingEngine
 from muwon.execution.reconciliation import check_account_consistency
 from muwon.notify import notice_format as 모양
@@ -216,6 +216,18 @@ def main() -> int:
 
         print("■ 손절은 어제 종가가 아니라 지금 값으로 계산합니다.")
 
+    # 섹터당 보유 상한. **여기서도 센다**(2026-09-02에 더함).
+    #
+    # 08:30 후보 산출도 상한을 보지만, 그 계산은 후보 목록을 0부터 세기
+    # 때문에 이미 들고 있는 종목을 모른다. 반도체를 두 종목 들고 있어도
+    # 그날 후보에 반도체 세 종목이 들어올 수 있었고, 다 승인하면 반도체
+    # 다섯 종목이 된다. 여기는 보유 종목을 알고 있어서 진짜 보유 한도로
+    # 셀 수 있다.
+    섹터당 = int(설정.가져오기("max_per_sector") or 0)
+    섹터표 = 섹터표만들기(내용.섹터)
+    print(f"■ 섹터당 보유 상한: {f'{섹터당}종목' if 섹터당 else '제한 없음'} "
+          f"(들고 있는 종목까지 셉니다)")
+
     engine = TradingEngine(
         strategy=strategy,
         risk_manager=RiskManager(policy_provider=정책제공),
@@ -227,6 +239,8 @@ def main() -> int:
         source_symbol=source_symbol,
         orderable_provider=살수있는수량,
         현재가공급자=지금값,
+        섹터표=섹터표,
+        섹터상한=섹터당,
     )
     summary = engine.run_once()
 

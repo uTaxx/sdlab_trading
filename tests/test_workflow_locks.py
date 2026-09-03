@@ -283,3 +283,23 @@ def test_버튼이_DB를_고쳤는지_스크립트가_알린다():
           / "scripts" / "telegram_control.py").read_text(encoding="utf-8")
     assert "_DB고쳤나" in 글
     assert "올릴까 = (마지막 != offset) or _DB고쳤나" in 글
+
+
+def test_섹터당_상한을_워크플로에_박아_두지_않는다():
+    """`propose_buys.py`는 `--max-per-sector`가 0 이상이면 시트를 안 읽는다
+    (`args.max_per_sector >= 0`). 그래서 워크플로가 숫자를 넘기면 시트의
+    `max_per_sector`가 아예 안 쓰인다.
+
+    2026-09-01까지 기본값이 2로 박혀 있었다. 예약 실행은 inputs가 비어서
+    `|| '2'`로 떨어지므로, 08:30이 매일 시트를 무시하고 2를 쓰고 있었다.
+    시트에서 값을 바꿔도 아무 일도 일어나지 않고, 아무것도 빨개지지 않는다.
+
+    -1이 "시트 값을 쓴다"는 뜻이다. 0은 "제한 없음"이라 뜻이 다르다."""
+    글 = (Path(__file__).resolve().parent.parent
+          / ".github" / "workflows" / "propose-buys.yml").read_text(encoding="utf-8")
+
+    맞는것 = "--max-per-sector \"${{ github.event.inputs.max_per_sector || '-1' }}\""
+    assert 맞는것 in 글, "예약 실행이 시트 값을 못 읽습니다"
+
+    자리 = 글.index("max_per_sector:")
+    assert 'default: "-1"' in 글[자리:자리 + 200], 글[자리:자리 + 200]

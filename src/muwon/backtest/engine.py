@@ -19,7 +19,13 @@ from muwon.backtest.costs import TransactionCosts
 from muwon.domain.interfaces import Strategy
 from muwon.domain.types import SignalType
 from muwon.indicators.technical import add_indicators
-from muwon.risk.exits import atr_series, evaluate_exit, 보유상한
+from muwon.risk.exits import (
+    atr_series,
+    evaluate_exit,
+    보유만료글,
+    보유상한,
+    익절기준,
+)
 from muwon.risk.manager import RiskManager
 from muwon.strategy.portfolio import (
     MarketContext,
@@ -36,6 +42,14 @@ class OpenPosition:
     entry_price: float
     entry_date: date
     entry_reason: str = ""
+    #: 이 종목을 산 전략. **청산은 이것을 따른다**(2026-09-02).
+    #:
+    #: 전에는 청산이 지금 걸린 전략을 봤다. 그래서 전략을 바꾸면 이미 들고
+    #: 있던 종목의 보유 기간과 익절선이 발밑에서 바뀌었다. 살 때 이미
+    #: "며칠 들고 언제 판다"가 정해져 있었으므로 그것을 따르는 것이 맞다.
+    #:
+    #: None이면 실행 내내 전략이 하나였다는 뜻이라 엔진의 전략을 쓴다.
+    전략: object | None = None
 
 
 @dataclass
@@ -100,6 +114,11 @@ class BacktestEngine:
         initial_cash: float = 10_000_000.0,
         exit_at_open: bool = False,
         entry_at_open: bool = False,
+        섹터표: dict[str, str] | None = None,
+        섹터상한: int = 0,
+        섹터상한셈: str = "하루후보",
+        점수순: bool = False,
+        결제일수: int = 0,
     ):
         self._strategy = as_portfolio_strategy(strategy)
         self._risk_manager = risk_manager
@@ -125,6 +144,43 @@ class BacktestEngine:
         # 그리고 수익의 70~92%가 밤사이에 났으므로(설계안 §26), 매수를 하루
         # 늦추면 **밤 하나를 잃는다.** 청산 쪽과 부호가 반대다.
         self._entry_at_open = entry_at_open
+
+        # 아래 넷은 **실거래가 하는 일인데 백테스트가 안 하던 것**이다.
+        # 기본값은 옛 동작 그대로다. 켜면 지금까지 낸 전략 평가 결과·기간
+        # 검증 숫자와 비교가 안 되므로, 켜는 쪽에서 그 사실을 적어야 한다.
+        #
+        # 종목코드 → 섹터코드. 없으면 섹터 상한을 안 건다.
+        self._섹터표 = 섹터표 or {}
+        #: 한 섹터에서 몇 종목까지. 0 이하면 제한 없음(시트의 max_per_sector와
+        #: 같은 뜻이다).
+        #:
+        #: 음수를 그대로 두면 상한이 -1인 셈이 되어 **한 종목도 안 산다.**
+        #: 수익률 0%가 나오는데 화면에는 그것이 "이 전략은 아무것도 못
+        #: 번다"로 보인다. 조용히 틀리는 쪽이라 여기서 막는다.
+        self._섹터상한 = max(0, int(섹터상한 or 0))
+        #: "하루후보"는 그날 새로 사는 것만 센다. 실거래가 그렇게 한다.
+        #: "보유전체"는 이미 들고 있는 것까지 세는 진짜 보유 한도다.
+        self._섹터상한셈 = 섹터상한셈
+        #: 자리가 모자랄 때 신호 점수가 높은 것부터 살 것인가.
+        self._점수순 = bool(점수순)
+        #: 판 돈이 며칠 뒤에 쓸 수 있게 되나. **한국 주식은 2거래일이다(T+2).**
+        #:
+        #: ## 왜 기본값이 0인가
+        #:
+        #: 0은 판 즉시 그 돈으로 살 수 있다는 뜻이고, 지금까지의 모든 백테스트
+        #: 숫자가 그 가정 위에 있다. 기본값을 2로 바꾸면 전략 평가 결과와
+        #: 기간 검증 숫자가 전부 다른 조건의 값이 된다. 그래서 켜는 쪽에서
+        #: 그 사실을 적도록 두고, 기본값은 옛 동작으로 남긴다.
+        #:
+        #: ## 왜 필요한가
+        #:
+        #: 판 돈을 즉시 다시 굴리는 것은 실제로 못 하는 일이다. 회전이 빠른
+        #: 전략일수록 백테스트가 유리하게 나온다. 갭 상승 따라가기처럼 매일
+        #: 사고파는 전략은 매일 매도 대금을 그날 재투자하는 것으로 계산된다.
+        #:
+        #: **평가금액에는 들어간다.** 돈이 사라진 것이 아니라 아직 못 쓸 뿐이다.
+        #: 빼고 세면 파는 날마다 자산이 뚝 떨어졌다가 이틀 뒤 돌아온다.
+        self._결제일수 = max(0, int(결제일수 or 0))
 
     def run(
         self, price_histories: dict[str, pd.DataFrame], trade_from: date | None = None
@@ -161,6 +217,21 @@ class BacktestEngine:
         pending_exits: dict[str, str] = {}
         pending_entries: dict[str, str] = {}
 
+        # 판 돈이 언제 풀리나. {풀리는 날의 순번: 금액}
+        # 거래일 순번으로 센다. 달력 날짜로 세면 연휴에 하루씩 어긋난다.
+        날짜순번 = {d: i for i, d in enumerate(all_dates)}
+        결제대기: dict[int, float] = {}
+
+        def 입금(금액: float, 판날) -> float:
+            """매도 대금. 결제일수가 0이면 그대로 현금이 되고, 아니면 잠긴다.
+
+            돌려주는 값은 **오늘 현금에 더할 몫**이다."""
+            if self._결제일수 <= 0:
+                return 금액
+            푸는날 = 날짜순번[판날] + self._결제일수
+            결제대기[푸는날] = 결제대기.get(푸는날, 0.0) + 금액
+            return 0.0
+
         # **마지막으로 본 종가.** 들고 있는 종목의 그날 시세가 없을 때 쓴다.
         #
         # 전에는 시세가 없으면 평가금액 계산에서 그 종목을 통째로 뺐다.
@@ -181,6 +252,11 @@ class BacktestEngine:
             if trade_from is not None and current_date < trade_from:
                 continue  # 지표 예열 구간: 매매도 평가금액 기록도 하지 않는다
 
+            # 결제가 끝난 돈을 오늘 현금에 넣는다. 파는 것보다 먼저다.
+            # 오늘 푼 돈으로 오늘 살 수 있어야 실제와 같다.
+            풀린것 = 결제대기.pop(날짜순번[current_date], 0.0)
+            cash += 풀린것
+
             opens_today = {
                 symbol: df.loc[current_date, "open"]
                 for symbol, df in enriched.items()
@@ -192,28 +268,32 @@ class BacktestEngine:
                 if current_date in df.index
             }
 
+            ctx = MarketContext(
+                as_of=current_date,
+                histories=price_histories,
+                held=frozenset(positions),
+            )
             signals_today: dict[str, list] = {}
-            for signal in self._strategy.evaluate(
-                MarketContext(
-                    as_of=current_date,
-                    histories=price_histories,
-                    held=frozenset(positions),
-                )
-            ):
+            for signal in self._strategy.evaluate(ctx):
                 signals_today.setdefault(signal.symbol, []).append(signal)
+            # 산 전략이 지금 전략과 다를 때만 따로 계산한다. 하루에 한 번씩
+            # 캐시를 비운다. 안 비우면 어제 신호로 오늘 판다.
+            self._청산신호모음 = {}
 
-            # 며칠까지 들고 있을 것인가를 **날마다 다시 묻는다.** 두 가지 때문이다.
+            # 며칠까지 들고 있을 것인가는 **종목마다 다시 묻는다.**
             #
-            # 하나, 답은 `risk/exits.보유상한()`이 낸다. 전에는 여기서 전략의
-            # 값을 곧장 읽어서 기초설정의 보유기간을 통째로 무시했다. 실거래
-            # 엔진(execution/engine.py:409)은 보유상한()을 쓰므로, 기초설정에
-            # 보유기간을 넣어 두면 백테스트와 실거래가 서로 다른 규칙으로 돌고
-            # 아무것도 빨개지지 않았다.
+            # 답은 `risk/exits.보유상한()`이 낸다. 전에는 여기서 전략의 값을
+            # 곧장 읽어서 기초설정의 보유기간을 통째로 무시했다. 실거래
+            # 엔진도 보유상한()을 쓰므로, 기초설정에 보유기간을 넣어 두면
+            # 백테스트와 실거래가 서로 다른 규칙으로 돌고 아무것도 빨개지지
+            # 않았다.
             #
-            # 둘, 전략이 바뀌면 보유기간도 같이 바뀐다. 실거래에서 청산 판단은
-            # 살 때의 전략이 아니라 지금 설정된 전략을 본다. 실행 전에 한 번만
-            # 읽으면 도중에 전략이 바뀌는 경우를 재 볼 수가 없다.
-            max_holding_days = 보유상한(self._strategy, self._risk_manager.get_policy())
+            # 그리고 **산 전략에게 묻는다**(2026-09-02에 바꿈). 전에는 실행
+            # 중간에 전략이 바뀌면 이미 들고 있던 종목의 보유기간도 같이
+            # 바뀌었다. 실거래가 그렇게 돌고 있어서 그대로 흉내 낸 것인데,
+            # 살 때 이미 정해져 있던 것이 나중에 바뀌는 것이 잘못이었다.
+            # 양쪽을 같이 고쳤다. 그래서 이 값은 청산 루프 안에서 종목마다
+            # 구한다.
 
             # 0) 어제 정한 주문을 오늘 **시가**에 체결한다. 청산이 먼저다.
             # 판 돈으로 사야 하기 때문이다(실거래에서도 같은 순서).
@@ -226,9 +306,10 @@ class BacktestEngine:
                     continue
                 if symbol not in opens_today:
                     continue
-                cash += self._close_position(
-                    positions[symbol], float(opens_today[symbol]), current_date, reason, closed_trades
-                )
+                cash += 입금(self._close_position(
+                    positions[symbol], float(opens_today[symbol]), current_date,
+                    reason, closed_trades
+                ), current_date)
                 del positions[symbol]
                 del pending_exits[symbol]
 
@@ -238,7 +319,7 @@ class BacktestEngine:
             # 밤사이 값이 변한 뒤에 옛 금액으로 사게 된다. 실거래에서도
             # 아침에 계좌를 보고 수량을 정한다.
             if pending_entries:
-                시가평가금액 = cash + sum(
+                시가평가금액 = cash + sum(결제대기.values()) + sum(
                     positions[s].quantity * 값(s, opens_today)
                     for s in positions
                 )
@@ -273,23 +354,35 @@ class BacktestEngine:
                 position = positions[symbol]
                 exit_reason = None
 
+                # 청산은 **산 전략**을 따른다. 실행 내내 전략이 하나면
+                # 지금 전략과 같은 것이라 값이 달라지지 않는다.
+                산전략 = position.전략 or self._strategy
+                정책 = self._risk_manager.get_policy()
+                max_holding_days = 보유상한(산전략, 정책)
                 stop = evaluate_exit(
                     entry_price=position.entry_price,
                     entry_date=position.entry_date,
                     current_price=price,
                     as_of=current_date,
-                    policy=self._risk_manager.get_policy(),
+                    policy=정책,
                     atr=atr_by_symbol.get(symbol),
                     history=price_histories.get(symbol),
+                    익절=익절기준(산전략, 정책),
                 )
                 if stop.should_exit:
                     exit_reason = stop.reason
-                elif max_holding_days is not None and bars_since(
-                    trade_dates_by_symbol.get(symbol, []), position.entry_date, current_date
+                elif max_holding_days is not None and (
+                    들고있던일 := bars_since(
+                        trade_dates_by_symbol.get(symbol, []),
+                        position.entry_date, current_date,
+                    )
                 ) >= max_holding_days:
-                    exit_reason = f"보유 {max_holding_days}일 경과 청산"
+                    exit_reason = 보유만료글(max_holding_days, 들고있던일)
                 else:
-                    for signal in signals_today.get(symbol, []):
+                    # 매도 신호도 산 전략이 낸 것만 본다. 지금 전략의 신호를
+                    # 섞으면 한 종목에 두 전략이 걸려 왜 팔렸는지 설명이 안 된다.
+                    묶음 = self._청산신호(산전략, ctx, signals_today)
+                    for signal in 묶음.get(symbol, []):
                         if signal.signal_type == SignalType.SELL:
                             exit_reason = signal.reason
                             break
@@ -299,9 +392,9 @@ class BacktestEngine:
                         # 오늘은 정하기만 한다. 체결은 내일 아침이다.
                         pending_exits[symbol] = exit_reason
                     else:
-                        cash += self._close_position(
+                        cash += 입금(self._close_position(
                             position, price, current_date, exit_reason, closed_trades
-                        )
+                        ), current_date)
                         del positions[symbol]
 
             # 2) 이 시점 평가금액 → 오늘 손익률 계산
@@ -316,6 +409,7 @@ class BacktestEngine:
             )
 
             # 3) 진입: 리스크 매니저 승인을 받은 매수 신호만 실행
+            오늘후보 = []
             for symbol, price in closes_today.items():
                 if symbol in positions or symbol in pending_entries:
                     continue
@@ -324,17 +418,25 @@ class BacktestEngine:
                 ]
                 if not buy_signals:
                     continue
+                # 실거래는 한 종목에 신호가 여럿이면 점수가 제일 높은 것을
+                # 고른다(`propose_buys.py`). 여기서 첫 번째를 고르면 이유가
+                # 다른 신호가 기록에 남는다.
+                고른신호 = max(buy_signals, key=lambda s: s.score)
+                오늘후보.append((symbol, float(price), 고른신호))
 
+            오늘후보 = self._후보줄세우기(오늘후보, positions, pending_entries)
+
+            for symbol, price, 신호 in 오늘후보:
                 if self._entry_at_open:
                     # 오늘은 정하기만 한다. 체결도 수량 결정도 내일 아침이다.
-                    pending_entries[symbol] = buy_signals[0].reason
+                    pending_entries[symbol] = 신호.reason
                     continue
 
                 cash -= self._open_position(
                     symbol,
-                    float(price),
+                    price,
                     current_date,
-                    buy_signals[0].reason,
+                    신호.reason,
                     equity_after_exits,
                     daily_pnl_pct,
                     len(positions),
@@ -343,7 +445,10 @@ class BacktestEngine:
                 )
 
             마지막종가.update({ㅅ: float(ㄱ) for ㅅ, ㄱ in closes_today.items()})
-            equity = cash + sum(
+            # 아직 결제 안 된 매도 대금도 내 돈이다. 못 쓸 뿐이다. 빼고 세면
+            # 파는 날마다 자산이 뚝 떨어졌다가 이틀 뒤 돌아온다.
+            잠긴돈 = sum(결제대기.values())
+            equity = cash + 잠긴돈 + sum(
                 positions[s].quantity * 값(s, closes_today)
                 for s in positions
             )
@@ -355,6 +460,11 @@ class BacktestEngine:
                     "trade_date": current_date,
                     "equity": equity,
                     "cash": cash,
+                    # 판 돈 중 아직 결제가 안 끝난 몫. 평가금액에는 들어
+                    # 있지만 현금은 아니다. 이 칸이 없으면 부르는 쪽이
+                    # `equity - cash`를 보유 평가액으로 읽는데, 그러면 잠긴
+                    # 돈이 통째로 "아직 안 판 수익"으로 잡힌다.
+                    "결제대기": 잠긴돈,
                     "positions": len(positions),
                 }
             )
@@ -364,6 +474,43 @@ class BacktestEngine:
         return BacktestResult(
             equity_curve=equity_curve, closed_trades=closed_trades, final_positions=positions
         )
+
+    def _후보줄세우기(self, 후보들, positions, pending_entries):
+        """오늘 살 것을 실거래와 같은 순서로 줄 세우고, 섹터 상한으로 자른다.
+
+        ## 왜 순서가 결과를 바꾸나
+
+        자리는 여덟인데 신호가 열 개면 둘은 못 산다. 실거래는 신호 점수가
+        높은 순으로 세워서 위에서부터 사고(`propose_buys.py`), 여기서는
+        시세를 받은 순서대로 샀다. **같은 전략인데 다른 종목을 사고 있었다.**
+
+        기본값은 옛 동작 그대로다. 지금까지 낸 전략 평가 결과와 기간 검증
+        숫자가 전부 그 위에 있어서, 기본값을 바꾸면 과거 결과와 비교가
+        안 된다. 실거래와 같은 규칙으로 재려면 켜서 쓴다."""
+        if self._점수순:
+            후보들 = sorted(후보들, key=lambda ㅌ: -ㅌ[2].score)
+
+        if not self._섹터상한 or not self._섹터표:
+            return 후보들
+
+        # **실거래는 그날 새로 사는 것만 센다.** 이미 들고 있는 것은 안
+        # 센다(`sector/selection.cap_per_sector`가 0부터 센다). 그래서 반도체
+        # 셋을 들고 있어도 오늘 반도체 셋을 더 살 수 있다. `보유전체`는 그
+        # 규칙이 아니라 진짜 보유 한도로 쟀을 때를 보는 쪽이다.
+        센것: dict[str, int] = {}
+        if self._섹터상한셈 == "보유전체":
+            for ㅅ in list(positions) + list(pending_entries):
+                키 = self._섹터표.get(ㅅ, "")
+                센것[키] = 센것.get(키, 0) + 1
+
+        남김 = []
+        for ㅌ in 후보들:
+            키 = self._섹터표.get(ㅌ[0], "")
+            if 센것.get(키, 0) >= self._섹터상한:
+                continue
+            센것[키] = 센것.get(키, 0) + 1
+            남김.append(ㅌ)
+        return 남김
 
     def _open_position(
         self,
@@ -406,8 +553,30 @@ class BacktestEngine:
             entry_price=fill,
             entry_date=entry_date,
             entry_reason=reason,
+            전략=self._지금전략(),
         )
         return cost
+
+    def _지금전략(self):
+        """지금 신호를 내고 있는 속 전략.
+
+        갈아타기 시험에서는 껍데기 하나가 날마다 다른 전략에 넘긴다. 껍데기를
+        보유 종목에 적어 두면 날마다 답이 바뀌어서, 청산이 산 전략을 따르게
+        한 뜻이 사라진다."""
+        return getattr(self._strategy, "오늘전략", None) or self._strategy
+
+    def _청산신호(self, 산전략, ctx, 오늘신호: dict) -> dict:
+        """산 전략이 오늘 낸 신호. 지금 전략과 같으면 이미 계산한 것을 쓴다."""
+        if 산전략 is self._strategy or 산전략 is self._지금전략():
+            return 오늘신호
+        열쇠 = id(산전략)
+        묶음 = self._청산신호모음.get(열쇠)
+        if 묶음 is None:
+            묶음 = {}
+            for ㅅ in 산전략.evaluate(ctx):
+                묶음.setdefault(ㅅ.symbol, []).append(ㅅ)
+            self._청산신호모음[열쇠] = 묶음
+        return 묶음
 
     def _close_position(
         self,

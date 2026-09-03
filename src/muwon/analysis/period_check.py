@@ -223,6 +223,12 @@ def 돌려보기(
     costs: TransactionCosts | None = None,
     entry_at_open: bool = True,
     exit_at_open: bool = True,
+    섹터표: dict[str, str] | None = None,
+    섹터상한: int = 0,
+    섹터상한셈: str = "하루후보",
+    점수순: bool = False,
+    결제일수: int = 0,
+    예수금: float = 10_000_000.0,
 ) -> 기간성적 | None:
     """한 구간을 통째로 실행한다. 시세가 없으면 None.
 
@@ -246,6 +252,14 @@ def 돌려보기(
         costs=costs,
         exit_at_open=exit_at_open,
         entry_at_open=entry_at_open,
+        # 순위를 내는 조건과 실제로 굴리는 조건이 다르면, "이 전략이 1위였다"가
+        # 실제로 그 전략을 걸었을 때의 성적을 설명하지 못한다.
+        섹터표=섹터표,
+        섹터상한=섹터상한,
+        섹터상한셈=섹터상한셈,
+        점수순=점수순,
+        결제일수=결제일수,
+        initial_cash=예수금,
     ).run(잘린것, trade_from=시작)
 
     return 기간성적(
@@ -363,19 +377,23 @@ def 평가글(성적: 기간성적, 정의: 기간정의) -> str:
     return " ".join(말)
 
 
-def 비교총평(정의: 기간정의, 줄들, 지금키: str = "") -> str:
+def 비교총평(정의: 기간정의, 줄들, 지금키: str = "", 기준=None) -> str:
     """전략을 여럿 견줬을 때의 한 문단.
 
-    줄들은 (전략키, 기간성적) 목록이다. 순위는 수익률 순으로 매긴다.
-    빠지는 구간에서는 그 순위가 곧 방어 순위다.
+    줄들은 (전략키, 기간성적) 목록이다. 순위는 `기준`이 정한 순서로 매긴다
+    (2026-09-03에 바꿈). 전에는 수익률 하나로만 매겼는데, 저장소가 적어 둔
+    1순위 판단 기준은 가장 나빴던 구간이었다.
 
     **1등을 고르라는 말은 절대 안 적는다.** 한 구간에서 제일 좋았던 것을
     고르는 일이 곧 과최적화다."""
+    from muwon.analysis.judgment import 기본기준, 줄세우기
+
+    ㄱ준 = 기준 or 기본기준
     산것 = [(ㅋ, ㅅ) for ㅋ, ㅅ in 줄들 if ㅅ.metrics.num_trades > 0]
     if not 산것:
         return "이 기간에 매수가 발생한 전략이 없습니다."
 
-    차례 = sorted(산것, key=lambda ㄱ: -ㄱ[1].metrics.total_return_pct)
+    차례 = 줄세우기(산것, ㄱ준, lambda ㄱ: ㄱ[1])
     플러스 = [ㄱ for ㄱ in 차례 if ㄱ[1].metrics.total_return_pct > 0]
     안산것 = len(줄들) - len(산것)
 
@@ -383,7 +401,10 @@ def 비교총평(정의: 기간정의, 줄들, 지금키: str = "") -> str:
         (
             f"{정의.이름} 기준, 매수가 발생한 전략 {len(차례)}개 중 "
             f"수익률이 플러스인 전략은 {len(플러스)}개입니다."
-        )
+        ),
+        # 어떤 순서로 세운 표인지를 적는다. 순위가 수익률로 나지 않으므로,
+        # 이 말이 없으면 수익률이 낮은 전략이 위에 있는 표를 읽을 수 없다.
+        ㄱ준.설명글(),
     ]
     if len(플러스) <= len(차례) // 4:
         말.append(
@@ -403,9 +424,9 @@ def 비교총평(정의: 기간정의, 줄들, 지금키: str = "") -> str:
                 f"{ㅅ.metrics.total_return_pct:+.2f}%입니다."
             )
 
-    얕은것 = min(차례, key=lambda ㄱ: -ㄱ[1].metrics.max_drawdown_pct)
+    낙폭작은것 = min(차례, key=lambda ㄱ: -ㄱ[1].metrics.max_drawdown_pct)
     말.append(
-        f"최대낙폭이 가장 작은 전략은 {얕은것[1].metrics.max_drawdown_pct:.2f}%입니다."
+        f"최대낙폭이 가장 작은 전략은 {낙폭작은것[1].metrics.max_drawdown_pct:.2f}%입니다."
     )
     말.append(
         "이 순위의 1위를 그대로 선택하는 것은 권장하지 않습니다. 특정 기간의 "

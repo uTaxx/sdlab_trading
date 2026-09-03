@@ -33,7 +33,13 @@ from muwon.domain.types import OrderSide, SignalType
 from muwon.execution import state_repository
 from muwon.notify import notice_format as 모양
 from muwon.notify.telegram import TelegramNotifier
-from muwon.risk.exits import atr_series, evaluate_exit, 보유상한
+from muwon.risk.exits import (
+    atr_series,
+    evaluate_exit,
+    보유만료글,
+    보유상한,
+    익절기준,
+)
 from muwon.risk.manager import RiskManager
 from muwon.strategy.portfolio import (
     MarketContext,
@@ -275,6 +281,8 @@ class TradingEngine:
         initial_cash: float = 10_000_000.0,
         orderable_provider: Callable[[str, float], int] | None = None,
         현재가공급자: Callable[[], dict[str, float]] | None = None,
+        섹터표: dict[str, str] | None = None,
+        섹터상한: int = 0,
     ):
         self._strategy = as_portfolio_strategy(strategy)
         self._risk_manager = risk_manager
@@ -300,6 +308,75 @@ class TradingEngine:
         #: 없으면 예전처럼 어제 종가로 잰다. 백테스트와 흉내 실행은
         #: 증권사가 없으니 물어볼 곳도 없다.
         self._현재가공급자 = 현재가공급자
+
+        #: 종목코드 → 섹터 이름. 섹터 상한을 걸려면 이것이 있어야 한다.
+        #:
+        #: ## 여기서도 세는 이유 (2026-09-02에 더함)
+        #:
+        #: 전에는 08:30 후보를 뽑을 때만 섹터 상한을 봤다. 그 계산은 후보
+        #: 목록을 0부터 세기 때문에 **이미 들고 있는 종목을 모른다.** 반도체를
+        #: 이미 두 종목 들고 있어도 그날 후보에 반도체 세 종목이 들어올 수
+        #: 있었고, 다 승인하면 반도체 다섯 종목이 된다. 분산한 줄 알았는데
+        #: 사실상 반도체 하나에 다섯 배로 건 것이다.
+        #:
+        #: 여기서는 보유 종목을 알고 있으므로 진짜 보유 한도로 셀 수 있다.
+        #: 화면의 설명문도 "동일 섹터에서 동시에 보유할 수 있는 최대 종목
+        #: 수"라고 적혀 있어서, 이쪽이 적힌 대로의 동작이다.
+        self._섹터표 = dict(섹터표 or {})
+        #: 0이면 제한 없음. 음수를 그대로 두면 첫 종목부터 상한에 걸려
+        #: 매수가 통째로 막힌다. 백테스트 엔진에서 실제로 겪은 자리다.
+        self._섹터상한 = max(0, int(섹터상한 or 0))
+
+    @staticmethod
+    def _산전략키(position) -> str:
+        return (getattr(position, "strategy_key", "") or "").strip()
+
+    def _청산전략표(self, positions) -> dict:
+        """보유 종목을 산 전략들. 키가 없거나 못 만들면 지금 전략으로 간다.
+
+        ## 왜 산 전략인가 (2026-09-02)
+
+        살 때 이미 "며칠 들고 언제 판다"가 정해져 있었다. 그런데 청산 판단이
+        지금 걸린 전략을 보고 있어서, 전략을 바꾸는 순간 규칙이 발밑에서
+        바뀌었다. 5거래일 계획으로 들어간 종목이 상한 1거래일짜리 전략으로
+        바뀌자마자 다음 실행에서 전부 정리됐다.
+
+        ## 못 만드는 키는 조용히 넘기지 않는다
+
+        묶은 전략(`a+b`)이나 옛 기록(`adopted`)은 등록된 키가 아니라 만들 수
+        없다. 그때는 지금 전략으로 가되 로그를 남긴다. 조용히 넘어가면 어떤
+        규칙으로 팔렸는지 나중에 알 수 없다."""
+        from muwon.strategy.registry import build_strategy
+
+        표: dict = {}
+        for position in positions.values():
+            키 = self._산전략키(position)
+            if 키 in 표:
+                continue
+            if not 키 or 키 == getattr(self._strategy, "name", ""):
+                표[키] = self._strategy
+                continue
+            try:
+                표[키] = as_portfolio_strategy(build_strategy(키))
+            except Exception as e:  # noqa: BLE001 (전략 하나 때문에 청산이 멈추면 안 된다)
+                logger.warning(
+                    f"산 전략 '{키}'를 만들지 못해 지금 전략으로 청산합니다: "
+                    f"{type(e).__name__}: {e}"
+                )
+                표[키] = self._strategy
+        return 표
+
+    def _섹터센것(self, 보유심볼) -> dict[str, int]:
+        """섹터별로 몇 종목 들고 있나. 섹터를 모르는 종목은 세지 않는다.
+
+        모르는 종목을 빈 이름 하나로 묶으면 서로 관계없는 종목들이 한 섹터로
+        묶여서, 실제로는 분산돼 있는데 상한에 걸린다."""
+        센것: dict[str, int] = {}
+        for ㅅ in 보유심볼:
+            섹터 = self._섹터표.get(ㅅ, "")
+            if 섹터:
+                센것[섹터] = 센것.get(섹터, 0) + 1
+        return 센것
 
     def run_once(self, as_of: date | None = None) -> RunSummary:
         """as_of: '오늘'로 볼 날짜(기본은 한국시간 오늘). 테스트용 주입구다."""
@@ -366,6 +443,32 @@ class TradingEngine:
         # 되짚으려면 무엇을 봤는지가 먼저 있어야 한다.
         state_repository.record_signals(self._session_factory, signals)
 
+        # 청산 규칙은 **그 종목을 산 전략**에서 나온다 (2026-09-02에 바꿈).
+        #
+        # 전에는 지금 걸린 전략 하나가 보유 종목 전부의 청산을 정했다. 그래서
+        # 전략을 바꾸면 그 순간 규칙이 발밑에서 바뀌었다. 09-02 아침에 5거래일
+        # 계획으로 들어간 종목들이, 보유 상한 1거래일짜리 전략으로 바뀌면서
+        # 26분 뒤에 한꺼번에 정리됐다. 손절이 걸린 것도 매도 신호가 난 것도
+        # 아니고 규칙이 바뀐 것이다.
+        #
+        # 살 때 이미 "며칠 들고 언제 판다"가 정해져 있었으므로 그것을 따른다.
+        # 보유 기간, 익절선, 매도 신호를 한 전략에서 뽑아야 "왜 팔렸나"에
+        # 답할 때 종목 하나에 전략 하나만 보면 된다.
+        청산전략표 = self._청산전략표(positions)
+        청산신호: dict[str, dict[str, list]] = {}
+        for 키, 전략 in 청산전략표.items():
+            if 전략 is self._strategy:
+                청산신호[키] = latest_signals
+                continue
+            전략.prepare(histories)
+            묶음: dict[str, list] = {}
+            for ㅅ in 전략.evaluate(
+                MarketContext(as_of=run_date, histories=histories,
+                              held=frozenset(positions))
+            ):
+                묶음.setdefault(ㅅ.symbol, []).append(ㅅ)
+            청산신호[키] = 묶음
+
         # 1) 청산: 손절 우선, 그다음 전략 매도 신호
         #
         # **매도 스위치가 꺼져 있으면 이 구간을 통째로 건너뛴다.** 손절도
@@ -405,8 +508,9 @@ class TradingEngine:
             price = 현재가.get(symbol) or latest_prices[symbol]
             exit_reason = None
             policy = self._risk_manager.get_policy()
-            # 기준에서 덮어썼으면 그것이, 아니면 전략이 정한 대로.
-            max_holding_days = 보유상한(self._strategy, policy)
+            산전략 = 청산전략표.get(self._산전략키(position), self._strategy)
+            # 기준에서 덮어썼으면 그것이, 아니면 **산 전략**이 정한 대로.
+            max_holding_days = 보유상한(산전략, policy)
             stop = evaluate_exit(
                 entry_price=position.entry_price,
                 entry_date=position.entry_date,
@@ -417,15 +521,21 @@ class TradingEngine:
                 if (policy.atr_stop_enabled or policy.trailing_stop_enabled)
                 else None,
                 history=histories.get(symbol),
+                익절=익절기준(산전략, policy),
             )
             if stop.should_exit:
                 exit_reason = stop.reason
-            elif max_holding_days is not None and bars_since(
-                all_trade_dates.get(symbol, []), position.entry_date, trade_date
+            elif max_holding_days is not None and (
+                들고있던일 := bars_since(
+                    all_trade_dates.get(symbol, []), position.entry_date, trade_date
+                )
             ) >= max_holding_days:
-                exit_reason = f"보유 {max_holding_days}일 경과 청산"
+                exit_reason = 보유만료글(max_holding_days, 들고있던일)
             else:
-                for signal in latest_signals.get(symbol, []):
+                # 매도 신호도 산 전략이 낸 것만 본다. 지금 전략이 낸 신호를
+                # 섞으면 한 종목에 두 전략이 걸려서 왜 팔렸는지 설명할 수 없다.
+                묶음 = 청산신호.get(self._산전략키(position), latest_signals)
+                for signal in 묶음.get(symbol, []):
                     if signal.signal_type == SignalType.SELL:
                         exit_reason = signal.reason
                         break
@@ -473,8 +583,24 @@ class TradingEngine:
                 candidates.append((symbol, price, buy_signals[0]))
         candidates.sort(key=lambda c: c[2].score, reverse=True)
 
+        # 섹터별 보유 수는 **들고 있는 것부터 센다.** 사는 동안 늘어나므로
+        # 이 루프 안에서 같이 갱신한다.
+        섹터센것 = self._섹터센것(positions)
+
         for symbol, price, buy_signal in candidates:
             policy = self._risk_manager.get_policy()
+            섹터 = self._섹터표.get(symbol, "")
+            if self._섹터상한 and 섹터 and 섹터센것.get(섹터, 0) >= self._섹터상한:
+                # 조용히 건너뛰면 "승인했는데 왜 안 샀지"가 남는다.
+                사유 = (
+                    f"{섹터} 섹터를 이미 {섹터센것[섹터]}종목 들고 있습니다. "
+                    f"섹터당 보유 상한 {self._섹터상한}종목입니다"
+                )
+                summary.rejections.append(
+                    f"{_find_ticker(self._universe, symbol).name}({symbol}): {사유}"
+                )
+                summary.거부사유[symbol] = 사유
+                continue
             decision = self._risk_manager.check_new_position(
                 proposed_weight=policy.max_position_weight,
                 current_open_positions=len(positions),
@@ -533,6 +659,8 @@ class TradingEngine:
 
             order = self._order_executor.submit_order(symbol, OrderSide.BUY, quantity, price)
             cash -= cost
+            if 섹터:
+                섹터센것[섹터] = 섹터센것.get(섹터, 0) + 1
             positions[symbol] = PositionRow(
                 symbol=symbol,
                 quantity=order.quantity,

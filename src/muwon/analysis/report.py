@@ -47,7 +47,7 @@ class TradeStats:
         """이긴 거래의 평균 이익 ÷ 진 거래의 평균 손실.
 
         승률만 보면 오해한다. 승률 33%라도 이길 때 3배로 벌면 본전 이상이다.
-        이 값이 1보다 크면 "적게 맞아도 크게 먹는" 구조라는 뜻."""
+        이 값이 1보다 크면 "적게 맞아도 크게 버는" 구조라는 뜻."""
         if self.avg_loss_pct == 0:
             return 0.0
         return abs(self.avg_win_pct / self.avg_loss_pct)

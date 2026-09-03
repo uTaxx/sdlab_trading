@@ -13,12 +13,20 @@
 2. 지금 들고 있는 종목이 새 규칙으로 어떻게 되는지
 3. 전략 평가 결과에 있는 두 전략의 숫자
 
-## 들고 있는 종목에도 바로 적용된다
+## 들고 있는 종목은 산 전략의 규칙으로 판다
 
-엔진의 청산 판단은 보유 종목이 어떤 전략으로 들어왔는지가 아니라 **지금 걸린
-전략**을 본다(`execution/engine.py`의 청산 블록). 그래서 바꾸는 순간 들고
-있는 것에도 적용된다. 그 사실을 화면에 적는다. 모르고 바꾸면 "왜 갑자기
-팔렸지"가 된다.
+2026-09-02부터 청산은 그 종목을 산 전략을 따른다(설계안 §42). 그래서 전략을
+바꿔도 이미 들고 있는 종목의 파는 규칙은 안 바뀐다. 새 전략은 새로 사는
+것부터 적용된다.
+
+## 바로 바꾸는 것과 예약하는 것
+
+`--apply`는 지금 당장 바꾼다. 시트 사본과 변경 이력은 안 고치므로 화면은
+17:40 기록 저장 때까지 옛 전략을 보여 준다.
+
+`--reserve`는 다음 거래일 08:20에 반영되도록 예약만 한다. 텔레그램 버튼을
+누른 것과 같은 길이라 시트 사본, 변경 이력, 알림이 전부 따라온다. 그 전까지
+텔레그램에서 취소할 수 있다. "내일부터 바꾸자"는 이쪽이다.
 
 ## 기본은 미리보기다
 
@@ -129,10 +137,13 @@ def main() -> int:
         help="파는 쪽 전략 키. 안 주면 사는 쪽이 양쪽을 다 맡습니다(지금까지의 동작). "
              "'같게'라고 주면 따로 걸어 둔 것을 지웁니다",
     )
-    parser.add_argument("--apply", action="store_true", help="실제로 바꾼다")
+    parser.add_argument("--apply", action="store_true", help="지금 당장 바꾼다")
+    parser.add_argument("--reserve", action="store_true",
+                        help="다음 거래일 08:20에 반영되도록 예약한다. 텔레그램 버튼과 같은 길이다")
+    parser.add_argument("--reason", default="대화에서 주인이 지시했습니다.", help="예약 사유")
     args = parser.parse_args()
 
-    print("■ 모드: " + ("실제로 바꿈(--apply)" if args.apply else "미리보기만"))
+    print("■ 모드: " + ("실제로 바꿈(--apply)" if args.apply else "예약(--reserve)" if args.reserve else "미리보기만"))
     print()
 
     ensure_schema(bootstrap_settings.database_url)
@@ -205,12 +216,36 @@ def main() -> int:
             print(f"  {p.symbol} {p.quantity:,}주 · 산 값 {p.entry_price:,.0f}원 "
                   f"· 들어온 날 {p.entry_date} · 들어올 때 전략 {p.strategy_key or '(안 적힘)'}")
         print()
-        print("  이 종목들도 바꾼 뒤부터는 새 전략의 파는 규칙으로 팔립니다.")
-        print("  엔진은 '어떤 전략으로 샀나'가 아니라 '지금 무엇이 걸려 있나'를 봅니다.")
+        print("  이 종목들은 산 전략의 파는 규칙 그대로 팔립니다. 새 전략은 새로 사는 것부터입니다.")
 
     print()
+    if args.reserve:
+        from datetime import datetime, timedelta, timezone
+
+        from muwon.cloud import strategy_approval as approval
+
+        session_factory = make_session_factory(bootstrap_settings.database_url)
+        with session_factory() as session:
+            # 상태 DB의 날짜는 한국 날짜다. UTC로 적으면 08:20 반영이 어제 것으로 읽는다.
+            한국오늘 = datetime.now(timezone(timedelta(hours=9))).date()
+            결과 = approval.누르기(
+                session, 제안일=한국오늘, 오늘=한국오늘,
+                이전전략=지금, 새전략=키,
+                아는전략들=[d.key for d in list_definitions()],
+                사유=args.reason, 승인경로="대화",
+            )
+            session.commit()
+        if not 결과.된것 or 결과.줄 is None:
+            # 같은 것을 두 번 예약하면 두 번째는 취소로 읽힌다. 그것까지 초록불로
+            # 끝내면 "예약된 줄 알았는데 내일 아무 일도 없는" 날이 된다.
+            print(f"예약하지 못했습니다: {결과.말}")
+            return 1
+        print(f"예약했습니다: {지금} → {키}. 다음 거래일 08:20에 반영됩니다.")
+        print(f"  {결과.말}")
+        print("  그 전까지 텔레그램의 같은 버튼을 누르면 취소됩니다.")
+        return 0
     if not args.apply:
-        print("미리보기라 아무것도 안 바꿨습니다. --apply 를 주면 바꿉니다.")
+        print("미리보기라 아무것도 안 바꿨습니다. --apply 를 주면 바꾸고, --reserve 를 주면 예약합니다.")
         return 0
 
     # active_key는 읽기 전용 속성이고 생성자는 active_keys(튜플)를 받는다.

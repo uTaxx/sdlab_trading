@@ -59,6 +59,7 @@ from muwon.strategy.trend import (
     MacdCrossParams,
     MacdCrossStrategy,
 )
+from muwon.strategy.us_sector import USSectorFollowStrategy, USSectorGateStrategy
 
 CATEGORY_TREND = "추세추종"
 CATEGORY_REVERSION = "평균회귀"
@@ -89,6 +90,33 @@ class StrategyDefinition:
     #: 비워 두면 display_name을 쓴다. 새 전략을 등록할 때 안 적어도
     #: 화면이 비지는 않는다.
     짧은이름: str = ""
+    #: 주식을 처음 하는 사람이 읽을 설명. **전문용어를 쓰지 않는다.**
+    #:
+    #: `description`은 이미 있지만 "단기선 상향돌파+거래량급증 또는 RSI
+    #: 과매도반등 매수"처럼 적혀 있어서, 처음 보는 사람은 한 단어도 못
+    #: 읽는다. 뜻을 모르는 줄은 안 읽는 줄이고, 안 읽는 줄은 없는 줄이다.
+    #:
+    #: **숫자를 적지 않는다.** 20일이냐 60일이냐는 파라미터에서 자동으로
+    #: 만들어지는 `strategy_rules.describe()`가 정확히 적는다. 여기는
+    #: 그 전략이 무엇을 노리는 생각인지만 적는 자리라, 파라미터를 바꿔도
+    #: 이 글은 그대로 맞아야 한다.
+    쉬운설명: str = ""
+    #: 그래서 이걸 볼 때 무엇을 알고 있어야 하나. 조심할 점, 어떤 장에서
+    #: 잘 맞는지. 없으면 빈 값으로 둔다. 억지로 채우면 안 읽힌다.
+    쉬운참고: str = ""
+    #: 이 전략으로 산 종목의 익절선. 0이면 안 정한 것이고, 그때는 기초설정을
+    #: 따른다(기초설정도 0이면 익절을 안 건다).
+    #:
+    #: ## 왜 전략마다 두나 (2026-09-02)
+    #:
+    #: 익절은 오르는 구간에서 수익을 깎고 빠지는 구간에서 손실을 막는다.
+    #: 세 국면에 +10%를 걸어 재 보니 상승장에서는 다섯 규칙 중 넷이 나빠졌고
+    #: 하락장에서는 전부 좋아졌다. 전략마다 노리는 것이 다르므로 한 값을
+    #: 전부에 들이대는 것이 맞지 않는다.
+    #:
+    #: **보유기간과 같은 자리다.** 보유기간은 전략이 정하고 기초설정이 덮는
+    #: 구조가 이미 있었는데 익절만 기초설정 하나뿐이었다.
+    익절: float = 0.0
 
     @property
     def 화면이름(self) -> str:
@@ -106,6 +134,15 @@ REGISTRY: list[StrategyDefinition] = [
         factory=lambda: MovingAverageRsiStrategy(MovingAverageRsiParams(), name="ma_rsi_v1"),
         category=CATEGORY_HYBRID,
         status="live",
+        쉬운설명=(
+            "두 가지 중 하나만 맞으면 삽니다. 주가가 최근 평균을 넘어서면서 거래량이 "
+            "평소보다 크게 늘었을 때가 하나이고, 많이 빠졌다가 방향을 돌렸는데 더 긴 "
+            "기간으로 보면 아직 평균 위일 때가 다른 하나입니다."
+        ),
+        쉬운참고=(
+            "오르기 시작한 것과 눌렸다 돌아선 것을 둘 다 잡으려는 방법입니다. 조건이 둘이라 "
+            "한쪽만 보는 전략보다 사는 횟수가 많습니다."
+        ),
     ),
     StrategyDefinition(
         key="ma_rsi_fast5_20",
@@ -117,6 +154,12 @@ REGISTRY: list[StrategyDefinition] = [
             name="ma_rsi_fast5_20",
         ),
         category=CATEGORY_HYBRID,
+        쉬운설명=(
+            "이평+RSI 20/60과 규칙은 같고 보는 기간만 짧습니다."
+        ),
+        쉬운참고=(
+            "짧게 보면 신호가 자주 나오는 대신 잘못된 신호도 같이 늘어납니다."
+        ),
     ),
     StrategyDefinition(
         key="ma_rsi_loose_volume",
@@ -127,6 +170,14 @@ REGISTRY: list[StrategyDefinition] = [
             MovingAverageRsiParams(volume_surge_ratio=1.2), name="ma_rsi_loose_volume"
         ),
         category=CATEGORY_HYBRID,
+        쉬운설명=(
+            "이평+RSI 20/60과 규칙은 같고, 거래량이 얼마나 늘어야 하는지를 덜 "
+            "까다롭게 봅니다."
+        ),
+        쉬운참고=(
+            "기준을 낮추면 더 자주 사게 되는데 맞을 확률은 떨어질 수 있습니다. 그 맞바꿈이 "
+            "어떻게 되는지 보려고 둔 것입니다."
+        ),
     ),
     # ── 추세추종 ──
     StrategyDefinition(
@@ -136,6 +187,14 @@ REGISTRY: list[StrategyDefinition] = [
         description="단기 이동평균선이 장기선을 상향돌파하면 매수, 하향이탈하면 매도. 가장 고전적인 추세추종.",
         factory=lambda: GoldenCrossStrategy(GoldenCrossParams(20, 60), name="golden_cross_20_60"),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "짧은 기간의 평균 가격이 긴 기간의 평균 가격을 넘어서면 삽니다. 주가가 오르는 "
+            "흐름으로 접어들었다고 보는 것이고, 반대로 내려오면 팝니다."
+        ),
+        쉬운참고=(
+            "가장 오래된 방법입니다. 한 방향으로 길게 갈 때 잘 맞고, 오르내림만 반복하는 "
+            "구간에서는 샀다 팔았다를 되풀이합니다."
+        ),
     ),
     StrategyDefinition(
         key="golden_cross_5_20",
@@ -144,6 +203,12 @@ REGISTRY: list[StrategyDefinition] = [
         description="같은 규칙을 5/20으로 좁힌 단기 버전. 신호가 훨씬 잦다.",
         factory=lambda: GoldenCrossStrategy(GoldenCrossParams(5, 20), name="golden_cross_5_20"),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "골든크로스 20/60과 같은데 보는 기간이 훨씬 짧습니다."
+        ),
+        쉬운참고=(
+            "신호가 자주 나옵니다. 변동성이 큰 구간에서는 사고파는 횟수가 크게 늡니다."
+        ),
     ),
     StrategyDefinition(
         key="ema_cross_12_26",
@@ -152,6 +217,13 @@ REGISTRY: list[StrategyDefinition] = [
         description="지수이동평균 교차: 최근 가격에 가중치를 줘 단순이동평균보다 빠르게 반응.",
         factory=lambda: EmaCrossStrategy(EmaCrossParams(12, 26), name="ema_cross_12_26"),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "평균을 낼 때 최근 가격에 비중을 더 둡니다. 그래서 방향이 바뀌는 것을 조금 더 "
+            "빨리 알아챕니다."
+        ),
+        쉬운참고=(
+            "빨리 반응하는 만큼 잠깐 움직인 것에도 반응합니다."
+        ),
     ),
     StrategyDefinition(
         key="macd_cross",
@@ -160,6 +232,13 @@ REGISTRY: list[StrategyDefinition] = [
         description="MACD선이 신호선을 상향돌파하면 매수, 하향이탈하면 매도. 가장 널리 쓰이는 추세 지표.",
         factory=lambda: MacdCrossStrategy(MacdCrossParams(), name="macd_cross"),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "짧은 기간 평균과 긴 기간 평균의 차이를 봅니다. 그 차이가 벌어지기 시작하면 "
+            "사고, 좁아지기 시작하면 팝니다."
+        ),
+        쉬운참고=(
+            "주가가 오르는 쪽으로 힘이 붙는 순간을 잡으려는 방법입니다."
+        ),
     ),
     StrategyDefinition(
         key="macd_cross_positive",
@@ -170,6 +249,12 @@ REGISTRY: list[StrategyDefinition] = [
             MacdCrossParams(require_positive_macd=True), name="macd_cross_positive"
         ),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "MACD 교차와 같은 신호 중에서, 이미 오름세일 때 나온 것만 삽니다."
+        ),
+        쉬운참고=(
+            "주가가 계속 하락하는 중에 잠깐 반등한 것을 걸러 내려는 것입니다."
+        ),
     ),
     StrategyDefinition(
         key="donchian_20_10",
@@ -180,6 +265,13 @@ REGISTRY: list[StrategyDefinition] = [
             DonchianBreakoutParams(20, 10), name="donchian_20_10"
         ),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "최근 며칠 사이 가장 높았던 주가를 넘어서면 삽니다. 새 고점을 찍었다는 것은 "
+            "흐름이 위로 잡혔다는 뜻으로 봅니다. 가장 낮았던 가격 아래로 내려가면 팝니다."
+        ),
+        쉬운참고=(
+            "오래 검증된 방법입니다. 넘어섰다가 바로 되돌아오는 구간에서는 손실이 쌓입니다."
+        ),
     ),
     StrategyDefinition(
         key="donchian_adx_filter",
@@ -190,6 +282,12 @@ REGISTRY: list[StrategyDefinition] = [
             DonchianBreakoutParams(20, 10, adx_filter=25), name="donchian_adx_filter"
         ),
         category=CATEGORY_TREND,
+        쉬운설명=(
+            "돈치안 20/10과 같은데, 주가가 한 방향으로 꾸준히 움직일 때만 삽니다."
+        ),
+        쉬운참고=(
+            "오르내림만 반복하는 구간에서 잠깐 고점을 넘는 것을 걸러 내려는 것입니다."
+        ),
     ),
     # ── 평균회귀 ──
     StrategyDefinition(
@@ -204,13 +302,23 @@ REGISTRY: list[StrategyDefinition] = [
         ),
         factory=lambda: RsiReversionStrategy(RsiReversionParams(), name="rsi_reversion"),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "많이 빠졌다가 방향을 돌린 종목을 삽니다. 다만 더 긴 기간으로 봤을 때 아직 "
+            "평균 위인 것만 삽니다."
+        ),
+        쉬운참고=(
+            "이 두 조건은 실제로 거의 같이 성립하지 않습니다. 그만큼 빠지면 긴 기간 평균도 "
+            "이미 무너져 있기 때문입니다. 과거 시세로 계산했을 때 매수가 한 건도 "
+            "없었습니다. 책에 나오는 조합이 실제로는 왜 안 되는지 보여 주려고 남겨 둔 "
+            "것이므로, 매매에 쓰려고 만든 것이 아닙니다."
+        ),
     ),
     StrategyDefinition(
         key="rsi2_pullback",
         짧은이름="RSI(2) 눌림목",
         display_name="RSI(2) 눌림목 매수 (10/70 + 장기선 필터)",
         description=(
-            "RSI 기간을 2일로 짧게 잡아 '상승추세 중 얕은 눌림'을 잡는다. "
+            "RSI 기간을 2일로 짧게 잡아 '상승추세 중 짧은 조정'을 잡는다. "
             "RSI(14)로는 장기선 필터와 공존이 불가능했던 문제를 실제로 해결한 버전 "
             "(종목당 5~13회 진입 확인)."
         ),
@@ -218,6 +326,13 @@ REGISTRY: list[StrategyDefinition] = [
             RsiReversionParams(rsi_period=2, oversold=10, overbought=70), name="rsi2_pullback"
         ),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "오르고 있는 종목이 잠깐 쉬어 갈 때 삽니다."
+        ),
+        쉬운참고=(
+            "아주 짧은 기간만 보기 때문에 크게 하락하기를 기다리지 않고 조정 폭이 작은 것을 "
+            "잡습니다. RSI 반등 30/70이 못 산 문제를 실제로 푼 쪽입니다."
+        ),
     ),
     StrategyDefinition(
         key="rsi_reversion_aggressive",
@@ -229,6 +344,12 @@ REGISTRY: list[StrategyDefinition] = [
             name="rsi_reversion_aggressive",
         ),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "많이 빠진 것을 사되 기준을 느슨하게 두고, 긴 기간 흐름은 보지 않습니다."
+        ),
+        쉬운참고=(
+            "더 자주 사게 되는 대신, 계속 빠지는 종목을 사서 오래 물릴 위험이 큽니다."
+        ),
     ),
     StrategyDefinition(
         key="bollinger_reversion",
@@ -239,6 +360,15 @@ REGISTRY: list[StrategyDefinition] = [
             BollingerReversionParams(), name="bollinger_reversion"
         ),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "주가가 평소 움직이던 폭보다 아래로 벗어났다가 다시 그 안으로 돌아오면 삽니다. "
+            "너무 많이 빠졌으니 제자리로 돌아올 것으로 보는 것이고, 가운데까지 올라오면 "
+            "팝니다."
+        ),
+        쉬운참고=(
+            "한 방향으로 크게 가지 않고 오르내리는 구간에서 잘 맞습니다. 반대로 계속 빠지는 "
+            "구간에서는 빠지는 것을 계속 사게 됩니다."
+        ),
     ),
     StrategyDefinition(
         key="bollinger_reversion_wide",
@@ -250,6 +380,13 @@ REGISTRY: list[StrategyDefinition] = [
             name="bollinger_reversion_wide",
         ),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "볼린저 하단 반등과 같은데 더 크게 벗어났을 때만 삽니다."
+        ),
+        쉬운참고=(
+            "사는 횟수는 줄고 한 번 살 때 기대하는 폭은 커집니다. 횟수가 적으면 성적이 몇 "
+            "건에 좌우되므로 숫자를 볼 때 거래 수를 같이 봐야 합니다."
+        ),
     ),
     StrategyDefinition(
         key="stochastic_20_80",
@@ -258,6 +395,14 @@ REGISTRY: list[StrategyDefinition] = [
         description="과매도 구간에서 %K가 %D 상향돌파 시 매수, 과매수 구간 하향이탈 시 매도.",
         factory=lambda: StochasticStrategy(StochasticParams(), name="stochastic_20_80"),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "최근 며칠의 고가와 저가 사이에서 지금 주가가 어디쯤인지를 봅니다. 아래쪽에 "
+            "있다가 위로 돌아서면 사고, 위쪽에 있다가 내려오면 팝니다."
+        ),
+        쉬운참고=(
+            "오르내림이 반복되는 구간에서 잘 맞습니다. 한 방향으로 크게 갈 때는 "
+            "너무 일찍 팔게 됩니다."
+        ),
     ),
     # ── 돌파·모멘텀 ──
     StrategyDefinition(
@@ -269,6 +414,14 @@ REGISTRY: list[StrategyDefinition] = [
             BollingerBreakoutParams(), name="bollinger_breakout"
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "주가가 평소 움직이던 폭보다 위로 벗어나면서 거래량도 크게 늘면 삽니다."
+        ),
+        쉬운참고=(
+            "볼린저 하단 반등과 똑같은 것을 보면서 정반대로 해석합니다. 벗어나면 돌아온다가 "
+            "아니라 벗어났으니 더 간다는 쪽입니다. 어느 쪽이 맞는지 재려고 둘 다 등록해 "
+            "두었습니다."
+        ),
     ),
     StrategyDefinition(
         key="volume_surge_5d",
@@ -277,6 +430,13 @@ REGISTRY: list[StrategyDefinition] = [
         description="거래량 2배 급증 + 2% 이상 상승 시 매수, 5거래일 뒤 무조건 청산. 시간 기준 청산이 특징.",
         factory=lambda: VolumeSurgeStrategy(VolumeSurgeParams(), name="volume_surge_5d"),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "평소보다 거래량이 훨씬 크게 늘면서 주가도 오른 날 삽니다. 관심이 갑자기 몰렸으니 "
+            "며칠 더 갈 것으로 보는 것입니다. 정해진 날이 지나면 주가와 관계없이 팝니다."
+        ),
+        쉬운참고=(
+            "언제 팔지가 주가가 아니라 날짜로 정해져 있는 것이 특징입니다."
+        ),
     ),
     StrategyDefinition(
         key="volume_surge_5d_ma20",
@@ -292,6 +452,14 @@ REGISTRY: list[StrategyDefinition] = [
             VolumeSurgeParams(exit_sma=20), name="volume_surge_5d_ma20"
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "사는 조건은 거래량 급증 5일과 같습니다. 파는 방법만 다릅니다. 정해진 날짜를 "
+            "기다리지 않고, 주가가 최근 평균 아래로 내려온 날 팝니다."
+        ),
+        쉬운참고=(
+            "흐름이 깨지면 판다는 생각입니다. 정해진 날짜는 더 들고 있지 않는 상한으로만 "
+            "남습니다."
+        ),
     ),
     StrategyDefinition(
         key="volume_surge_5d_ma10",
@@ -305,6 +473,13 @@ REGISTRY: list[StrategyDefinition] = [
             VolumeSurgeParams(exit_sma=10), name="volume_surge_5d_ma10"
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "거래량 급증 + 20일선과 같은데 더 짧은 기간의 평균을 봅니다. 그래서 더 빨리 "
+            "팝니다."
+        ),
+        쉬운참고=(
+            "얼마나 빨리 파는 것이 나은지 견주려고 나란히 둔 것입니다."
+        ),
     ),
     StrategyDefinition(
         key="volume_surge_3d",
@@ -315,16 +490,29 @@ REGISTRY: list[StrategyDefinition] = [
             VolumeSurgeParams(volume_surge_ratio=3.0, holding_days=3), name="volume_surge_3d"
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "거래량이 훨씬 더 크게 늘어난 날만 삽니다. 그리고 더 빨리 팝니다."
+        ),
+        쉬운참고=(
+            "관심이 식기 전에 빠져나오려는 생각입니다."
+        ),
     ),
     StrategyDefinition(
         key="price_channel_20",
         짧은이름="20일 신고가 돌파",
         display_name="종가 신고가 돌파 (20일)",
-        description="20일 종가 신고가를 넘으면 매수, 20일선 이탈 시 매도. 장중 흔들림에 덜 반응하는 돌파.",
+        description="20일 종가 신고가를 넘으면 매수, 20일선 이탈 시 매도. 장중 변동성에 덜 반응하는 돌파.",
         factory=lambda: PriceChannelBreakoutStrategy(
             PriceChannelParams(), name="price_channel_20"
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "최근 며칠 중 가장 높았던 종가를 넘어서면 삽니다."
+        ),
+        쉬운참고=(
+            "장중에 잠깐 움직인 가격은 보지 않고 종가만 보기 때문에, 변동성에 덜 "
+            "반응합니다."
+        ),
     ),
     StrategyDefinition(
         key="price_channel_60_strict",
@@ -336,6 +524,13 @@ REGISTRY: list[StrategyDefinition] = [
             name="price_channel_60_strict",
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "20일 신고가 돌파와 같은데 더 긴 기간의 고점을 넘어야 하고, 살짝 넘은 "
+            "정도로는 안 삽니다."
+        ),
+        쉬운참고=(
+            "넘는 척하다 마는 경우를 걸러 내려는 것입니다. 그만큼 사는 횟수가 적습니다."
+        ),
     ),
     # ── 싸게 재서 기각하려고 만든 것들 (docs/단타전략조사.md) ──
     #
@@ -357,6 +552,16 @@ REGISTRY: list[StrategyDefinition] = [
             VolatilityBreakoutParams(), name="volatility_breakout_k05"
         ),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "오늘 시가에 어제 하루 동안 움직인 폭의 절반을 더합니다. 그 가격을 "
+            "넘어서면 삽니다. 하루 안에 크게 움직이기 시작하면 그날은 그 방향으로 계속 "
+            "간다고 보는 것이고, 다음 날 팝니다."
+        ),
+        쉬운참고=(
+            "한국에서 널리 알려진 방법이지만 검증된 논문은 없습니다. 그리고 여기서는 하루 "
+            "단위 시세로만 계산하므로, 넘어선 그 가격이 아니라 그날 종가에 산 것으로 "
+            "칩니다. 실제로 이 방법을 그대로 썼을 때의 성적과는 다릅니다."
+        ),
     ),
     StrategyDefinition(
         key="gap_up_go",
@@ -368,6 +573,13 @@ REGISTRY: list[StrategyDefinition] = [
         ),
         factory=lambda: GapStrategy(GapParams(direction="up"), name="gap_up_go"),
         category=CATEGORY_BREAKOUT,
+        쉬운설명=(
+            "전날 종가보다 훨씬 높은 가격으로 장이 시작한 날 삽니다. 위로 벌어졌으면 그 "
+            "방향으로 더 간다고 보는 것입니다."
+        ),
+        쉬운참고=(
+            "벌어진 것이 이어질 확률과 되돌아올 확률이 비슷하다는 연구가 많습니다."
+        ),
     ),
     StrategyDefinition(
         key="gap_down_fill",
@@ -380,6 +592,14 @@ REGISTRY: list[StrategyDefinition] = [
         ),
         factory=lambda: GapStrategy(GapParams(direction="down"), name="gap_down_fill"),
         category=CATEGORY_REVERSION,
+        쉬운설명=(
+            "전날 종가보다 훨씬 낮은 가격으로 장이 시작한 날 삽니다. 벌어진 만큼 다시 "
+            "메워진다고 보는 것입니다."
+        ),
+        쉬운참고=(
+            "갭 상승 따라가기와 정반대 생각입니다. 한쪽만 계산하면 답을 정해 놓고 재는 셈이 "
+            "되어 둘 다 등록해 두었습니다."
+        ),
     ),
     # ── 점수 합산: 조건 하나의 참/거짓이 아니라 여러 관점을 점수로 더한다 ──
     StrategyDefinition(
@@ -394,6 +614,50 @@ REGISTRY: list[StrategyDefinition] = [
         ),
         factory=lambda: FactorScoreStrategy(load_strategy_config()),
         category=CATEGORY_SCORE,
+        쉬운설명=(
+            "여섯 가지 관점에서 각각 점수를 매기고 합쳐서, 기준을 넘으면 삽니다."
+        ),
+        쉬운참고=(
+            "어느 관점을 얼마나 볼지 설정에서 바꿀 수 있어서 코드를 고치지 않고 시험해 볼 "
+            "수 있습니다."
+        ),
+    ),
+    StrategyDefinition(
+        key="us_sector_follow_60_2",
+        짧은이름="미국 섹터 따라가기",
+        display_name="미국 섹터 따라가기 (60일 상대강도 상위 2, 20일 보유)",
+        description="미국 섹터 ETF의 60일 상대강도 상위 2개 중 60일선 위인 섹터의 국내 종목을 20일선 위·60일 수익률 플러스일 때 매수. 섹터 약해지거나 20일선 아래면 매도.",
+        factory=lambda: USSectorFollowStrategy(N=60, k=2, 지연=1, 보유상한=20,
+                                               name="us_sector_follow_60_2"),
+        category=CATEGORY_HYBRID,
+        status="backtested",
+        쉬운설명=(
+            "미국에서 요즘 잘 오르는 업종을 먼저 보고, 우리나라의 같은 업종 회사 중 "
+            "주가가 오르고 있는 것을 삽니다."
+        ),
+        쉬운참고=(
+            "미국 시세는 하루 늦게 봅니다. 미국 시세를 못 받는 날은 아무것도 사지 않습니다."
+        ),
+    ),
+    StrategyDefinition(
+        key="volume_surge_3d_us60_2",
+        짧은이름="거래량 급증 3일 + 미국 섹터",
+        display_name="거래량 급증 초단타 (3배, 3일 보유) + 미국 섹터 필터 (60일 상위 2)",
+        description="거래량 급증 3일의 매수 신호 중 미국 섹터 ETF 60일 상대강도 상위 2개(60일선 위)에 속한 섹터 종목만 매수. 매도는 거래량 급증 3일 규칙 그대로.",
+        factory=lambda: USSectorGateStrategy(
+            VolumeSurgeStrategy(VolumeSurgeParams(volume_surge_ratio=3.0, holding_days=3),
+                                name="volume_surge_3d"),
+            원래키="volume_surge_3d", N=60, k=2, 지연=1, name="volume_surge_3d_us60_2",
+        ),
+        category=CATEGORY_BREAKOUT,
+        status="backtested",
+        쉬운설명=(
+            "거래량이 훨씬 크게 늘어난 날 사는 규칙은 그대로 두고, 그중에서 미국에서 "
+            "요즘 잘 오르는 업종에 속한 회사만 삽니다. 파는 규칙은 원래 전략 그대로입니다."
+        ),
+        쉬운참고=(
+            "미국 업종 흐름은 하루 늦게 봅니다. 미국 시세를 못 받는 날은 아무것도 사지 않습니다."
+        ),
     ),
 ]
 
@@ -407,7 +671,24 @@ def get_definition(key: str) -> StrategyDefinition:
 
 
 def build_strategy(key: str) -> Strategy:
-    return get_definition(key).factory()
+    """전략 객체를 만든다. **정의에 적힌 익절선을 객체에 붙여 준다.**
+
+    청산 기준을 읽는 쪽(`risk/exits.익절기준`)은 전략 객체 하나만 받는다.
+    보유기간은 원래 객체에 있는데 익절만 정의 쪽에 있으면, 부르는 자리마다
+    둘을 따로 찾아야 하고 한쪽을 빠뜨리면 조용히 안 걸린다."""
+    정의 = get_definition(key)
+    전략 = 정의.factory()
+    if 정의.익절 and getattr(전략, "take_profit_pct", 0.0) in (0.0, None):
+        try:
+            전략.take_profit_pct = 정의.익절
+        except AttributeError:
+            # 값을 못 붙이는 전략(frozen)은 조용히 넘어가면 안 된다.
+            # 익절을 정해 뒀는데 안 걸리는 상태가 된다.
+            raise ValueError(
+                f"{key}: 익절선을 붙일 수 없는 전략입니다. "
+                "전략 클래스에 take_profit_pct를 직접 두세요."
+            ) from None
+    return 전략
 
 
 def build_strategies(keys, combine: str = "OR", sell_keys=()):

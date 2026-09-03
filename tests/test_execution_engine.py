@@ -335,7 +335,7 @@ def test_engine_enforces_time_exit_from_actual_entry_date():
     # 3거래일 경과: 청산
     exit_summary = engine.run_once(as_of=dates[8])
     assert [a.side for a in exit_summary.actions] == [OrderSide.SELL]
-    assert "보유 3일 경과" in exit_summary.actions[0].reason
+    assert "보유 상한 3거래일" in exit_summary.actions[0].reason
 
 
 def _runs(session_factory):

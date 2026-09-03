@@ -194,3 +194,58 @@ def test_평가결과를_못_읽어도_안_터진다(monkeypatch):
 
     monkeypatch.setattr(rc, "load", 터짐)
     assert "못 읽었습니다" in switch_strategy._섞은성적("A", "B")
+
+
+# ---------------------------------------------------------------------------
+# --reserve 경로. 2026-09-03에 워크플로에서 처음 실행했다가 AttributeError로
+# 죽었다. 미리보기 경로만 시험하고 있어서 예약 경로의 오타를 아무것도 안 잡았다.
+# ---------------------------------------------------------------------------
+
+
+def test_reserve는_확정_예약을_남긴다(tmp_path, monkeypatch):
+    from muwon.cloud import strategy_approval as approval
+    from muwon.db.session import make_session_factory
+
+    db = f"sqlite:///{tmp_path / 'muwon.db'}"
+    monkeypatch.setattr(switch_strategy.bootstrap_settings, "database_url", db)
+
+    s = SettingsService(곳간())
+    s.set_strategy_selection(StrategySelection(active_keys=("gap_up_go",)))
+    monkeypatch.setattr(switch_strategy, "build_settings_service", lambda: s)
+    monkeypatch.setattr(
+        sys, "argv", ["switch_strategy.py", "--key", "volume_surge_3d_us60_2", "--reserve"]
+    )
+
+    assert switch_strategy.main() == 0
+
+    with make_session_factory(db)() as session:
+        줄 = approval.지금예약(session)
+    assert 줄 is not None
+    assert 줄.상태 == approval.확정
+    assert 줄.이전전략 == "gap_up_go"
+    assert 줄.새전략 == "volume_surge_3d_us60_2"
+    assert 줄.승인경로 == "대화"
+    # 예약만 했다. 지금 걸린 전략은 그대로여야 한다.
+    assert s.get_strategy_selection().active_key == "gap_up_go"
+
+
+def test_reserve가_안_되면_빨갛게_끝난다(tmp_path, monkeypatch, capsys):
+    """같은 것을 두 번 예약하면 두 번째는 취소로 읽힌다. 그것을 0으로 끝내면
+    '예약했다'고 믿고 내일 아무 일도 안 일어난다."""
+    from muwon.cloud import strategy_approval as approval
+    from muwon.db.session import make_session_factory
+
+    db = f"sqlite:///{tmp_path / 'muwon.db'}"
+    monkeypatch.setattr(switch_strategy.bootstrap_settings, "database_url", db)
+    s = SettingsService(곳간())
+    s.set_strategy_selection(StrategySelection(active_keys=("gap_up_go",)))
+    monkeypatch.setattr(switch_strategy, "build_settings_service", lambda: s)
+    monkeypatch.setattr(
+        sys, "argv", ["switch_strategy.py", "--key", "volume_surge_3d_us60_2", "--reserve"]
+    )
+
+    assert switch_strategy.main() == 0
+    assert switch_strategy.main() == 1
+    assert "예약하지 못했습니다" in capsys.readouterr().out
+    with make_session_factory(db)() as session:
+        assert approval.지금예약(session) is None

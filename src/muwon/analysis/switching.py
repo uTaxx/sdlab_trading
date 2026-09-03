@@ -89,6 +89,15 @@ class 갈아타기전략(PortfolioStrategy):
         속 = self._전략들.get(self._오늘키)
         return getattr(속, "max_holding_days", None) if 속 else None
 
+    @property
+    def 오늘전략(self) -> PortfolioStrategy | None:
+        """지금 걸린 속 전략. 엔진이 **살 때** 이것을 보유 종목에 적어 둔다.
+
+        청산은 산 전략을 따른다(2026-09-02). 이 껍데기를 그대로 적어 두면
+        날마다 답이 바뀌어서, 전략을 바꾼 다음 날 옛 종목이 새 규칙으로
+        팔린다. 그것이 고치려던 문제다."""
+        return self._전략들.get(self._오늘키)
+
     def prepare(self, histories: dict[str, pd.DataFrame]) -> None:
         """쓰이는 전략을 전부 미리 준비한다.
 
@@ -143,6 +152,12 @@ def 날마다고르기(
     처음키: str,
     costs: TransactionCosts | None = None,
     알림=None,
+    섹터표: dict[str, str] | None = None,
+    섹터상한: int = 0,
+    섹터상한셈: str = "하루후보",
+    점수순: bool = False,
+    결제일수: int = 0,
+    예수금: float = 10_000_000.0,
 ) -> list[하루선택]:
     """날마다 순위를 내고 1위를 고른다. 미래를 보지 않는다.
 
@@ -161,7 +176,12 @@ def 날마다고르기(
         줄들: list[전략줄] = []
         for 키 in 전략키들:
             try:
-                성적 = 돌려보기(정의, (lambda k=키: 만들기(k)), histories, 잰날, 정책, costs=costs)
+                # 순위를 내는 조건은 실제로 굴리는 조건과 같아야 한다.
+                성적 = 돌려보기(
+                    정의, (lambda k=키: 만들기(k)), histories, 잰날, 정책, costs=costs,
+                    섹터표=섹터표, 섹터상한=섹터상한, 섹터상한셈=섹터상한셈,
+                    점수순=점수순, 결제일수=결제일수, 예수금=예수금,
+                )
             except Exception as 탈:  # noqa: BLE001 (하나가 터져도 나머지 순위는 봐야 한다)
                 # 조용히 넘기면 그날 순위가 몇 개짜리였는지 알 수 없다.
                 print(f"  {잰날} {키} 못 돌림 ({type(탈).__name__}: {탈})", file=sys.stderr)
@@ -210,6 +230,16 @@ class 갈아타기규칙:
     #: 후보의 거래가 이보다 적으면 바꾸지 않는다. 실제 검토는 후보를 내되
     #: 등급을 낮춘다. 표본을 아예 요구했을 때 어떻게 달라지는지 보는 값이다.
     최소거래수: int = 0
+    #: 지금 걸린 전략이 그 구간에 매수를 안 했을 때도 바꿀 것인가.
+    #:
+    #: 실제 검토는 이때 후보를 안 낸다. 비교할 짝이 없기 때문이다
+    #: (`후보내기`의 "현재 설정된 전략이 이 구간에서 매수를 하지 않아
+    #: 비교할 수 없습니다"). 그래서 기본값은 False다.
+    #:
+    #: **"무조건 1위를 따라간다"는 이 막음이 있으면 안 된다.** 거래를 안 한
+    #: 전략에 한 번 걸리면 거기서 멈춰 버려서, 이름과 달리 1위를 안 따라가는
+    #: 규칙이 된다. 2026-09-01에 그렇게 잰 숫자를 한 번 보고했다.
+    지금없어도바꾼다: bool = False
 
 
 def 규칙적용(선택들: list[하루선택], 처음키: str, 규칙: 갈아타기규칙) -> dict[date, str]:
@@ -217,7 +247,8 @@ def 규칙적용(선택들: list[하루선택], 처음키: str, 규칙: 갈아�
 
     막는 조건은 `strategy_fit.후보내기`와 같은 순서로 본다. 1위가 지금
     것이면 그대로, 지금 것이 그 구간에 매수를 안 했으면 비교가 안 되므로
-    그대로, 우위가 모자라면 그대로다."""
+    그대로(`지금없어도바꾼다`가 참이면 이건 건너뛴다), 우위가 모자라면
+    그대로다."""
     from muwon.analysis.strategy_fit import _앞서나
 
     표: dict[date, str] = {}
@@ -226,13 +257,14 @@ def 규칙적용(선택들: list[하루선택], 처음키: str, 규칙: 갈아�
     for ㅅ in 선택들:
         최고 = ㅅ.전체[0] if ㅅ.전체 else None
         지금 = next((ㄹ for ㄹ in ㅅ.전체 if ㄹ[0] == 키), None)
+        견줄수있나 = 지금 is not None and _앞서나(최고[1], 지금[1], 규칙.우위배수) \
+            if 최고 is not None else False
         바꿀까 = (
             최고 is not None
             and 최고[0] != 키
             and 지난 >= 규칙.최소운용일
             and 최고[2] >= 규칙.최소거래수
-            and 지금 is not None
-            and _앞서나(최고[1], 지금[1], 규칙.우위배수)
+            and (견줄수있나 or (규칙.지금없어도바꾼다 and 지금 is None))
         )
         if 바꿀까:
             키 = 최고[0]
@@ -250,11 +282,20 @@ def 굴리기(
     끝: date,
     정책: RiskPolicy,
     costs: TransactionCosts | None = None,
+    섹터표: dict[str, str] | None = None,
+    섹터상한: int = 0,
+    섹터상한셈: str = "하루후보",
+    점수순: bool = False,
+    결제일수: int = 0,
+    예수금: float = 10_000_000.0,
 ):
     """계좌 하나를 시작부터 끝까지 굴린다.
 
     **구간을 잘라 이어 붙이지 않는다.** 잘라 붙이면 구간이 바뀔 때마다 보유
-    종목이 사라지고 현금에서 다시 시작해서, 실제로는 낼 수 없는 성적이 나온다."""
+    종목이 사라지고 현금에서 다시 시작해서, 실제로는 낼 수 없는 성적이 나온다.
+
+    섹터 상한과 점수순은 실거래가 하는 일인데 백테스트가 안 하던 것이다.
+    켜면 지금까지 낸 전략 평가 결과와 비교가 안 되므로 결과에 적어야 한다."""
     from muwon.analysis.period_check import slice_for_range
 
     잘린것 = slice_for_range(histories, 시작, 끝)
@@ -266,5 +307,11 @@ def 굴리기(
         costs=costs,
         entry_at_open=True,
         exit_at_open=True,
+        섹터표=섹터표,
+        섹터상한=섹터상한,
+        섹터상한셈=섹터상한셈,
+        점수순=점수순,
+        결제일수=결제일수,
+        initial_cash=예수금,
     ).run(잘린것, trade_from=시작)
     return 결과, compute_metrics(결과)

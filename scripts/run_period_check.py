@@ -43,6 +43,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from muwon.analysis.experiment import WARMUP_DAYS
+from muwon.analysis.judgment import 시트에서 as 시트지침
 from muwon.analysis.market_data import load_histories
 from muwon.analysis.period_check import (
     _조사,
@@ -455,8 +456,9 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
 
     # 기준은 시트가 원본이다. 매매 스크립트와 같은 길로 읽어야 화면에 뜬
     # 숫자와 실제 매매가 같은 기준 위에 선다.
+    시트설정 = None
     if sheet_id:
-        정책제공, 설명, _ = build_policy_provider(service, sheet_id)
+        정책제공, 설명, 시트설정 = build_policy_provider(service, sheet_id)
         정책 = 정책제공()
         print(설명, file=sys.stderr)
     else:
@@ -466,7 +468,11 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
 
     session_factory = make_session_factory(bootstrap_settings.database_url)
     유니버스, 종류 = 대상종목(인자, sheet_id, session_factory)
-    기준 = 기준글(정책, len(유니버스), 종류)
+    # 순위를 어떤 순서로 낼지. 시트에 적힌 것이 성하지 않으면 기본값으로
+    # 돌아간다. 어느 쪽으로 돌았는지는 로그와 시트의 기준 칸에 남는다.
+    판단 = 시트지침(시트설정)
+    print(f"■ 판단 지침  {판단.설명글()}", file=sys.stderr)
+    기준 = 기준글(정책, len(유니버스), 종류) + f" · 순위 {판단.설명글()}"
     print(f"■ 대상 {len(유니버스)}종목 ({종류})")
 
     # 제일 긴 구간 하나만 받아 두고 짧은 것은 거기서 잘라 쓴다. 구간마다
@@ -489,7 +495,7 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
         열쇠들, 파는키, 파는쪽전부비교 = 골라진전략
         return 비교하기(골라진것, 잰때, sheet_id, histories, 끝, 정책, 기준,
                     열쇠들, 파는키, 지금키=(고름.active_keys or ("",))[0],
-                    파는쪽전부비교=파는쪽전부비교)
+                    파는쪽전부비교=파는쪽전부비교, 판단=판단)
 
     # 구간마다 새로 만든다. 전략이 예열 결과를 안에 들고 있어서, 같은
     # 객체를 여러 구간에 쓰면 앞 구간 자료가 남는다.
@@ -544,7 +550,8 @@ def _자리(줄들, 지금키: str):
 
 def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 정책,
           기준: str, 열쇠들: list[str], 파는키들: list[str] | None = None,
-          지금키: str = "", 파는쪽전부비교: bool = False) -> int:
+          지금키: str = "", 파는쪽전부비교: bool = False,
+          판단=None) -> int:
     """등록된 전략들을 **같은 구간·같은 기준**으로 돌려 순위를 낸다.
 
     빠지는 구간에서 어느 전략이 덜 잃었는지를 보는 자리다. 시세를 한 번만
@@ -612,7 +619,7 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
 
         # 총평은 순위가 나와야 쓸 수 있다. 한 구간을 다 실행한 뒤에 만들어
         # 그 구간의 모든 줄에 같이 싣는다.
-        총평 = 비교총평(정의, 줄들, 지금키)
+        총평 = 비교총평(정의, 줄들, 지금키, 판단)
         # 파는 쪽을 비교할 때는 줄의 열쇠가 매도 전략이다. 시트에는 매수 칸에
         # 고정한 것을, 매도 칸에 갈아 끼운 것을 적는다. 안 그러면 나중에
         # 이 줄이 무엇을 바꾼 결과인지 알 수 없다.

@@ -45,6 +45,7 @@ from muwon.cloud.approval import (
     pending_rows,
     read_today,
     보유종목,
+    상한넘긴것,
     승인머리,
     알림글,
     전략변경글,
@@ -155,6 +156,7 @@ def main() -> int:
     selection = service.get_strategy_selection()
     strategy = build_strategies(selection.active_keys, selection.combine, selection.sell_keys)
     print(f"■ 전략: {selection.describe()}", file=sys.stderr)
+    print(f"■ 기초설정: {기초설정글(설정, service, 섹터당)}", file=sys.stderr)
 
     오늘 = datetime.now(KST).date()
 
@@ -259,16 +261,50 @@ def main() -> int:
     줄선것 = [c for _, c in 신호들]
 
     # 한 섹터에 몰리는 것을 막는다.
+    #
+    # **이미 들고 있는 것부터 센다**(2026-09-02에 고침). 전에는 후보 목록을
+    # 0부터 셌다. 반도체를 두 종목 들고 있어도 그날 후보에 반도체를 상한만큼
+    # 더 넣었고, 다 승인하면 상한을 넘긴 채로 보유하게 됐다. 분산한 줄
+    # 알았는데 사실상 한 섹터에 몰아 건 것이다.
+    보유섹터센것: dict[str, int] = {}
+    for s in 내용.섹터:
+        for m in s.종목:
+            if m.symbol in 보유심볼:
+                보유섹터센것[s.코드] = 보유섹터센것.get(s.코드, 0) + 1
     if 섹터당:
-        줄선것, 밀린것 = cap_per_sector(줄선것, 상한=섹터당)
+        줄선것, 밀린것 = cap_per_sector(줄선것, 상한=섹터당, 시작=보유섹터센것)
     else:
         밀린것 = []
+
+    # 상한에 걸린 것은 살 수 없지만 **알림에는 빨간 램프로 적는다.** 조용히
+    # 빼면 오늘 전략이 무엇을 찾았는지가 안 보인다. 후보가 둘뿐인 날에
+    # 신호가 둘밖에 안 난 것인지, 다섯이 났는데 셋이 상한에 걸린 것인지가
+    # 갈린다. 뒤쪽이면 자리가 비는 대로 살 것이 있다는 뜻이다.
+    #
+    # 승인 버튼은 안 붙이고 승인대기 탭에도 안 올린다. 09:05가 같은 상한을
+    # 다시 보므로 눌러도 안 사고, 그것이 곧 "승인했는데 왜 안 샀지"다.
 
     # 동시에 들 수 있는 수보다 많이 제안하면, 사람이 다 체크했을 때 리스크
     # 매니저가 뒤에서 거부한다. 그러면 "승인했는데 왜 안 샀지"가 된다.
     상한 = args.max or _동시보유(설정, service)
     넘친것 = 줄선것[상한:]
     고른것 = 줄선것[:상한]
+
+    # 오늘 후보에 든 같은 섹터 수는 **자를 것을 자른 뒤에** 센다. 자르기
+    # 전에 세면 동시보유 상한에 밀려 빠진 것까지 세서 숫자가 부풀려진다.
+    남긴섹터센것: dict[str, int] = {}
+    for c in 고른것:
+        남긴섹터센것[c.sector] = 남긴섹터센것.get(c.sector, 0) + 1
+    상한넘긴것들 = [
+        상한넘긴것(
+            symbol=c.symbol, name=c.name,
+            섹터이름=c.sector_name or c.sector,
+            보유수=보유섹터센것.get(c.sector, 0),
+            오늘후보수=남긴섹터센것.get(c.sector, 0),
+            상한=섹터당,
+        )
+        for c in 밀린것
+    ]
 
     print(f"■ 2차: 종목 고르기 · 매수 후보 {len(고른것)}종목 (신호 {len(신호들)}개)")
     print()
@@ -279,6 +315,11 @@ def main() -> int:
     print()
 
     # **왜 안 샀는지가 왜 샀는지만큼 중요하다.**
+    if 보유섹터센것:
+        이름표기 = {s.코드: s.이름 for s in 내용.섹터}
+        적힌것 = ", ".join(f"{이름표기.get(ㅋ, ㅋ)} {ㄴ}종목"
+                        for ㅋ, ㄴ in sorted(보유섹터센것.items()))
+        print(f"  섹터 상한을 셀 때 들고 있는 종목을 같이 셉니다: {적힌것}")
     if 밀린것:
         print(f"  섹터 상한({섹터당}종목)에 걸려 뺀 것 {len(밀린것)}개")
         for c in 밀린것:
@@ -308,7 +349,8 @@ def main() -> int:
         print("\n─── 텔레그램으로 갈 글 ───")
         print(알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                    전략=selection.describe(), 섹터요약=강한섹터,
-                   섹터강도=순위, 보유=보유알림, 전략변경=전략변경))
+                   섹터강도=순위, 보유=보유알림, 전략변경=전략변경,
+                   상한초과=상한넘긴것들))
         print("─── 여기까지 ───")
         return 0
 
@@ -357,13 +399,62 @@ def main() -> int:
             )
             글 = 알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                      전략=selection.describe(), 섹터요약=강한섹터,
-                     섹터강도=순위, 보유=보유알림, 전략변경=전략변경)
+                     섹터강도=순위, 보유=보유알림, 전략변경=전략변경,
+                     상한초과=상한넘긴것들)
             send(cfg.bot_token, cfg.chat_id, 글,
                  reply_markup=keyboard(고른것, 오늘) if 고른것 else None)
             print("텔레그램으로 알렸습니다(버튼 포함).", file=sys.stderr)
     except Exception as e:  # noqa: BLE001 (알림 실패가 후보 목록을 지우면 안 된다)
         print(f"텔레그램 전송 실패: {type(e).__name__}: {e}", file=sys.stderr)
+
+    섹터트렌드남기기(sheet_id, 섹터시세, 이름표, 시장, 오늘)
     return 0
+
+
+def 섹터트렌드남기기(sheet_id: str, 섹터시세, 이름표, 시장, 오늘) -> None:
+    """화면 '시장 트렌드' 탭이 읽을 줄을 시트에 남긴다.
+
+    **후보를 다 올리고 알림까지 보낸 뒤에 한다.** 이 실행의 본래 일은 매수
+    후보를 내는 것이고, 보여 주기용 표 때문에 그것이 늦거나 실패하면 안 된다.
+    그래서 실패해도 여기서 삼키고 왜 못 했는지만 찍는다.
+
+    섹터 시세는 위에서 이미 받아 두었다. 다시 받지 않는다."""
+    try:
+        from muwon.analysis.sector_trend import 머리 as 섹터머리
+        from muwon.analysis.sector_trend import 요약글, 재기, 줄들만들기
+
+        움직임들 = 재기(섹터시세, 이름표, 시장)
+        올린수 = append(sheet_id, "섹터트렌드", 섹터머리, 줄들만들기(움직임들, 오늘))
+        print(f"섹터트렌드 탭에 {올린수}줄 올렸습니다.", file=sys.stderr)
+        print(f"  {요약글(움직임들)}", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001 (보여 주기용 표가 매수 후보를 막으면 안 된다)
+        print(f"섹터 트렌드는 못 남겼습니다: {type(e).__name__}: {e}", file=sys.stderr)
+
+
+def 기초설정글(설정, service, 섹터당: int) -> str:
+    """오늘 후보가 어느 조건에서 나온 것인지 한 줄로.
+
+    **조건 없는 숫자는 나중에 검증할 수 없다.** 후보가 왜 셋뿐인지 물으면
+    답이 여기에 있다. 자리가 여섯인지 여덟인지, 섹터당 둘인지 셋인지가
+    후보 수를 그대로 바꾼다.
+
+    로그로만 나간다. 사람에게 가는 알림에는 안 넣는다. 매일 같은 값이
+    나가면 읽히지 않고, 그러면 정작 값이 바뀐 날에도 안 읽힌다.
+
+    2026-09-01에 이 줄이 없어서 지금 걸린 값을 확인할 방법이 화면(n8n
+    연결이 필요하다) 말고는 없었다. 같은 날 워크플로가 시트의 섹터당
+    상한을 통째로 무시하고 있던 것도 이 줄이 있었으면 한 번에 보였다."""
+    정책 = service.get_risk_policy()
+    익절 = f"{정책.take_profit_pct * 100:.0f}%" if 정책.take_profit_pct else "끔"
+    보유 = f"{정책.max_holding_days}일" if 정책.max_holding_days else "전략이 정한 대로"
+    섹터말 = f"{섹터당}종목" if 섹터당 else "제한 없음"
+    return (
+        f"비중 {정책.max_position_weight * 100:.0f}% · "
+        f"동시보유 {_동시보유(설정, service)}종목 · "
+        f"섹터당 {섹터말} · "
+        f"손절 {정책.stop_loss_pct * 100:.0f}% · 익절 {익절} · 보유 {보유} · "
+        f"하루손실 {정책.daily_loss_limit_pct * 100:.0f}%"
+    )
 
 
 def _동시보유(설정, service) -> int:

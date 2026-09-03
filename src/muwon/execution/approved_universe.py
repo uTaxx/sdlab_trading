@@ -62,3 +62,20 @@ def build_universe(
         if 어디 == "가정":
             가정한것.append(symbol)
     return 티커들, 가정한것
+
+
+def 섹터표만들기(섹터들: Iterable) -> dict[str, str]:
+    """종목코드 → 섹터 이름.
+
+    09:05 매수에서 섹터당 보유 상한을 세려면 이것이 있어야 한다. 08:30에서
+    쓰는 `sector/selection.cap_per_sector`는 후보 목록을 0부터 세기 때문에
+    **이미 들고 있는 종목을 모른다.** 반도체를 두 종목 들고 있어도 그날
+    후보에 반도체 세 종목이 들어올 수 있었다.
+
+    활성이 꺼진 종목도 넣는다. 지금은 안 사지만 예전에 사서 들고 있을 수
+    있고, 들고 있는 것은 상한을 셀 때 세야 한다."""
+    표: dict[str, str] = {}
+    for s in 섹터들:
+        for m in getattr(s, "종목", []):
+            표[m.symbol] = s.이름
+    return 표
