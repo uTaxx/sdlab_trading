@@ -287,6 +287,37 @@
     **n8n 창구는 고쳤지만 실제 시트에 대고 확인하지 못했다.** 화면에서 한 번
     저장해 봐야 안다. 안 되면 화면이 "저장되지 않음"이라고 적는다.
 
+## 4-2. 화면을 고쳤으면 다른 저장소로 올려야 보인다 (2026-09-03에 알게 됨)
+
+**여기에 커밋해도 주인이 보는 화면은 안 바뀐다.** 저장소가 둘이다.
+
+- 매매는 `uTaxx/muwon406`의 `claude/reset-lfe6ro`에서 돈다. n8n이 부르는
+  주소가 그것이다.
+- 화면은 `uTaxx/sdlab_trading`의 `main`에서 GitHub Pages로 나간다.
+  `deploy-dashboard.yml`이 `if: github.repository == 'uTaxx/sdlab_trading'`로
+  막혀 있어서 muwon406에서는 아예 실행되지 않는다. muwon406의 Pages 자리는
+  다른 프로젝트가 쓴다.
+
+2026-09-03에 이것 때문에 **이틀치 화면 작업이 주인에게 안 보였다.** 09-01
+저녁 뒤로 sdlab_trading에 아무것도 안 올라가 있었고, 판단 지침과 시장 트렌드
+탭과 그림 셋이 전부 muwon406에만 쌓여 있었다. 주인이 "대시보드에 안 보여"라고
+해서 알았다.
+
+올리는 방법은 이렇다. 두 저장소는 파일이 같아야 하므로 통째로 옮긴다.
+
+    cd /home/user/sdlab_trading && git fetch origin main
+    git checkout main && git reset --hard origin/main
+    git ls-files -z | xargs -0 rm -f
+    git -C /home/user/muwon406 archive HEAD | tar -x -C /home/user/sdlab_trading
+    git add -A && git commit && git push origin main
+
+**화면 파일만 옮기면 배포가 막힌다.** 배포 워크플로가 올리기 전에
+`scripts/export_dashboard_data.py --check`를 돌려서 `dashboard/자료`의 JSON이
+파이썬 원본과 같은지 본다. 원본이 `src`에 있으므로 같이 가야 한다.
+
+**화면을 고친 날은 마지막에 이것을 했는지 확인한다.** 안 하면 테스트도
+초록불이고 커밋도 남는데 주인 화면만 옛것이다.
+
 ## 5. 이 저장소에서 반복해서 다시 알게 되는 것들
 
 - **로컬 venv를 쓴다.** 시스템 `python3`에는 pandas가 없다.
