@@ -808,3 +808,37 @@ def test_되짚기_표의_빈줄_칸수가_머리_칸수와_같다():
     assert 표["되짚기몸"] == 6
     # 빈 줄과 못 불러온 줄 둘 다 표 폭을 채워야 한다.
     assert 글.count('colspan="6"') == 2
+
+
+# ── 브라우저 캐시 (2026-09-03) ────────────────────────
+# index.html은 새것을 받았는데 app.js는 이틀 전 것이 캐시에 남아, 새로 만든
+# 탭이 빈 화면으로 나오고 판단 지침 칸이 비어 있었다. 옛 app.js의 탭 목록에
+# 그 탭이 없어서 화면 조각을 아예 안 펼친 것이다.
+#
+# **배포는 초록불이고 파일도 올라가 있어서** 화면만 보고는 무엇이 잘못됐는지
+# 알 수 없다. 여기서 세 곳을 묶어 둔다.
+
+
+def test_화면_파일_주소에_배포판_자리가_있다():
+    assert 'href="./style.css?v=__배포판__"' in 쪽
+    assert 'src="./app.js?v=__배포판__"' in 쪽
+
+
+def test_배포가_배포판_자리를_커밋_번호로_바꾼다():
+    일 = (뿌리 / ".github" / "workflows" / "deploy-dashboard.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "__배포판__" in 일, "치환하는 단계가 없습니다"
+    assert "github.sha" in 일
+    # 치환이 한 건도 안 되면 실패해야 한다. 조용히 넘어가면 같은 일이
+    # 또 생기고 그때도 아무것도 빨개지지 않는다.
+    assert "exit 1" in 일
+
+
+def test_자료_파일도_같은_번호로_받는다():
+    """app.js만 새로 받고 자료 JSON이 옛것이면 전략 이름이 영어로 뜬다."""
+    assert "const 배포판" in 글
+    자리 = 글.index("async function 자료읽기")
+    토막 = 글[자리:자리 + 700]
+    assert "?v=${encodeURIComponent(배포판)}" in 토막
+    assert 'cache: "no-cache"' in 토막

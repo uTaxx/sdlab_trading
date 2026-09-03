@@ -243,10 +243,28 @@
   //: 쓴다. n8n 연결이 답을 준 뒤에 채워지므로 처음에는 비어 있다.
   let 설정전략키들 = [];
 
+  /* 배포판 번호. `<script src="./app.js?v=abc1234">`의 abc1234를 그대로
+     읽어서 자료 파일 주소에도 붙인다.
+
+     **이것이 없으면 브라우저가 옛 자료를 계속 쓴다.** 2026-09-03에 실제로
+     그랬다. index.html은 새것을 받았는데 app.js와 자료 JSON은 09-01 것이
+     캐시에 남아서, 새 탭이 빈 화면으로 나오고 전략 이름이 영어로 떴다.
+     배포는 초록불이고 파일도 올라가 있어서 원인을 찾기 어려웠다.
+
+     개발 환경에서는 `__배포판__`이 그대로 남아 있고, 그래도 동작한다. */
+  const 배포판 = (() => {
+    try {
+      const 주소 = (document.currentScript || {}).src || "";
+      return new URL(주소, location.href).searchParams.get("v") || "";
+    } catch { return ""; }
+  })();
+
   async function 자료읽기() {
     const 한개 = async (이름, 없으면) => {
       try {
-        const 답 = await fetch(`./자료/${이름}`);
+        const 길 = `./자료/${이름}` + (배포판 ? `?v=${encodeURIComponent(배포판)}` : "");
+        // 배포판이 없는 개발 환경에서도 옛 파일을 안 쓰도록 한 번 더 물어본다.
+        const 답 = await fetch(길, { cache: "no-cache" });
         return 답.ok ? await 답.json() : 없으면;
       } catch { return 없으면; }
     };
