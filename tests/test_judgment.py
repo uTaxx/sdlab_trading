@@ -271,3 +271,48 @@ def test_설명글이_세_자리를_다_적는다():
     assert "최대낙폭" in 글
     assert "누적 수익률" in 글
     assert "—" not in 글
+
+
+# ── 지침 설명이 실제 코드와 같은 말을 하는가 (2026-09-03) ──────
+#
+# `enough_sample` 지침은 "거래가 최소 기준에 못 미치는 전략은 순위에서
+# 자동으로 제외합니다"라고 적혀 있었다. 실제 코드는 거래 0건만 뺀다.
+# 20건 기준은 순위에 쓰이지 않고 화면에 '표본 부족'이라고 적을 때만 쓴다.
+#
+# 주인이 설명을 코드에 맞추는 쪽으로 정했다. 이 시험이 둘을 묶는다.
+
+
+def _지침(열쇠: str):
+    from muwon.analysis.judgment import 확인지침들
+
+    return next(ㄱ for ㄱ in 확인지침들 if ㄱ.열쇠 == 열쇠)
+
+
+def test_순위에서_빼는_것은_거래_0건뿐이다():
+    """코드가 실제로 그렇게 한다. 다른 값으로 바뀌면 설명도 같이 고쳐야
+    한다."""
+    import inspect
+
+    from muwon.analysis import strategy_fit
+
+    글 = inspect.getsource(strategy_fit.구간순위.산것.fget)
+    assert "거래수 > 0" in 글, 글
+
+    # 기간 검증도 같은 규칙이다. 두 곳이 갈리면 화면마다 순위가 달라진다.
+    from muwon.analysis import period_check
+
+    검증글 = inspect.getsource(period_check)
+    assert "if ㅅ.metrics.num_trades > 0" in 검증글
+
+
+def test_지침_설명이_자동_제외를_거래_0건으로_적는다():
+    설명 = _지침("enough_sample").설명
+    assert "0건인 전략뿐입니다" in 설명
+    # 20건이 자동 제외 기준인 것처럼 읽히면 안 된다.
+    assert "20건에 못 미치는 전략은 순위에 그대로 남고" in 설명
+
+
+def test_지침_설명이_최소_기준을_사람이_본다고_적는다():
+    """자동으로 걸러 준다고 적어 두면 표본 부족 줄을 그냥 넘긴다."""
+    설명 = _지침("enough_sample").설명
+    assert "사람이 직접 확인" in 설명
