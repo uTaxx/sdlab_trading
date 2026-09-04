@@ -173,17 +173,26 @@ class _시트:
 
 
 def test_시트에_적힌_지침을_읽는다():
-    ㄱ = ㅈ.시트에서(_시트({"rank_1st": "window_median",
-                       "rank_2nd": "profit_factor",
-                       "rank_3rd": "p25"}))
+    일, 이, 삼 = ㅈ.시트칸
+    ㄱ = ㅈ.시트에서(_시트({일: "window_median", 이: "profit_factor", 삼: "p25"}))
     assert ㄱ.열쇠들 == ("window_median", "profit_factor", "p25")
 
 
-def test_옛_기준_열쇠가_들어오면_기본값으로_돌아간다():
-    """연 단위 지침 열쇠가 시트에 남아 있을 수 있다. 그 값으로는 이 자료를
-    못 읽으므로 기본값으로 간다. 순위를 아예 못 내는 것보다 낫다."""
-    ㄱ = ㅈ.시트에서(_시트({"rank_1st": "worst_slice", "rank_2nd": "",
-                       "rank_3rd": ""}))
+def test_연_단위_지침_칸을_안_읽는다():
+    """자리를 따로 둔 까닭이다(2026-09-04). 전에는 이 셋이 rank_1st 한 자리를
+    나눠 썼는데, 거기 적힌 값이 이 목록에 없는 이름이라 구간 순위는 언제나
+    기본값으로 돌아갔다. 화면에서 1순위를 바꿔도 아무 영향이 없었다."""
+    assert ㅈ.시트칸 == ("rank_window_1st", "rank_window_2nd", "rank_window_3rd")
+    ㄱ = ㅈ.시트에서(_시트({"rank_1st": "window_median",
+                       "rank_2nd": "profit_factor",
+                       "rank_3rd": "p25"}))
+    assert ㄱ.열쇠들 == ㅈ.기본기준.열쇠들
+
+
+def test_이_자료로_못_읽는_열쇠가_들어오면_기본값으로_돌아간다():
+    """순위를 아예 못 내는 것보다 낫다."""
+    일, 이, 삼 = ㅈ.시트칸
+    ㄱ = ㅈ.시트에서(_시트({일: "worst_slice", 이: "", 삼: ""}))
     assert ㄱ.열쇠들 == ㅈ.기본기준.열쇠들
 
 

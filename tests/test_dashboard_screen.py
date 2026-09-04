@@ -18,6 +18,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 뿌리 = Path(__file__).resolve().parent.parent
 쪽 = (뿌리 / "dashboard" / "index.html").read_text(encoding="utf-8")
 글 = (뿌리 / "dashboard" / "app.js").read_text(encoding="utf-8")
@@ -1076,15 +1078,38 @@ def test_그림이_안_잰_상한을_안_그린다():
 
 def test_국면을_고를_수_있다():
     assert 'id="찾기국면"' in 쪽
-    assert 'const 찾기국면들 = ["전체", "상승", "조정", "하락"]' in 글
+    assert "const 찾기국면들 = [" in 글
+    assert '{ 값: "전체"' in 글
 
 
 def test_화면이_고르는_국면이_파이썬과_같다():
     """화면에서 고른 국면이 자료에 없으면 표가 그냥 빈다."""
     from muwon.analysis import market_regime
 
-    for 이름 in market_regime.국면들:
-        assert f'"{이름}"' in 글, 이름
+    for 이름 in market_regime.세분국면들:
+        assert f'값: "{이름}"' in 글, 이름
+
+
+def test_화면이_전환_여섯을_다_고를_수_있다():
+    """셋만 두면 '다시 오르는 조정'과 '하락으로 이어지는 조정'이 한 칸에
+    섞인다. 그 둘을 가르려고 만든 것이라 여섯이 다 있어야 한다."""
+    from muwon.analysis import market_regime
+
+    assert len(market_regime.전환들) == 6
+    for 이름 in market_regime.전환들:
+        assert f'값: "{이름}"' in 글, 이름
+
+
+def test_전환을_고르면_오늘은_알_수_없다고_적는다():
+    """전환 이름표는 구간이 끝나야 정해진다. 지금이 어느 쪽인지 아는 것처럼
+    적으면 그것을 보고 오늘 살지 말지를 정하게 된다."""
+    assert "이 구간이 끝나야" in 글
+
+
+def test_국면을_셋으로만_잰_옛_자료를_빈_표로_그리지_않는다():
+    """빈 표는 '그 국면에 구간이 없었다'로 읽힌다. 실제로는 그렇게 안 나눠
+    잰 것이고, 다시 계산하면 나온다. 해야 할 일이 정반대다."""
+    assert "국면을 상승·조정·하락 셋으로만" in 글
 
 
 def test_지금_국면을_화면_맨_위에_적는다():
@@ -1128,3 +1153,94 @@ def test_국면은_계산_열쇠에_안_들어간다():
     자리 = 글.index("const 찾기지금조건 =")
     덩이 = 글[자리:자리 + 300]
     assert "찾기국면" not in 덩이
+
+
+# ── 전략 찾기 탭의 순위 순서를 저장한다 (2026-09-04) ──────────────
+#
+# 전에는 브라우저 안에서만 바뀌었다. 새로 고치면 기본 순서로 돌아갔고,
+# 쌓이는 순위에도 아무 영향이 없었다.
+
+
+def test_찾기_순위_순서를_저장하는_자리가_있다():
+    assert 'id="찾기지침저장"' in 쪽
+    assert "function 찾기지침저장하기(" in 글
+    assert '$("찾기지침저장").addEventListener' in 글
+
+
+def test_찾기_순위를_시트에서_다시_읽는다():
+    """저장만 하고 안 읽으면 새로 고칠 때 기본값으로 돌아간다."""
+    assert "function 찾기지침불러오기(" in 글
+    assert "찾기지침불러오기()" in 글
+
+
+def test_찾기_순위가_연_단위_지침과_다른_칸에_저장된다():
+    """한 자리를 나눠 쓰면 한쪽 값이 다른 쪽 목록에 없는 이름이 되고,
+    그러면 저장은 되는데 순위는 기본값으로 돌아간다. 실제로 그랬다."""
+    from muwon.analysis import judgment, window_judgment
+
+    assert "구간일순위" in 글
+    assert "구간이순위" in 글
+    assert "구간삼순위" in 글
+    # 파이썬 두 목록이 정말 서로 다른 이름을 쓰는지 확인한다. 겹치면
+    # 자리를 나눌 이유가 없다.
+    연 = {judgment.기본기준.일순위, judgment.기본기준.이순위, judgment.기본기준.삼순위}
+    구간 = {ㄱ.열쇠 for ㄱ in window_judgment.순위지침들}
+    assert not (연 <= 구간), "연 단위 기본값이 구간 목록에 다 들어 있으면 나눌 필요가 없다"
+
+
+def test_찾기_순위를_저장할_때_모르는_값을_막는다():
+    """화면에만 있는 지침을 저장하면 파이썬이 모르는 값이 시트에 들어간다.
+    그러면 저장은 되는데 순위는 기본값으로 돌아간다."""
+    assert "목록에 없는 값입니다" in 글
+
+
+def test_찾기_순위_저장이_실패하면_그렇다고_적는다():
+    """조용히 성공한 척하지 않는다."""
+    assert "저장되지 않았습니다" in 글
+    assert "rank_window_1st" in 글
+
+
+# ── 화면 코드가 문법에 맞는가 (2026-09-04) ────────────────────────
+#
+# 2026-09-04에 주석을 닫는 자리를 하나 잘못 두어 app.js가 통째로 죽었다.
+# **ruff와 시험 2003건이 전부 초록불이었다.** 파이썬만 검사하고 있었기
+# 때문이다. 화면은 빈 채로 열렸고 탭이 하나도 안 눌렸다.
+#
+# 브라우저로 열어 보면 잡히지만 그것은 손으로 하는 일이라 빠뜨리기 쉽다.
+# 여기서 한 번 더 막는다.
+
+
+def test_화면_자바스크립트가_문법에_맞는다():
+    """문법이 틀리면 화면이 통째로 죽는다. 표 하나가 비는 것과 다르다."""
+    import shutil
+    import subprocess
+
+    노드 = shutil.which("node")
+    if not 노드:
+        pytest.skip("node가 없어 문법을 검사하지 못했습니다")
+
+    for 이름 in ("app.js",):
+        결과 = subprocess.run(
+            [노드, "--check", str(뿌리 / "dashboard" / 이름)],
+            capture_output=True, text=True, check=False,
+        )
+        assert 결과.returncode == 0, f"{이름}\n{결과.stderr}"
+
+
+def test_시작일을_자료에서_읽어_고르게_한다():
+    """전에는 셋을 화면에 적어 두었다. 그래서 다른 시작일로 계산해 쌓아도
+    화면에서 고를 수가 없었다. 자료에는 있는데 볼 방법이 없는 셈이다."""
+    assert "function 찾기시작들(" in 글
+    assert "시작일들" in 글
+    # 날짜와 연수를 목록에 박아 두면, 새 시작일로 계산해도 못 고르고
+    # 해가 바뀌면 "약 5년"이 틀린 말이 된다. 주석은 봐준다.
+    코드 = re.sub(r"/\*.*?\*/", "", 글, flags=re.DOTALL)
+    코드 = re.sub(r"//.*", "", 코드)
+    assert '{ 값: "2021-01-04"' not in 코드
+    assert "약 5년" not in 코드
+
+
+def test_매매_대상을_바꾸면_시작일_목록도_다시_채운다():
+    """대상마다 잰 시작일이 다르다. 안 다시 채우면 이 대상에는 없는
+    시작일이 골라진 채로 남아 표가 통째로 빈다."""
+    assert '칸 === "찾기대상"' in 글
