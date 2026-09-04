@@ -33,7 +33,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from muwon.analysis import market_regime as ㄲ
 from muwon.analysis import window_store as ㅅ
+from muwon.analysis.market_data import load_histories
 from muwon.config import bootstrap_settings
 from muwon.db.session import make_session_factory
 from muwon.strategy.registry import get_definition
@@ -44,7 +46,7 @@ from muwon.strategy.registry import get_definition
 #: 줄 하나에 이 순서로 값이 들어간다. 화면은 이 목록을 읽어 자리를 찾는다.
 #: **여기 순서를 바꾸면 화면도 따라 바뀐다.** 화면에 순서를 적어 두면 안 된다.
 칸들 = (
-    "전략", "상한", "슬리피지",
+    "전략", "상한", "슬리피지", "시작일", "국면",
     "연환산", "기하평균", "산술평균", "중앙값", "플러스비율", "하위10", "하위25",
     "최악구간", "최고구간", "구간흔들림", "하락대비수익", "구간낙폭중앙값",
     "구간수",
@@ -68,6 +70,7 @@ def 한줄(ㄱ) -> list:
     ㅂ = ㄱ.매매.갈래비율 or {}
     값들 = {
         "전략": ㄱ.전략, "상한": ㄱ.상한, "슬리피지": ㄱ.슬리피지,
+        "시작일": ㄱ.시작일.isoformat(), "국면": ㄱ.국면,
         "연환산": ㄱ.구간.연환산, "기하평균": ㄱ.구간.기하평균,
         "산술평균": ㄱ.구간.산술평균, "중앙값": ㄱ.구간.중앙값, "플러스비율": ㄱ.구간.플러스비율,
         "하위10": ㄱ.구간.하위10, "하위25": ㄱ.구간.하위25,
@@ -83,7 +86,8 @@ def 한줄(ㄱ) -> list:
         "누적수익률": ㄱ.누적수익률, "최대낙폭": ㄱ.최대낙폭,
     }
     return [
-        값들[이름] if 이름 in ("전략", "상한", "구간수", "매매수", "미청산수")
+        값들[이름] if 이름 in ("전략", "상한", "시작일", "국면", "구간수",
+                            "매매수", "미청산수")
         else _반올림(값들[이름])
         for 이름 in 칸들
     ]
@@ -97,11 +101,51 @@ def 이름찾기(키: str) -> str:
         return 키
 
 
-def 모으기(session_factory) -> dict:
-    """매매 대상마다 가장 최근 측정을 모은다.
+def 지금국면알아보기() -> dict:
+    """오늘 코스피가 어떤 국면인지. 화면 맨 위에 적는다.
 
-    **가장 최근 날짜를 대상마다 따로 고른다.** 전체에서 하나를 골라 두
-    목록에 같이 쓰면, 그날 안 잰 쪽이 통째로 빈다."""
+    **못 받으면 비운다.** 지어내면 화면이 아는 척을 하게 된다. 국면을
+    모른다고 나머지 자료를 못 쓰는 것은 아니다."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    try:
+        from muwon.data.price_cache import PriceCache
+        from muwon.data.universe import Ticker
+        from muwon.data.yahoo_client import YahooFinanceDataSource
+
+        오늘 = datetime.now(ZoneInfo("Asia/Seoul")).date()
+        시세 = load_histories(
+            YahooFinanceDataSource(),
+            [Ticker(symbol="KOSPI", name="코스피", market="KOSPI",
+                    yahoo_symbol="^KS11")],
+            오늘 - timedelta(days=800), 오늘, cache=PriceCache(),
+        ).get("KOSPI")
+        국면, 값 = ㄲ.지금국면(시세)
+        if 국면 is None:
+            return {}
+        마지막 = 시세["trade_date"].iloc[-1]
+        return {
+            "국면": 국면,
+            "고점대비": round(float(값), 2) if 값 is not None else None,
+            "기준일": str(마지막)[:10],
+            "글": ㄲ.국면글(국면, 값),
+        }
+    except Exception as 탈:  # noqa: BLE001
+        print(f"  코스피를 못 받아 지금 국면을 비웁니다: {탈}")
+        return {}
+
+
+def 모으기(session_factory) -> dict:
+    """매매 대상마다 쌓인 것을 전부 모은다.
+
+    **잰 날로 거르지 않는다.** 조건마다 잰 날이 다르다. 화면에서 조건을
+    바꿔 가며 하나씩 재기 때문이다. 날짜로 거르면 어제 잰 조건이 오늘
+    화면에서 사라진다.
+
+    **잰 조건 목록을 따로 담는다.** 화면이 "이 조건은 아직 계산하지
+    않았습니다"를 말하려면 무엇이 있는지가 아니라 무엇이 없는지를 알아야
+    한다. 빈 표로 그리면 계산했는데 결과가 없다로 읽힌다."""
     묶음 = {}
     전략키들: set[str] = set()
     with session_factory() as 세션:
@@ -110,15 +154,29 @@ def 모으기(session_factory) -> dict:
             if not 잰것들:
                 continue
             전략키들.update(ㄱ.전략 for ㄱ in 잰것들)
+            잰날들 = sorted({ㄱ.잰날 for ㄱ in 잰것들})
+            # 조건마다 종목 수가 다를 수 있다. 시트 종목은 주마다 바뀐다.
+            # 가장 최근에 잰 조건의 값을 대표로 적는다.
+            최근 = max(잰것들, key=lambda ㄱ: ㄱ.잰날)
             묶음[열쇠] = {
-                "잰날": 잰것들[0].잰날.isoformat(),
-                "종목수": 잰것들[0].종목수,
-                "시작일": 잰것들[0].시작일.isoformat(),
-                "끝일": 잰것들[0].끝일.isoformat(),
+                "잰날": 최근.잰날.isoformat(),
+                "처음잰날": 잰날들[0].isoformat(),
+                "종목수": 최근.종목수,
+                "끝일": 최근.끝일.isoformat(),
+                "시작일들": sorted({ㄱ.시작일.isoformat() for ㄱ in 잰것들}),
                 "상한들": sorted({ㄱ.상한 for ㄱ in 잰것들}),
                 "슬리피지들": sorted({ㄱ.슬리피지 for ㄱ in 잰것들}),
-                "줄": [한줄(ㄱ) for ㄱ in
-                     sorted(잰것들, key=lambda ㄱ: (ㄱ.전략, ㄱ.상한, ㄱ.슬리피지))],
+                # 이미 잰 조건. 화면이 없는 조건을 가려내는 데 쓴다.
+                "잰조건": sorted({
+                    f"{ㄱ.시작일.isoformat()}|{ㄱ.상한}|{ㄱ.슬리피지}"
+                    for ㄱ in 잰것들
+                }),
+                # 어느 국면으로 나눠 둔 것이 있나. 옛 측정에는 전체뿐이다.
+                "국면들": sorted({ㄱ.국면 for ㄱ in 잰것들}),
+                "줄": [한줄(ㄱ) for ㄱ in sorted(
+                    잰것들,
+                    key=lambda ㄱ: (ㄱ.시작일, ㄱ.국면, ㄱ.전략, ㄱ.상한,
+                                  ㄱ.슬리피지))],
             }
 
     return {
@@ -128,8 +186,17 @@ def 모으기(session_factory) -> dict:
                "상한일수록 크게 나옵니다. 그 수익이 실제로 난다는 뜻이 "
                "아닙니다. 매매 대상이 지금 살아 있는 종목이라 과거로 가져가면 "
                "살아남은 회사만 봅니다. 절대 수익률은 부풀려져 있고 전략끼리 "
-               "비교하는 데만 씁니다."),
+               "비교하는 데만 씁니다. 국면별로 나눈 값은 구간 수가 크게 "
+               "줄어듭니다. 하락 국면은 5년에 몇 달뿐이라 20영업일 구간이 "
+               "열 개 남짓입니다. 구간 수를 반드시 같이 보십시오."),
         "칸들": list(칸들),
+        "지금국면": 지금국면알아보기(),
+        "국면설명": {
+            "상승": "코스피가 최근 1년 고점 대비 10% 미만으로 하락한 구간입니다.",
+            "조정": "코스피가 최근 1년 고점 대비 10% 이상 20% 미만으로 "
+                  "하락한 구간입니다.",
+            "하락": "코스피가 최근 1년 고점 대비 20% 이상 하락한 구간입니다.",
+        },
         "이름표": {ㄱ: 이름찾기(ㄱ) for ㄱ in sorted(전략키들)},
         "매매대상이름": dict(매매대상들),
         "측정": 묶음,

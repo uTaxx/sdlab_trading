@@ -23,6 +23,14 @@ name: 측정 결과 DB에 쌓기
 # GitHub Actions 표현식 파서가 한글 식별자를 못 읽는다.
 
 on:
+  # 측정이 끝나면 저절로 이어 돈다. 사람이 실행 번호를 옮겨 적지 않는다.
+  #
+  # **재는 것과 쌓는 것을 따로 둔 채로 잇는다.** 한 워크플로로 합치면
+  # 오래 걸리는 계산이 state-write 자물쇠를 통째로 잡아, 그동안 장중
+  # 손절 감시와 매수 후보 산출이 전부 기다린다.
+  workflow_run:
+    workflows: ["보유 상한별 측정"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       run_id:
@@ -42,6 +50,11 @@ jobs:
   store:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # 측정이 실패했으면 쌓지 않는다. 반쯤 나온 결과를 넣으면 그것을 진짜
+    # 측정으로 읽는다.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.workflow_run.conclusion == 'success'
     # 화면이 읽을 자료를 만들어 이 가지에 커밋한다. 줄이 천 개가 넘어서
     # 사람이 손으로 옮겨 적을 수 없다.
     permissions:
@@ -60,11 +73,27 @@ jobs:
       - name: 의존성 설치
         run: pip install -e ".[dev,cloud]"
 
+      # 손으로 실행하면 입력으로, 측정이 이어 부르면 그 실행 번호로.
+      - name: 어느 실행을 쌓나
+        id: pick
+        env:
+          IN_RUN_ID: ${{ github.event.inputs.run_id }}
+          FROM_SCAN: ${{ github.event.workflow_run.id }}
+        run: |
+          # 셸 변수 이름에 한글을 쓰면 bash가 command not found로 죽는다.
+          RUN_ID="${IN_RUN_ID:-$FROM_SCAN}"
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::쌓을 측정 실행 번호가 없습니다."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "측정 실행 $RUN_ID 를 쌓습니다."
+
       - name: 측정 결과 내려받기
         uses: actions/download-artifact@v4
         with:
           name: window-scan
-          run-id: ${{ github.event.inputs.run_id }}
+          run-id: ${{ steps.pick.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 구글드라이브에서 상태 DB 내려받기
@@ -97,6 +126,9 @@ jobs:
           fi
           python scripts/store_window_scan.py --파일 window-scan.json --표찍기 $ARGS
 
+      # workflow_run으로 이어 돌면 dry_run 입력이 비어 있다. 빈 값은
+      # 'true'가 아니므로 아래 조건이 그대로 참이 되어 실제로 쌓는다.
+      #
       # 화면은 정적 파일이라 DB를 못 읽는다. 시트를 거치는 길도 있지만
       # 이 자료는 줄이 천 개가 넘어서 시트에 맞지 않는다.
       #
@@ -109,7 +141,7 @@ jobs:
       - name: 화면 자료 커밋
         if: success() && github.event.inputs.dry_run != 'true'
         env:
-          IN_RUN_ID: ${{ github.event.inputs.run_id }}
+          IN_RUN_ID: ${{ steps.pick.outputs.run_id }}
         run: |
           # 셸 변수 이름에 한글을 쓰면 bash가 command not found로 죽는다.
           git config user.name "github-actions[bot]"
@@ -122,7 +154,11 @@ jobs:
             exit 0
           fi
           git commit -m "상한별 측정 결과를 화면 자료로 뽑습니다 (실행 $IN_RUN_ID)"
-          git push origin HEAD:"$GITHUB_REF_NAME"
+          # 측정이 이어 부른 실행은 그 사이 사람이 밀어 넣은 커밋과 부딪힐
+          # 수 있다. 한 번 당겨 얹고 다시 민다. 그래도 안 되면 실패로 둔다.
+          git push origin HEAD:"$GITHUB_REF_NAME" \
+            || (git pull --rebase origin "$GITHUB_REF_NAME" \
+                && git push origin HEAD:"$GITHUB_REF_NAME")
 
       # 쌓기가 실패했으면 올리지 않는다. 반쯤 들어간 DB를 올리면 다음
       # 실행이 그 상태를 정상으로 읽는다.

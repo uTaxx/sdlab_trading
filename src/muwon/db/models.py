@@ -376,6 +376,16 @@ class WindowPerfRow(Base):
     끝일: Mapped[date | None] = mapped_column(Date, nullable=True)
     #: 백테스트면 False, 실제 계좌 기록에서 잰 것이면 True.
     실거래: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    #: 어느 시장 국면의 구간만 모아 잰 것인가. "전체"면 안 나눈 것이다.
+    #: 상승·조정·하락은 코스피가 최근 1년 고점 대비 얼마나 빠졌는지로
+    #: 가른다(`analysis/market_regime.py`).
+    #:
+    #: **나중에 추가된 칸이라 nullable이다.** 기존 DB에 ALTER TABLE로
+    #: 붙으면 기존 줄은 NULL이 되는데, 그것은 국면을 안 나누던 판에 잰
+    #: 것이므로 읽는 쪽이 "전체"로 본다.
+    국면: Mapped[str | None] = mapped_column(
+        String(10), default="전체", index=True, nullable=True
+    )
 
     # ── 구간 분포 (겹치지 않는 구간에서 낸다) ──
     구간수: Mapped[int] = mapped_column(Integer, default=0)

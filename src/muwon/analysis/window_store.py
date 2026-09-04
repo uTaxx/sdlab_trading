@@ -14,15 +14,23 @@
 매매 하나하나는 **지금 설정된 전략 한 벌만** 담는다. 백테스트와 실거래를
 견주는 데 필요한 것이 그것뿐이다.
 
-## 같은 날 두 번 재면 앞의 것을 지운다
+## 조건 하나에 줄 하나다
 
-측정을 손으로 다시 실행하는 일이 잦다. 그대로 쌓으면 같은 날 같은 조건이
-두 줄이 되고, 순위를 낼 때 어느 줄을 봐야 하는지 알 수 없다. 같은
-(잰날, 매매대상, 실거래) 묶음을 지우고 새로 넣는다.
+열쇠는 매매대상, 실거래, 전략, 보유 상한, 슬리피지, 시작일, 국면 일곱이다.
+같은 조건을 다시 재면 그 줄만 갈아 끼운다. 끝일과 잰날은 열쇠가 아니라
+값이라, 나중에 다시 재면 새 값으로 덮인다.
 
-**지우는 범위를 매매대상까지 좁힌 것이 중요하다.** 시트 종목으로 잰 것과
-시가총액 종목으로 잰 것은 서로 다른 측정이다. 하나를 넣을 때 다른 하나가
-사라지면 안 된다.
+**국면이 열쇠에 들어간 이유가 있다.** 한 번 계산하면 전체와 상승·조정·하락
+넷이 나온다. 국면을 값으로만 두면 넷이 한 줄을 두고 서로를 덮어쓴다.
+
+**날짜로 지우지 않는다.** 전에는 (잰날, 매매대상, 실거래)로 그날 것을 통째로
+지우고 새로 넣었다. 그러면 화면에서 조건 하나만 골라 다시 재는 순간 같은 날
+잰 나머지 조건이 전부 사라진다. 화면에서 조건을 바꿔 가며 쌓아 나가는 것이
+이 표의 쓰임이므로, 지우는 범위가 딱 그 조건이어야 한다.
+
+**같은 조건의 옛 측정은 안 남는다.** 남기려면 잰날까지 열쇠에 넣어야 하는데,
+그러면 날마다 재는 조건이 계속 늘어나 상태 DB가 커진다. 그때그때의 순위는
+`strategy_rank`가 날짜별로 따로 남긴다.
 """
 
 from __future__ import annotations
@@ -30,7 +38,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from muwon.analysis import window_perf as ㅇ
@@ -45,25 +53,55 @@ def 쌓기(
     매매대상: str,
     실거래: bool = False,
 ) -> int:
-    """측정 결과를 `window_perf`에 넣는다. 같은 날 같은 조건은 갈아 끼운다."""
-    session.execute(
-        delete(WindowPerfRow).where(
-            WindowPerfRow.잰날 == 잰날,
-            WindowPerfRow.매매대상 == 매매대상,
-            WindowPerfRow.실거래 == 실거래,
-        )
-    )
+    """측정 결과를 `window_perf`에 넣는다. 같은 조건은 그 줄만 갈아 끼운다.
+
+    **날짜로 지우지 않는다.** 그날 잰 것을 통째로 지우면, 화면에서 조건
+    하나만 골라 다시 재는 순간 같은 날 잰 나머지 조건이 전부 사라진다."""
+    _국면빈칸채우기(session)
     for ㄱ in 잰것들:
+        session.execute(
+            delete(WindowPerfRow).where(
+                WindowPerfRow.매매대상 == 매매대상,
+                WindowPerfRow.실거래 == 실거래,
+                WindowPerfRow.전략 == ㄱ.전략,
+                WindowPerfRow.상한 == ㄱ.상한,
+                WindowPerfRow.슬리피지 == ㄱ.슬리피지,
+                WindowPerfRow.시작일 == ㄱ.시작일,
+                WindowPerfRow.국면 == ㄱ.국면,
+            )
+        )
         session.add(_줄로(ㄱ, 잰날=잰날, 매매대상=매매대상, 실거래=실거래))
     session.commit()
     return len(잰것들)
+
+
+def _국면빈칸채우기(session: Session) -> int:
+    """국면 칸이 비어 있는 옛 줄을 "전체"로 채운다.
+
+    **이걸 안 하면 같은 조건이 두 줄이 된다.** 국면을 나누기 전에 쌓은 줄은
+    이 칸이 NULL이다. SQL에서 NULL은 "전체"와 같지 않으므로 갈아 끼우는
+    조건에 안 걸리고, 새 줄이 그 옆에 하나 더 생긴다. 그러면 표에 같은
+    전략이 두 번 뜨고 순위도 두 자리를 차지한다.
+
+    실제로 그랬다. 국면을 붙인 첫 실행 뒤 전체 국면 표에 같은 전략이 두 번
+    나왔다.
+
+    한 번 채우고 나면 그다음부터는 아무것도 안 한다."""
+    바뀐것 = session.execute(
+        update(WindowPerfRow)
+        .where(WindowPerfRow.국면.is_(None))
+        .values(국면="전체")
+    ).rowcount
+    if 바뀐것:
+        session.commit()
+    return 바뀐것 or 0
 
 
 def _줄로(ㄱ: ㅇ.잰것, *, 잰날: date, 매매대상: str, 실거래: bool) -> WindowPerfRow:
     ㅂ = ㄱ.매매.갈래비율 or {}
     return WindowPerfRow(
         잰날=잰날, 전략=ㄱ.전략, 상한=ㄱ.상한, 슬리피지=ㄱ.슬리피지,
-        매매대상=매매대상, 종목수=ㄱ.종목수, 실거래=실거래,
+        매매대상=매매대상, 종목수=ㄱ.종목수, 실거래=실거래, 국면=ㄱ.국면,
         시작일=ㄱ.시작일, 끝일=ㄱ.끝일,
         구간수=ㄱ.구간.구간수,
         연환산=ㄱ.구간.연환산, 기하평균=ㄱ.구간.기하평균,
@@ -117,11 +155,16 @@ def 잰것으로(줄: WindowPerfRow) -> ㅇ.잰것:
             미청산수=줄.미청산수,
         ),
         누적수익률=줄.누적수익률, 최대낙폭=줄.최대낙폭, 종목수=줄.종목수,
+        # 국면을 안 나누던 판에 쌓인 줄은 NULL이다. 그것은 전체로 잰 것이다.
+        국면=줄.국면 or "전체",
     )
 
 
 def 잰날들(session: Session, 매매대상: str = "", 실거래: bool = False) -> list[date]:
-    """측정한 날을 최근 것부터. 화면에서 어느 측정을 볼지 고르는 데 쓴다."""
+    """쌓인 줄들이 언제 잰 것인가. 최근 것부터.
+
+    조건마다 잰 날이 다를 수 있다. 화면이 "이 표는 언제 계산한 것인가"를
+    적는 데 쓴다."""
     ㅁ = select(WindowPerfRow.잰날).where(WindowPerfRow.실거래 == 실거래)
     if 매매대상:
         ㅁ = ㅁ.where(WindowPerfRow.매매대상 == 매매대상)
@@ -131,33 +174,42 @@ def 잰날들(session: Session, 매매대상: str = "", 실거래: bool = False)
 def 읽기(
     session: Session,
     *,
-    잰날: date | None = None,
     매매대상: str = "",
     상한: int | None = None,
     슬리피지: float | None = None,
+    시작일: date | None = None,
+    국면: str | None = None,
     실거래: bool = False,
 ) -> list[ㅇ.잰것]:
-    """조건에 맞는 줄을 `잰것`으로 읽는다. 잰날을 비우면 가장 최근 측정이다.
+    """조건에 맞는 줄을 `잰것`으로 읽는다. 비운 조건은 안 거른다.
 
-    **가장 최근 측정을 매매대상마다 따로 고른다.** 시트로 잰 날과 시가총액으로
-    잰 날이 다를 수 있다. 전체에서 가장 최근 날짜 하나를 골라 두 목록에 같이
-    쓰면 한쪽이 통째로 빈다."""
-    if 잰날 is None:
-        날들 = 잰날들(session, 매매대상=매매대상, 실거래=실거래)
-        if not 날들:
-            return []
-        잰날 = 날들[0]
-
-    ㅁ = select(WindowPerfRow).where(
-        WindowPerfRow.잰날 == 잰날, WindowPerfRow.실거래 == 실거래
-    )
+    **잰 날로 거르지 않는다.** 조건마다 잰 날이 다르다. 화면에서 조건을
+    바꿔 가며 하나씩 재기 때문이다. 날짜로 거르면 어제 잰 조건이 오늘
+    화면에서 사라진다."""
+    ㅁ = select(WindowPerfRow).where(WindowPerfRow.실거래 == 실거래)
     if 매매대상:
         ㅁ = ㅁ.where(WindowPerfRow.매매대상 == 매매대상)
     if 상한 is not None:
         ㅁ = ㅁ.where(WindowPerfRow.상한 == 상한)
     if 슬리피지 is not None:
         ㅁ = ㅁ.where(WindowPerfRow.슬리피지 == 슬리피지)
+    if 시작일 is not None:
+        ㅁ = ㅁ.where(WindowPerfRow.시작일 == 시작일)
+    if 국면 is not None:
+        ㅁ = ㅁ.where(WindowPerfRow.국면 == 국면)
     return [잰것으로(ㄱ) for ㄱ in session.scalars(ㅁ)]
+
+
+def 잰조건들(session: Session, 실거래: bool = False) -> list[tuple]:
+    """무엇을 이미 재 두었나. (매매대상, 시작일, 상한, 슬리피지)를 돌려준다.
+
+    **화면이 "이 조건은 아직 계산하지 않았습니다"를 말하려면 이 목록이
+    필요하다.** 없는 것을 빈 표로 그리면 "계산했는데 결과가 없다"로 읽힌다."""
+    ㅁ = select(
+        WindowPerfRow.매매대상, WindowPerfRow.시작일,
+        WindowPerfRow.상한, WindowPerfRow.슬리피지,
+    ).where(WindowPerfRow.실거래 == 실거래).distinct()
+    return sorted(session.execute(ㅁ).all())
 
 
 # ── 매매 하나하나 ───────────────────────────────────────────────

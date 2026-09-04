@@ -38,6 +38,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from muwon.analysis import market_regime as ㄲ
 from muwon.analysis import window_perf as ㅇ
 from muwon.analysis.market_data import load_histories
 from muwon.analysis.period_check import 검증용정책
@@ -46,7 +47,7 @@ from muwon.backtest.costs import TransactionCosts
 from muwon.backtest.engine import BacktestEngine
 from muwon.config import bootstrap_settings
 from muwon.data.price_cache import PriceCache
-from muwon.data.universe import UNIVERSE
+from muwon.data.universe import UNIVERSE, Ticker
 from muwon.data.universe_builder import KIND_MARKET_CAP, active_universe
 from muwon.data.yahoo_client import YahooFinanceDataSource
 from muwon.db.session import make_session_factory
@@ -66,6 +67,9 @@ from muwon.strategy.registry import (
 
 #: 기본 시작일. 이 앞은 시세가 고르지 않다.
 기본시작 = date(2021, 1, 4)
+
+#: 시장 국면을 가르는 데 쓰는 지수. 코스피 하나만 본다.
+코스피심볼 = "^KS11"
 
 
 def 인자읽기() -> argparse.Namespace:
@@ -130,12 +134,49 @@ def 매매대상고르기(인자, session_factory, sheet_id: str):
     return 목록, "sheet", "실거래 시트"
 
 
+def 국면표만들기(시작: date, 끝: date, 인자) -> dict:
+    """날짜마다 그날 코스피가 어떤 국면이었는지. 못 받으면 빈 표다.
+
+    **못 받았다고 측정을 멈추지 않는다.** 국면별로 못 나눌 뿐이고 전체
+    숫자는 그대로 쓸 수 있다. 대신 못 받았다는 것을 반드시 찍는다. 조용히
+    넘기면 국면 표가 빈 화면을 "그 국면에 구간이 없었다"로 읽는다."""
+    try:
+        시세 = load_histories(
+            YahooFinanceDataSource(),
+            [Ticker(symbol="KOSPI", name="코스피", market="KOSPI",
+                    yahoo_symbol=코스피심볼)],
+            시작, 끝, cache=None if 인자.no_cache else PriceCache(),
+        ).get("KOSPI")
+        이름들 = ㄲ.국면나누기(시세)
+    except Exception as 탈:  # noqa: BLE001
+        print(f"::warning::코스피를 못 받아 국면별로 나누지 못합니다: {탈}")
+        return {}
+
+    표 = {}
+    for 날, 값 in 이름들.items():
+        if 값 is not None:
+            표[날.date() if hasattr(날, "date") else 날] = 값
+    if not 표:
+        print("::warning::코스피 자료가 모자라 국면을 판정하지 못했습니다.")
+        return {}
+
+    센것 = {ㅈ: sum(1 for ㅂ in 표.values() if ㅂ == ㅈ) for ㅈ in ㄲ.국면들}
+    이제, 값 = ㄲ.지금국면(시세)
+    print(f"■ 시장 국면 {센것} · {ㄲ.국면글(이제, 값)}")
+    return 표
+
+
 def 한번재기(
     전략키: str, 상한: int, 슬리피지: float, histories, 정책,
     시작: date, 끝: date, 예수금: float, 매매대상: str, 잰날: date,
-    종목수: int = 0,
-) -> ㅇ.잰것:
+    종목수: int = 0, 국면표: dict | None = None,
+) -> list[ㅇ.잰것]:
     """전략 하나를 상한 하나, 슬리피지 하나로 실행하고 값을 뽑는다.
+
+    **한 번 실행해서 넷을 낸다.** 전체와 상승·조정·하락이다. 백테스트를
+    네 번 돌리는 것이 아니라, 한 번 돌린 결과의 구간과 매매를 국면으로
+    나눠 각각 집계한다. 국면 구간은 띄엄띄엄 떨어져 있어서 따로 이어
+    굴릴 수가 없다.
 
     **전략 객체를 실행마다 새로 만든다.** 전략이 예열 결과를 안에 들고
     있어서, 같은 객체를 여러 번 쓰면 앞 실행의 자료가 남는다."""
@@ -149,8 +190,8 @@ def 한번재기(
         initial_cash=예수금,
     ).run(histories, trade_from=시작)
 
-    안겹친것 = ㅇ.구간재기(
-        ㅇ.구간나누기(결과.equity_curve, 상한, 겹치게=False), 상한, 겹침=False)
+    안겹친구간 = ㅇ.구간나누기(결과.equity_curve, 상한, 겹치게=False)
+    안겹친것 = ㅇ.구간재기(안겹친구간, 상한, 겹침=False)
     겹친것 = ㅇ.구간재기(
         ㅇ.구간나누기(결과.equity_curve, 상한, 겹치게=True), 상한, 겹침=True)
 
@@ -167,13 +208,35 @@ def 한번재기(
             if 꼭지 > 0:
                 낙폭 = min(낙폭, (ㄱ - 꼭지) / 꼭지 * 100)
 
-    return ㅇ.잰것(
-        전략=전략키, 상한=상한, 슬리피지=슬리피지, 매매대상=매매대상,
-        시작일=시작, 끝일=끝, 잰날=잰날,
+    공통 = {
+        "전략": 전략키, "상한": 상한, "슬리피지": 슬리피지,
+        "매매대상": 매매대상, "시작일": 시작, "끝일": 끝, "잰날": 잰날,
+        "종목수": 종목수,
+    }
+    나온것 = [ㅇ.잰것(
+        **공통, 국면=ㄲ.전체,
         구간=안겹친것, 겹친구간=겹친것,
         매매=ㅇ.매매재기(결과.closed_trades, 미청산수=len(결과.final_positions)),
-        누적수익률=누적, 최대낙폭=낙폭, 종목수=종목수,
-    )
+        누적수익률=누적, 최대낙폭=낙폭,
+    )]
+
+    if not 국면표:
+        return 나온것
+
+    for 국면 in ㄲ.국면들:
+        고른구간 = ㅇ.국면고르기(안겹친구간, 국면표, 국면)
+        고른매매 = ㅇ.국면매매(결과.closed_trades, 국면표, 국면)
+        나온것.append(ㅇ.잰것(
+            **공통, 국면=국면,
+            구간=ㅇ.구간재기(고른구간, 상한, 겹침=False),
+            # 겹친 구간은 그림용이라 국면별로는 안 만든다.
+            겹친구간=None,
+            매매=ㅇ.매매재기(고른매매),
+            # **누적 수익률과 최대낙폭은 비운다.** 국면 구간이 띄엄띄엄
+            # 떨어져 있어서 이어 붙이면 없던 매매를 만든 셈이 된다.
+            누적수익률=None, 최대낙폭=None,
+        ))
+    return 나온것
 
 
 def _구간칸(ㄱ: ㅇ.구간성적 | None) -> dict | None:
@@ -200,7 +263,7 @@ def 줄로(ㄱ: ㅇ.잰것) -> dict:
         이름 = ㄱ.전략
     return {
         "전략": ㄱ.전략, "이름": 이름, "상한": ㄱ.상한, "슬리피지": ㄱ.슬리피지,
-        "매매대상": ㄱ.매매대상, "종목수": ㄱ.종목수,
+        "매매대상": ㄱ.매매대상, "종목수": ㄱ.종목수, "국면": ㄱ.국면,
         "시작일": ㄱ.시작일.isoformat(), "끝일": ㄱ.끝일.isoformat(),
         "구간": _구간칸(ㄱ.구간), "겹친구간": _구간칸(ㄱ.겹친구간),
         "매매": {
@@ -247,7 +310,10 @@ def main() -> int:
     if not histories:
         print("::error::시세를 하나도 못 받았습니다.")
         return 1
-    print(f"■ 시세 {len(histories)}종목\n")
+    print(f"■ 시세 {len(histories)}종목")
+
+    국면표 = 국면표만들기(시작 - timedelta(days=예열일수), 끝, 인자)
+    print()
 
     줄들 = []
     못한것 = []
@@ -256,15 +322,17 @@ def main() -> int:
         for 상한 in 상한들:
             for 슬립 in 슬리피지들:
                 try:
-                    ㄱ = 한번재기(키, 상한, 슬립, histories, 정책, 시작, 끝,
-                               인자.예수금, 대상열쇠, 잰날, len(매매대상))
+                    잰것들 = 한번재기(키, 상한, 슬립, histories, 정책, 시작, 끝,
+                                  인자.예수금, 대상열쇠, 잰날, len(매매대상),
+                                  국면표)
                 except Exception as 탈:  # noqa: BLE001
                     # 하나가 죽었다고 나머지를 버리지 않는다. 대신 조용히
                     # 넘기지 않고 못한 것으로 남겨 마지막에 출력한다.
                     못한것.append(f"{키} 상한{상한} 슬립{슬립}: {탈}")
                     continue
-                줄들.append(줄로(ㄱ))
-        마침 = next((ㄹ for ㄹ in 줄들[::-1] if ㄹ["전략"] == 키), None)
+                줄들.extend(줄로(ㄱ) for ㄱ in 잰것들)
+        마침 = next((ㄹ for ㄹ in 줄들[::-1]
+                   if ㄹ["전략"] == 키 and ㄹ.get("국면", ㄲ.전체) == ㄲ.전체), None)
         if 마침:
             연 = 마침["구간"]["연환산"] if 마침["구간"] else None
             print(f"  {마침['이름']:24} 마지막 상한 연환산 "
