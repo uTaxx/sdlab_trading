@@ -88,6 +88,12 @@ def test_쉬운_설명에_숫자를_안_박는다(정의):
     for 이름 in sorted([ㄷ.화면이름 for ㄷ in REGISTRY], key=len, reverse=True):
         남은 = 남은.replace(이름, "")
 
+    # 정의에 적힌 익절선도 빼고 본다. 그 값으로 문장을 만들기 때문에
+    # (`registry._익절설명`) 손으로 적은 숫자와 달리 어긋날 수 없다.
+    # 값을 고치면 문장이 같이 바뀐다.
+    if 정의.익절:
+        남은 = 남은.replace(f"{정의.익절 * 100:g}%", "")
+
     assert not re.search(r"\d+\s*(일|배|%|퍼센트)", 남은), 남은
 
 

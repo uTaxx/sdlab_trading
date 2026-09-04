@@ -173,13 +173,30 @@ def test_둘_다_0이면_익절을_안_건다():
     assert 익절기준(전략, RiskPolicy(take_profit_pct=0.0)) == 0.0
 
 
-def test_등록된_전략은_아직_익절선을_정하지_않았다():
-    """지금은 전부 0이다. 그래서 이 변경만으로는 동작이 달라지지 않는다.
-    누군가 값을 넣으면 이 시험이 그 사실을 알려 준다."""
+def test_익절선을_정한_전략이_어느_것인지_고정한다():
+    """2026-09-04까지는 하나도 없었다. 그날 익절선만 다른 여섯을 등록했다.
+
+    익절선은 실제 매매 규칙을 바꾼다. 목록을 여기에 적어 두면, 값이 늘거나
+    줄 때 그것이 의도한 변경인지 한 번 묻게 된다."""
     from muwon.strategy.registry import list_definitions
 
-    정한것 = [d.key for d in list_definitions() if d.익절]
-    assert 정한것 == [], f"익절선을 정한 전략이 생겼습니다: {정한것}"
+    정한것 = {d.key: d.익절 for d in list_definitions() if d.익절}
+    assert 정한것 == {
+        "volume_surge_3d_tp5": 0.05,
+        "volume_surge_3d_tp8": 0.08,
+        "volume_surge_3d_tp12": 0.12,
+        "gap_up_go_tp5": 0.05,
+        "gap_up_go_tp8": 0.08,
+        "gap_up_go_tp12": 0.12,
+    }, 정한것
+
+
+def test_익절선을_정한_전략의_대조군은_익절선이_없다():
+    """대조군에 익절선이 붙으면 무엇 때문에 달라졌는지 알 수 없다."""
+    from muwon.strategy.registry import get_definition
+
+    for 키 in ("volume_surge_3d", "gap_up_go"):
+        assert get_definition(키).익절 == 0.0, 키
 
 
 def test_정의에_적은_익절선이_전략_객체에_붙는다():
@@ -189,6 +206,79 @@ def test_정의에_적은_익절선이_전략_객체에_붙는다():
         assert getattr(build_strategy("gap_up_go"), "take_profit_pct", 0.0) == 0.07
     finally:
         object.__setattr__(정의, "익절", 0.0)
+
+
+# ── 껍데기가 익절선을 삼키지 않는가 (2026-09-04) ──────────────────
+#
+# 여기가 비어 있어서 익절선이 조용히 사라졌다. 정의에 적은 값이 전략 객체에
+# 붙는 것까지만 시험하고, 그 객체가 엔진에 들어가는 길은 안 봤다.
+#
+# 두 엔진 다 단일 종목 전략을 `SingleSymbolAdapter`로 감싸서 쓴다. 그
+# 껍데기가 보유 상한은 옮겨 오고 익절선은 안 옮겼다. 그래서 익절선을 5%로
+# 걸든 12%로 걸든 매매가 똑같이 나왔다. 아무것도 빨개지지 않았다.
+
+
+class 첫날사는단일전략:
+    """PortfolioStrategy가 아닌 옛 방식 전략. 껍데기를 거쳐 엔진에 들어간다."""
+
+    def __init__(self, 이름, 익절=0.0, 보유일=None):
+        self.name = 이름
+        self.take_profit_pct = 익절
+        self.max_holding_days = 보유일
+
+    def generate_signals(self, symbol, df):
+        from muwon.domain.types import Signal, SignalType
+
+        날 = df["trade_date"].iloc[0]
+        return [Signal(symbol, 날, SignalType.BUY, self.name, score=1.0, reason="시험 매수")]
+
+
+def test_껍데기가_익절선을_그대로_넘긴다():
+    from muwon.strategy.portfolio import as_portfolio_strategy
+
+    껍데기 = as_portfolio_strategy(첫날사는단일전략("시험", 익절=0.07))
+    assert 껍데기.take_profit_pct == 0.07
+    assert 익절기준(껍데기, RiskPolicy(take_profit_pct=0.0)) == 0.07
+
+
+def test_백테스트에서_전략의_익절선이_실제로_걸린다():
+    """붙어 있는 것만으로는 모자란다. 매매가 익절로 끝나야 한다."""
+    from tests.price_series import make_price_df
+
+    # 첫날 100에 사고 그다음 계속 오른다. 익절선 5%는 105에서 걸린다.
+    시세 = {"000001": make_price_df([100.0, 102.0, 104.0, 106.0, 108.0, 110.0])}
+    날들 = list(시세["000001"]["trade_date"])
+
+    def 돌리기(익절):
+        return BacktestEngine(
+            strategy=첫날사는단일전략("시험", 익절=익절),
+            risk_manager=RiskManager(policy_provider=lambda: RiskPolicy()),
+        ).run(시세, trade_from=날들[0])
+
+    걸린것 = 돌리기(0.05)
+    assert 걸린것.closed_trades, "익절선을 걸었으면 팔려야 한다"
+    assert "익절" in 걸린것.closed_trades[0].exit_reason
+
+    안건것 = 돌리기(0.0)
+    assert not 안건것.closed_trades, "익절선이 없으면 이 시세에서는 안 팔린다"
+
+
+def test_익절선이_다르면_판_가격도_다르다():
+    """5%와 12%가 같은 값에 팔리면 익절선이 안 걸린 것이다. 실제로 그랬다."""
+    from tests.price_series import make_price_df
+
+    시세 = {"000001": make_price_df([100.0, 103.0, 106.0, 109.0, 112.0, 115.0, 118.0])}
+    날들 = list(시세["000001"]["trade_date"])
+
+    def 판값(익절):
+        결과 = BacktestEngine(
+            strategy=첫날사는단일전략("시험", 익절=익절),
+            risk_manager=RiskManager(policy_provider=lambda: RiskPolicy()),
+        ).run(시세, trade_from=날들[0])
+        assert 결과.closed_trades, f"익절 {익절}에서 안 팔렸습니다"
+        return 결과.closed_trades[0].exit_price
+
+    assert 판값(0.05) < 판값(0.12)
 
 
 # ── 백테스트 엔진 ────────────────────────────────────────────────

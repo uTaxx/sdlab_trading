@@ -124,6 +124,22 @@ class StrategyDefinition:
         return self.짧은이름 or self.display_name
 
 
+def _익절설명(앞: str, 익절: float) -> str:
+    """익절선을 더한 전략의 쉬운 설명을 만든다.
+
+    **숫자를 손으로 적지 않는다.** `익절=0.05`를 고치면 문장도 같이 바뀐다.
+    손으로 적으면 값을 바꿨을 때 화면만 옛 숫자를 말하게 된다.
+    """
+    return f"{앞} 그리고 사고 나서 {익절 * 100:g}% 오르면 바로 팝니다."
+
+
+_익절참고 = (
+    "익절선은 크게 오르는 종목을 일찍 팔게 만들어 수익을 깎을 수 있습니다. "
+    "대신 결과가 고르게 나오고 오래 들고 있는 일이 줄어듭니다. 익절선이 없는 "
+    "원래 전략과 나란히 놓고 보아야 판단할 수 있습니다."
+)
+
+
 REGISTRY: list[StrategyDefinition] = [
     # ── 복합: 이동평균 추세 + RSI 반등을 한 전략에 섞은 것 (이 프로젝트의 출발점) ──
     StrategyDefinition(
@@ -658,6 +674,129 @@ REGISTRY: list[StrategyDefinition] = [
         쉬운참고=(
             "미국 업종 흐름은 하루 늦게 봅니다. 미국 시세를 못 받는 날은 아무것도 사지 않습니다."
         ),
+    ),
+    # ── 익절선을 둔 것 (2026-09-04) ───────────────────────────
+    #
+    # ## 왜 만들었나
+    #
+    # 보유 상한별 측정에서 드러났다. **등록된 전략 29개 중 익절이나
+    # 트레일링으로 끝난 매매가 한 건도 없다.** 청산은 손절(45~66%),
+    # 매도신호, 기간만료 셋뿐이다. 이익을 실현하는 규칙을 아무도 안 갖고
+    # 있다는 뜻이다.
+    #
+    # 그 결과가 숫자로 보인다. 매도신호 비율이 0%인 전략들은 평균 보유가
+    # 17~19일로 20일 상한에 붙어 있고 기간 만료가 35~42%다. 전략이 판단해서
+    # 판 것이 아니라 기간이 다 되어 팔린 것이다.
+    #
+    # ## 무엇을 시험하나
+    #
+    # 익절선 하나만 더한다. 진입 규칙은 원래 전략 그대로다. 그래야 좋아지거나
+    # 나빠진 것을 익절 탓으로 읽을 수 있다.
+    #
+    # 손절이 -5%이므로 목표를 손절의 1배·1.6배·2.4배로 둔다. 세 값을 미리
+    # 정해 두고 그중 좋은 것을 고르지 않는다. **셋을 다 보고하고, 원래
+    # 전략(익절 없음)이 대조군이다.**
+    #
+    # ## 무엇이 나빠질 수 있나
+    #
+    # 익절은 오르는 구간에서 수익을 깎는다. 크게 오르는 종목을 일찍 팔기
+    # 때문이다. 그래서 연환산이 내려갈 수 있다. 대신 구간 수익률의 흔들림과
+    # 기간 만료 비율은 줄 것으로 본다. 어느 쪽이 나은지는 재 보고 정한다.
+    StrategyDefinition(
+        key="volume_surge_3d_tp5",
+        짧은이름="거래량 급증 3일 + 익절 5%",
+        display_name="거래량 급증 3일 (익절 +5%)",
+        description=(
+            "거래량 급증 3일의 진입과 매도 규칙은 그대로 두고 익절선 +5%만 더한 것. "
+            "익절이 짧은 매매에 도움이 되는지 보려고 만들었다. 대조군은 익절선이 "
+            "없는 원래 전략이다."
+        ),
+        factory=lambda: VolumeSurgeStrategy(
+                VolumeSurgeParams(volume_surge_ratio=3.0, holding_days=3),
+                name="volume_surge_3d_tp5"),
+        category=CATEGORY_BREAKOUT,
+        익절=0.05,
+        쉬운설명=_익절설명("거래량이 훨씬 크게 늘어난 날 사는 규칙은 그대로 둡니다.", 0.05),
+        쉬운참고=_익절참고,
+    ),
+    StrategyDefinition(
+        key="volume_surge_3d_tp8",
+        짧은이름="거래량 급증 3일 + 익절 8%",
+        display_name="거래량 급증 3일 (익절 +8%)",
+        description=(
+            "거래량 급증 3일의 진입과 매도 규칙은 그대로 두고 익절선 +8%만 더한 것. "
+            "익절이 짧은 매매에 도움이 되는지 보려고 만들었다. 대조군은 익절선이 "
+            "없는 원래 전략이다."
+        ),
+        factory=lambda: VolumeSurgeStrategy(
+                VolumeSurgeParams(volume_surge_ratio=3.0, holding_days=3),
+                name="volume_surge_3d_tp8"),
+        category=CATEGORY_BREAKOUT,
+        익절=0.08,
+        쉬운설명=_익절설명("거래량이 훨씬 크게 늘어난 날 사는 규칙은 그대로 둡니다.", 0.08),
+        쉬운참고=_익절참고,
+    ),
+    StrategyDefinition(
+        key="volume_surge_3d_tp12",
+        짧은이름="거래량 급증 3일 + 익절 12%",
+        display_name="거래량 급증 3일 (익절 +12%)",
+        description=(
+            "거래량 급증 3일의 진입과 매도 규칙은 그대로 두고 익절선 +12%만 더한 것. "
+            "익절이 짧은 매매에 도움이 되는지 보려고 만들었다. 대조군은 익절선이 "
+            "없는 원래 전략이다."
+        ),
+        factory=lambda: VolumeSurgeStrategy(
+                VolumeSurgeParams(volume_surge_ratio=3.0, holding_days=3),
+                name="volume_surge_3d_tp12"),
+        category=CATEGORY_BREAKOUT,
+        익절=0.12,
+        쉬운설명=_익절설명("거래량이 훨씬 크게 늘어난 날 사는 규칙은 그대로 둡니다.", 0.12),
+        쉬운참고=_익절참고,
+    ),
+    StrategyDefinition(
+        key="gap_up_go_tp5",
+        짧은이름="갭 상승 따라가기 + 익절 5%",
+        display_name="갭 상승 따라가기 (익절 +5%)",
+        description=(
+            "갭 상승 따라가기의 진입과 매도 규칙은 그대로 두고 익절선 +5%만 더한 것. "
+            "익절이 짧은 매매에 도움이 되는지 보려고 만들었다. 대조군은 익절선이 "
+            "없는 원래 전략이다."
+        ),
+        factory=lambda: GapStrategy(GapParams(direction="up"), name="gap_up_go_tp5"),
+        category=CATEGORY_BREAKOUT,
+        익절=0.05,
+        쉬운설명=_익절설명("전날보다 훨씬 높은 가격으로 장이 시작한 날 사는 규칙은 그대로 둡니다.", 0.05),
+        쉬운참고=_익절참고,
+    ),
+    StrategyDefinition(
+        key="gap_up_go_tp8",
+        짧은이름="갭 상승 따라가기 + 익절 8%",
+        display_name="갭 상승 따라가기 (익절 +8%)",
+        description=(
+            "갭 상승 따라가기의 진입과 매도 규칙은 그대로 두고 익절선 +8%만 더한 것. "
+            "익절이 짧은 매매에 도움이 되는지 보려고 만들었다. 대조군은 익절선이 "
+            "없는 원래 전략이다."
+        ),
+        factory=lambda: GapStrategy(GapParams(direction="up"), name="gap_up_go_tp8"),
+        category=CATEGORY_BREAKOUT,
+        익절=0.08,
+        쉬운설명=_익절설명("전날보다 훨씬 높은 가격으로 장이 시작한 날 사는 규칙은 그대로 둡니다.", 0.08),
+        쉬운참고=_익절참고,
+    ),
+    StrategyDefinition(
+        key="gap_up_go_tp12",
+        짧은이름="갭 상승 따라가기 + 익절 12%",
+        display_name="갭 상승 따라가기 (익절 +12%)",
+        description=(
+            "갭 상승 따라가기의 진입과 매도 규칙은 그대로 두고 익절선 +12%만 더한 것. "
+            "익절이 짧은 매매에 도움이 되는지 보려고 만들었다. 대조군은 익절선이 "
+            "없는 원래 전략이다."
+        ),
+        factory=lambda: GapStrategy(GapParams(direction="up"), name="gap_up_go_tp12"),
+        category=CATEGORY_BREAKOUT,
+        익절=0.12,
+        쉬운설명=_익절설명("전날보다 훨씬 높은 가격으로 장이 시작한 날 사는 규칙은 그대로 둡니다.", 0.12),
+        쉬운참고=_익절참고,
     ),
 ]
 

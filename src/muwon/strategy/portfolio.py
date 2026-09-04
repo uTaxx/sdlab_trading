@@ -106,6 +106,17 @@ class SingleSymbolAdapter(PortfolioStrategy):
         self._strategy = strategy
         self.name = strategy.name
         self.max_holding_days = getattr(strategy, "max_holding_days", None)
+        # 익절선도 같이 넘긴다. 안 넘기면 조용히 사라진다 (2026-09-04에 고침).
+        #
+        # 두 엔진 다 청산을 판단할 때 이 껍데기에게 묻는다
+        # (`risk/exits.익절기준`). 그런데 보유 상한만 옮겨 오고 익절선은
+        # 안 옮겨서, 전략에 익절선을 걸어도 매매가 달라지지 않았다.
+        # 아무것도 빨개지지 않았다. 익절선을 정한 전략이 하나도 없던
+        # 동안에는 값이 0으로 같아서 차이가 안 났기 때문이다.
+        #
+        # 여섯을 등록하고 처음 계산했더니 대조군과 숫자가 소수점까지
+        # 똑같이 나와서 알았다.
+        self.take_profit_pct = float(getattr(strategy, "take_profit_pct", 0.0) or 0.0)
 
     @property
     def inner(self) -> Strategy:
