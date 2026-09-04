@@ -333,3 +333,225 @@ class StrategyShadowRow(Base):
         DateTime, default=datetime.utcnow, index=True
     )
     바뀐때: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WindowPerfRow(Base):
+    """보유 상한 하나로 전략을 한 번 재고 남기는 요약 한 줄.
+
+    ## 왜 구간을 하나하나 안 담나
+
+    설계안 §6은 구간마다 한 줄씩 남긴다고 적었다. 실제로 세어 보니 한 번
+    측정에 10만 줄이 넘는다(전략 29개 × 상한 6개 × 슬리피지 3벌). 상태 DB는
+    구글드라이브의 파일 하나이고 워크플로가 실행마다 통째로 내려받는다.
+    매일 재면 09:05 매수가 점점 느려진다.
+
+    그래서 여기에는 조건 하나당 요약 한 줄만 남긴다. 한 번에 522줄이다.
+    구간을 하나하나 그리는 그림은 측정이 내놓는 JSON 파일을 쓴다.
+
+    ## 백테스트와 실거래가 같은 표에 들어간다
+
+    `실거래` 칸 하나로만 가른다. 같은 잣대로 나란히 놓아야 "예상보다 얼마나
+    못한가"를 볼 수 있다.
+
+    ## 못 잰 값을 0으로 채우지 않는다
+
+    수익률 칸이 전부 nullable이다. 한 구간이라도 -100%면 기하평균이 정의되지
+    않는다. 그것을 0으로 두면 잃지도 벌지도 않은 전략과 같은 자리에 선다.
+    """
+
+    __tablename__ = "window_perf"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    잰날: Mapped[date] = mapped_column(Date, index=True)
+    전략: Mapped[str] = mapped_column(String(50), index=True)
+    #: 보유 상한(영업일). 구간 길이도 이 값과 같게 맞춘다.
+    상한: Mapped[int] = mapped_column(Integer, index=True)
+    #: 0.001이 0.1%다.
+    슬리피지: Mapped[float] = mapped_column(Float, default=0.0)
+    #: "sheet"(실거래 시트 종목) / "market_cap"(시가총액 상위). 목록이 다르면
+    #: 같은 전략도 다른 숫자가 나온다. 조건 없는 숫자는 나중에 못 읽는다.
+    매매대상: Mapped[str] = mapped_column(String(20), default="", index=True)
+    종목수: Mapped[int] = mapped_column(Integer, default=0)
+    시작일: Mapped[date | None] = mapped_column(Date, nullable=True)
+    끝일: Mapped[date | None] = mapped_column(Date, nullable=True)
+    #: 백테스트면 False, 실제 계좌 기록에서 잰 것이면 True.
+    실거래: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+    # ── 구간 분포 (겹치지 않는 구간에서 낸다) ──
+    구간수: Mapped[int] = mapped_column(Integer, default=0)
+    연환산: Mapped[float | None] = mapped_column(Float, nullable=True)
+    기하평균: Mapped[float | None] = mapped_column(Float, nullable=True)
+    산술평균: Mapped[float | None] = mapped_column(Float, nullable=True)
+    중앙값: Mapped[float | None] = mapped_column(Float, nullable=True)
+    플러스비율: Mapped[float | None] = mapped_column(Float, nullable=True)
+    하위10: Mapped[float | None] = mapped_column(Float, nullable=True)
+    하위25: Mapped[float | None] = mapped_column(Float, nullable=True)
+    최악구간: Mapped[float | None] = mapped_column(Float, nullable=True)
+    최고구간: Mapped[float | None] = mapped_column(Float, nullable=True)
+    구간흔들림: Mapped[float | None] = mapped_column(Float, nullable=True)
+    하락대비수익: Mapped[float | None] = mapped_column(Float, nullable=True)
+    구간낙폭중앙값: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # ── 매매 분포 ──
+    매매수: Mapped[int] = mapped_column(Integer, default=0)
+    승률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    손익비: Mapped[float | None] = mapped_column(Float, nullable=True)
+    기대수익: Mapped[float | None] = mapped_column(Float, nullable=True)
+    매매중앙값: Mapped[float | None] = mapped_column(Float, nullable=True)
+    평균보유일수: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 상한에 걸려 끝난 매매의 비율. 이 값이 절반을 넘으면 그 전략은 이
+    #: 상한 안에 답이 나오지 않는다는 뜻이다.
+    기간만료비율: Mapped[float | None] = mapped_column(Float, nullable=True)
+    손절비율: Mapped[float | None] = mapped_column(Float, nullable=True)
+    익절비율: Mapped[float | None] = mapped_column(Float, nullable=True)
+    매도신호비율: Mapped[float | None] = mapped_column(Float, nullable=True)
+    트레일링비율: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 끝날까지 안 판 종목 수. 이 매매들은 위 분포에 안 들어간다.
+    미청산수: Mapped[int] = mapped_column(Integer, default=0)
+
+    # ── 전 기간 연속 운용 ──
+    누적수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    최대낙폭: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    만든때: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
+
+
+class TradePerfRow(Base):
+    """매매 하나. 사서 팔 때까지가 한 줄이다.
+
+    ## `trades`와 무엇이 다른가
+
+    `trades`는 실제 계좌에서 체결된 것만 남는다. 여기는 백테스트가 낸
+    매매도 같이 담고 `실거래` 칸으로 가른다. 같은 전략의 두 쪽을 한 표에서
+    견주려는 것이다.
+
+    ## 백테스트 쪽은 다 담지 않는다
+
+    조건이 522벌이고 한 벌에 매매가 수백 건이다. 전부 담으면 상태 DB가
+    감당하지 못한다. 백테스트 줄은 **지금 설정된 전략을 지금 설정된 상한과
+    슬리피지로 잰 것**만 남긴다. 견주는 데 필요한 것이 그것뿐이다.
+
+    ## 청산 사유를 반드시 채운다
+
+    이 시스템에서 제일 중요한 칸이다. 기간 만료로 끝난 비율이 높으면 그
+    전략은 이 상한에 맞지 않는다. 사유는 다섯이다. 손절, 익절, 트레일링,
+    매도신호, 기간만료.
+    """
+
+    __tablename__ = "trade_perf"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    잰날: Mapped[date] = mapped_column(Date, index=True)
+    전략: Mapped[str] = mapped_column(String(50), index=True)
+    상한: Mapped[int] = mapped_column(Integer, index=True)
+    슬리피지: Mapped[float] = mapped_column(Float, default=0.0)
+    매매대상: Mapped[str] = mapped_column(String(20), default="")
+    실거래: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+    종목: Mapped[str] = mapped_column(String(20), index=True)
+    종목명: Mapped[str] = mapped_column(String(100), default="")
+    진입일: Mapped[date] = mapped_column(Date, index=True)
+    청산일: Mapped[date | None] = mapped_column(Date, nullable=True)
+    #: 영업일로 센다. 달력 날수가 아니다.
+    보유일수: Mapped[int] = mapped_column(Integer, default=0)
+    진입가: Mapped[float | None] = mapped_column(Float, nullable=True)
+    청산가: Mapped[float | None] = mapped_column(Float, nullable=True)
+    수익률: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 다섯 갈래로 묶은 값. 원문은 청산사유원문에 그대로 둔다.
+    청산갈래: Mapped[str] = mapped_column(String(10), default="", index=True)
+    청산사유원문: Mapped[str] = mapped_column(String(100), default="")
+    만든때: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
+
+
+class StrategyRankRow(Base):
+    """어느 날 어느 조건에서 전략들을 어떤 기준으로 줄 세웠나.
+
+    ## 왜 순위를 따로 남기나
+
+    나중에 판단 기준을 바꾸면 순위가 통째로 달라진다. 그때 "예전에는 무엇이
+    1위였나"를 다시 계산으로 되살릴 수 없다. 그 사이 매매 대상 종목이 바뀌기
+    때문이다. 그래서 그날 낸 순위를 그대로 남긴다.
+
+    **기준 셋을 열쇠로 같이 적는다.** 값만 남기면 그 순위가 무슨 기준으로
+    나온 것인지 알 수 없다.
+    """
+
+    __tablename__ = "strategy_rank"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    잰날: Mapped[date] = mapped_column(Date, index=True)
+    상한: Mapped[int] = mapped_column(Integer, index=True)
+    슬리피지: Mapped[float] = mapped_column(Float, default=0.0)
+    매매대상: Mapped[str] = mapped_column(String(20), default="")
+    #: 그날 쓴 판단 기준 셋의 열쇠. window_judgment의 열쇠와 같다.
+    일순위: Mapped[str] = mapped_column(String(30), default="")
+    이순위: Mapped[str] = mapped_column(String(30), default="")
+    삼순위: Mapped[str] = mapped_column(String(30), default="")
+    전략: Mapped[str] = mapped_column(String(50), index=True)
+    자리: Mapped[int] = mapped_column(Integer, default=0)
+    #: 그 기준들이 이 전략에 매긴 값. 못 낸 값은 비워 둔다.
+    일순위값: Mapped[float | None] = mapped_column(Float, nullable=True)
+    이순위값: Mapped[float | None] = mapped_column(Float, nullable=True)
+    삼순위값: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 사람이 확인해야 할 것에 걸렸나. 걸린 항목을 쉼표로 잇는다.
+    걸린것: Mapped[str] = mapped_column(String(200), default="")
+    만든때: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
+
+
+class SlippageObsRow(Base):
+    """실제로 잰 슬리피지 한 건. 설계안 §12다.
+
+    ## 왜 지금까지 못 쟀나
+
+    기준가로 남아 있는 값이 **전날 종가**다. 체결은 다음 날 시가라 밤사이
+    시장 전체가 움직인 것과 섞여 있다. 그 둘을 나눌 수 없어서 모든 백테스트가
+    슬리피지를 0으로 놓고 계산했다.
+
+    ## 그래서 주문 시각의 가격을 따로 남긴다
+
+    - 밤사이 움직임 = 주문시각가격 ÷ 전날종가 − 1
+    - 슬리피지 = 체결가 ÷ 주문시각가격 − 1 (매도는 부호를 뒤집는다)
+
+    ## 모의와 실거래를 섞지 않는다
+
+    모의 계좌는 호가를 실제로 소모하지 않아서 대체로 유리하게 체결된다.
+    두 쪽을 같은 표에 넣되 `실거래` 칸으로 가른다. 섞으면 실제보다 낙관적인
+    값이 나오고, 그 값으로 백테스트를 돌리면 두 번 속는다.
+
+    ## 표본이 모이기 전에는 쓰지 않는다
+
+    20건에 못 미치면 백테스트 기본값을 바꾸지 않는다. 다른 최소 기준과 같은
+    값이다.
+    """
+
+    __tablename__ = "slippage_obs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    종목: Mapped[str] = mapped_column(String(20), index=True)
+    #: "매수" 또는 "매도".
+    사고팜: Mapped[str] = mapped_column(String(10), default="")
+    수량: Mapped[int] = mapped_column(Integer, default=0)
+    주문금액: Mapped[float] = mapped_column(Float, default=0.0)
+    주문시각: Mapped[datetime] = mapped_column(DateTime, index=True)
+    #: 주문 직전에 조회한 현재가. 이 값이 없으면 슬리피지를 못 낸다.
+    주문시각가격: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 그 가격을 조회한 시각. 주문 시각과 벌어지면 값의 뜻이 흐려진다.
+    조회시각: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    전날종가: Mapped[float | None] = mapped_column(Float, nullable=True)
+    체결가: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 체결가 ÷ 주문시각가격 − 1. 매도는 부호를 뒤집어 늘 '불리한 쪽이 양수'다.
+    슬리피지: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 밤사이 움직임. 슬리피지와 섞이지 않게 따로 둔다.
+    밤사이움직임: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: 그날 그 종목의 거래대금(백만원). 거래가 적을수록 슬리피지가 커진다.
+    거래대금: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    실거래: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    만든때: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )

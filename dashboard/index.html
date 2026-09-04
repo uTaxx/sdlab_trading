@@ -144,6 +144,7 @@
       <button class="탭" role="tab" data-탭="검증"  aria-selected="false">백테스트</button>
       <button class="탭" role="tab" data-탭="검토"  aria-selected="false">전략 검토</button>
       <button class="탭" role="tab" data-탭="시장"  aria-selected="false">시장 트렌드</button>
+      <button class="탭" role="tab" data-탭="찾기"  aria-selected="false">전략 찾기</button>
       <button class="탭" role="tab" data-탭="도움말" aria-selected="false">용어 안내</button>
     </div>
 
@@ -929,6 +930,83 @@
         나타냅니다. 이미 상승한 뒤에 위로 올라오는 값이므로 매수 시점을
         의미하지 않습니다.</p>
       <div class="때" id="시장때"></div>
+    </section>
+
+    <!-- 탭 8 · 전략 찾기 ───────────────────────────────
+         보유 상한을 바꿔 가며 전략을 잰 결과. 자료가 전략 29개 × 상한 6개 ×
+         슬리피지 3벌이라 한 표에 다 넣으면 아무도 안 읽는다. 조건을 맨 위에서
+         고르고 아래를 그 조건으로 다시 그린다. -->
+    <section id="쪽-찾기" role="tabpanel" class="숨김">
+      <div id="찾기알림"></div>
+
+      <h2>보유 상한별 전략 비교</h2>
+      <p class="h2곁말">이 시스템은 한 종목을 정해진 영업일수보다 오래 보유하지
+        않습니다. 그래서 연 단위 성과가 아니라, 보유 상한과 같은 길이로 계좌를
+        나눈 구간의 분포로 전략을 비교합니다.
+        <b>과거 시세로 계산한 값이며 주문은 발생하지 않습니다.</b>
+        여기서 고른 조건으로 실제 매매 설정이 변경되지도 않습니다.</p>
+
+      <div class="칸들">
+        <div class="칸">
+          <label for="찾기대상">매매 대상</label>
+          <select id="찾기대상" aria-label="어느 종목 목록으로 잰 것을 볼 것인가"></select>
+          <div class="곁말">목록이 다르면 같은 전략도 다른 결과가 나옵니다.</div>
+        </div>
+        <div class="칸">
+          <label for="찾기상한">보유 상한</label>
+          <select id="찾기상한" aria-label="며칠 안에 매도하는 조건으로 볼 것인가"></select>
+          <div class="곁말">영업일 기준입니다. 구간 길이도 같은 값입니다.</div>
+        </div>
+        <div class="칸">
+          <label for="찾기슬립">슬리피지</label>
+          <select id="찾기슬립" aria-label="체결가가 불리해지는 비율"></select>
+          <div class="곁말">매수가와 실제 체결가의 차이입니다.</div>
+        </div>
+      </div>
+
+      <div class="칸들">
+        <div class="칸">
+          <label for="찾기일순위">1순위</label>
+          <select id="찾기일순위" aria-label="가장 먼저 볼 기준"></select>
+        </div>
+        <div class="칸">
+          <label for="찾기이순위">2순위</label>
+          <select id="찾기이순위" aria-label="1순위가 같을 때 볼 기준"></select>
+        </div>
+        <div class="칸">
+          <label for="찾기삼순위">3순위</label>
+          <select id="찾기삼순위" aria-label="2순위까지 같을 때 볼 기준"></select>
+        </div>
+      </div>
+      <p class="설명" id="찾기지침설명"></p>
+
+      <div id="찾기조건" class="칸 넓게"></div>
+
+      <div class="표싸개">
+        <table>
+          <thead>
+            <tr>
+              <th>순위</th><th>전략</th><th>연환산</th><th>플러스 구간</th>
+              <th>하위 10%</th><th>평균 보유</th><th>기간 만료</th><th>매매 수</th>
+            </tr>
+          </thead>
+          <tbody id="찾기몸"></tbody>
+        </table>
+      </div>
+      <p class="설명"><b>연환산</b>은 보유 상한이 다른 전략을 같은 줄에 놓기
+        위한 값입니다. 상한이 짧을수록 크게 나오며, 그 수익이 실제로 발생한다는
+        의미가 아닙니다. <b>기간 만료</b>는 보유 상한에 걸려 종료된 매매의
+        비율입니다. 이 값이 높으면 전략이 판단하여 매도한 것이 아니라 기간이
+        경과하여 매도된 것입니다. <b>매매 대상 종목은 현재 상장된 종목이므로,
+        과거 구간의 절대 수익률은 실제보다 높게 나옵니다.</b> 전략 간 비교에만
+        사용합니다.</p>
+
+      <h2>보유 상한을 바꾸면</h2>
+      <p class="h2곁말">표에서 전략 이름을 누르면 이 그림에 추가됩니다. 최대
+        세 개까지 표시합니다. 전략마다 성과가 가장 높은 상한이 다릅니다.</p>
+      <div id="찾기곡선"></div>
+
+      <div class="때" id="찾기때"></div>
     </section>
 
     <section id="쪽-도움말" role="tabpanel" class="숨김">

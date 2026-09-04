@@ -563,3 +563,22 @@ h2:first-child { margin-top: 0; }
   .스위치 .홈::after { width: 13px; height: 13px; }
   .스위치 input:checked + .홈::after { transform: translateX(13px); }
 }
+
+/* 표 안에서 누를 수 있는 이름. 단추처럼 크게 그리면 표가 단추밭이 되고,
+   그냥 글로 두면 누를 수 있다는 것을 모른다. 밑줄로 알린다. */
+button.글단추 {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-style: dotted;
+}
+button.글단추:hover:not(:disabled) {
+  background: none;
+  text-decoration-style: solid;
+}
+button.글단추[aria-pressed="true"] { text-decoration-style: solid; }
+button.글단추[aria-pressed="true"]::before { content: "● "; }

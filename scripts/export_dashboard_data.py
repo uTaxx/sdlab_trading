@@ -26,6 +26,7 @@ import json
 import sys
 from pathlib import Path
 
+from muwon.analysis import window_judgment
 from muwon.analysis.judgment import 순위지침들, 확인지침들
 from muwon.analysis.period_check import 기간들
 from muwon.dashboard.glossary import TERMS
@@ -214,16 +215,41 @@ def 판단지침() -> list[dict]:
     원본은 `analysis/judgment.py` 하나다. 화면에 목록을 또 적으면 지침을
     더할 때마다 두 곳을 고쳐야 하고, 한쪽만 고치면 화면에서 고른 값이
     파이썬에는 없는 값이 된다. 그러면 저장은 되는데 순위는 안 바뀐다."""
-    return [
-        {"열쇠": ㄱ.열쇠, "이름": ㄱ.이름, "설명": ㄱ.설명,
-         "갈래": ㄱ.갈래, "단위": ㄱ.단위, "비긴폭": ㄱ.비긴폭}
-        for ㄱ in 순위지침들 + 확인지침들
-    ]
+    return [_지침칸(ㄱ) for ㄱ in 순위지침들 + 확인지침들]
+
+
+def _지침칸(ㄱ) -> dict:
+    return {"열쇠": ㄱ.열쇠, "이름": ㄱ.이름, "설명": ㄱ.설명,
+            "갈래": ㄱ.갈래, "단위": ㄱ.단위, "비긴폭": ㄱ.비긴폭}
+
+
+def 상한판단지침() -> list[dict]:
+    """보유 상한 시스템에서 전략을 견줄 때 무엇을 먼저 보나.
+
+    `판단지침.json`과 따로 둔다. 저기는 연 단위 성적에서, 여기는 구간
+    성적에서 값을 꺼낸다. 한 목록에 섞으면 화면에서 고를 때 서로 다른
+    자료를 보는 지침이 나란히 선다.
+
+    **기본값 셋을 같이 적는다.** 화면이 그 값을 또 적어 두면 파이썬에서
+    기본값을 바꿨을 때 화면만 옛 값을 가리킨다."""
+    나온것 = []
+    for ㄱ in window_judgment.지침들:
+        칸, 뒤집기 = window_judgment.자료칸.get(ㄱ.열쇠, ("", False))
+        나온것.append({
+            **_지침칸(ㄱ),
+            # 화면이 상한측정.json의 어느 칸을 보고 줄을 세울지. 화면에
+            # 손으로 적으면 지침을 더할 때마다 두 곳을 고쳐야 한다.
+            "칸": 칸, "뒤집기": 뒤집기,
+            "기본순위": (window_judgment.기본기준.열쇠들.index(ㄱ.열쇠) + 1
+                     if ㄱ.열쇠 in window_judgment.기본기준.열쇠들 else 0),
+        })
+    return 나온것
 
 
 자료들 = {"용어사전.json": 용어사전, "전략설명.json": 전략설명,
          "기준설명.json": 기준이름, "기간설명.json": 기간설명,
-         "종목이름.json": 종목이름, "판단지침.json": 판단지침}
+         "종목이름.json": 종목이름, "판단지침.json": 판단지침,
+         "상한판단지침.json": 상한판단지침}
 
 
 def 글로(값) -> str:

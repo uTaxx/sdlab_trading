@@ -1,0 +1,118 @@
+name: 보유 상한별 측정
+
+# 보유 상한을 바꿔 가며 전략을 재고 결과를 아티팩트로 올린다.
+# 설계안은 docs/단기매매_재설계.md다.
+#
+# 이 시스템은 한 종목을 정해진 영업일수보다 오래 들고 있지 않는다. 그래서
+# 연 단위 성과로는 전략을 판단할 수 없다. 상한과 같은 길이로 계좌를 잘라
+# 그 구간들의 분포를 본다.
+#
+# ## 주문은 나가지 않는다
+#
+# 과거 시세로 계산만 한다. 상태 DB에 쓰지 않으므로 state-write 그룹에
+# 넣지 않는다. 시트도 건드리지 않는다.
+#
+# ## 식별자는 영문으로 둔다
+#
+# GitHub Actions 표현식 파서가 한글 식별자를 못 읽는다. id와 입력 이름에
+# 한글을 쓰면 파일 전체가 파싱에 실패하고 잡이 하나도 안 잡힌 채 0초 만에
+# 끝난다. 사람이 읽는 name과 description만 한글이다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      universe:
+        description: "매매 대상: sheet=실거래 시트 종목 / market_cap=시가총액 상위"
+        type: choice
+        options: ["sheet", "market_cap"]
+        default: "sheet"
+      caps:
+        description: "보유 상한(영업일). 쉼표로. 비우면 3,5,7,10,15,20"
+        default: ""
+      slippage:
+        description: "슬리피지 비율. 0.001이 0.1%"
+        default: "0,0.001,0.002"
+      keys:
+        description: "전략 키. 쉼표로. 비우면 등록된 전부"
+        default: ""
+      start:
+        description: "시작일"
+        default: "2021-01-04"
+      cash:
+        description: "예수금(원)"
+        default: "5000000"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      # 시세를 실행마다 다시 받으면 종목 63개에 1분 넘게 나간다.
+      - name: 시세 캐시 복원
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: prices-window-${{ github.event.inputs.universe || 'sheet' }}-${{ github.run_id }}
+          restore-keys: |
+            prices-window-${{ github.event.inputs.universe || 'sheet' }}-
+
+      - name: 구글드라이브에서 상태 DB 내려받기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          python scripts/gdrive_sync.py download \
+            --folder-id "$GDRIVE_FOLDER_ID" --filename muwon.db --out ./muwon.db
+
+      - name: .env 구성
+        env:
+          MASTER_KEY: ${{ secrets.MUWON_MASTER_KEY }}
+        run: |
+          echo "DATABASE_URL=sqlite:///./muwon.db" >> .env
+          echo "MUWON_MASTER_KEY=$MASTER_KEY" >> .env
+
+      # 입력값을 run: 안에 그대로 넣지 않는다. 셸 글자 안으로 치환돼서
+      # $(...)가 섞인 값이 명령으로 실행된다. env로 넘기고 따옴표로 감싼다.
+      - name: 상한별 측정
+        env:
+          # 시트 종목으로 재려면 구글 시트를 읽어야 한다. 이 값이 없으면
+          # 스크립트가 "시트를 못 찾아 잴 수 없습니다"로 끝난다.
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          IN_UNIVERSE: ${{ github.event.inputs.universe || 'sheet' }}
+          IN_CAPS: ${{ github.event.inputs.caps }}
+          IN_SLIPPAGE: ${{ github.event.inputs.slippage || '0,0.001,0.002' }}
+          IN_KEYS: ${{ github.event.inputs.keys }}
+          IN_START: ${{ github.event.inputs.start || '2021-01-04' }}
+          IN_CASH: ${{ github.event.inputs.cash || '5000000' }}
+        run: |
+          # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
+          # 실패를 막으려고 pipefail을 켠다.
+          set -o pipefail
+          python scripts/run_window_scan.py \
+            --유니버스 "$IN_UNIVERSE" \
+            --상한 "$IN_CAPS" \
+            --슬리피지 "$IN_SLIPPAGE" \
+            --전략 "$IN_KEYS" \
+            --시작 "$IN_START" \
+            --예수금 "$IN_CASH" \
+            --나온곳 window-scan.json \
+            | tee window-scan.log
+
+      - name: 결과 올리기
+        uses: actions/upload-artifact@v4
+        with:
+          name: window-scan
+          path: |
+            window-scan.json
+            window-scan.log
+          retention-days: 30
