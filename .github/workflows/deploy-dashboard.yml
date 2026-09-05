@@ -119,9 +119,12 @@ jobs:
       # 화면 작업이 안 보였고, 주인이 말해서야 알았다.
       #
       # **이 잡은 sdlab_trading에서만 돈다.** 그래서 텔레그램 비밀값도 그
-      # 저장소에 있어야 한다(Settings → Secrets → Actions에
-      # TELEGRAM_BOT_TOKEN과 TELEGRAM_CHAT_ID). 없으면 알림만 못 가고
-      # 배포는 그대로 도는데, 그때는 로그에 오류 한 줄이 남는다.
+      # 저장소에 있어야 한다(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID).
+      # 2026-09-05에 `notify-check.yml`을 sdlab_trading에서 직접 실행해
+      # 확인했다. 알림이 실제로 갔다(실행 33961278843).
+      #
+      # 비밀값이 없어지면 알림만 못 가고 배포는 그대로 도는데, 그때는
+      # 로그에 오류 한 줄이 남는다.
       - name: 실패했으면 알린다
         if: failure()
         uses: ./.github/actions/notify-failure
