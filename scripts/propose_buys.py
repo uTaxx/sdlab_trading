@@ -70,7 +70,11 @@ from muwon.sector.selection import (
 )
 from muwon.settings.from_sheet import parse_settings
 from muwon.settings.service import build_settings_service
-from muwon.strategy.portfolio import bars_since
+from muwon.strategy.portfolio import (
+    MarketContext,
+    as_portfolio_strategy,
+    bars_since,
+)
 from muwon.strategy.registry import build_strategies
 
 KST = ZoneInfo("Asia/Seoul")
@@ -228,30 +232,63 @@ def main() -> int:
     print()
 
     # ── 2차: 종목 신호 ───────────────────────────────────────────
+    #
+    # **두 엔진과 같은 길로 신호를 낸다**(2026-09-04에 고침).
+    #
+    # 전에는 종목마다 `strategy.generate_signals(심볼, df)`를 불렀다. 옛
+    # 방식 전략(Strategy)에만 있는 메서드다. 미국 섹터를 보는 전략처럼
+    # 여러 종목을 같이 봐야 하는 것(PortfolioStrategy)에는 그 메서드가
+    # 없어서, 2026-09-04 08:30 실행이 AttributeError로 통째로 멈췄다.
+    # 9월 3일에 그 전략으로 바꾼 뒤 첫 평일 실행이었다.
+    #
+    # 백테스트와 실거래 엔진은 둘 다 `as_portfolio_strategy`로 감싸서
+    # `prepare(시세) → evaluate(오늘)`을 부른다. 여기도 같게 맞춘다.
+    # **감싸는 것이 꼭 필요하다.** 미국 섹터 전략은 `prepare()`에서 미국
+    # ETF 시세를 받아 오므로, 그 단계를 건너뛰면 신호를 낼 수가 없다.
+    쓸시세 = {
+        심볼: df
+        for 코드, 모음 in 섹터시세.items() if 코드 in 살섹터
+        for 심볼, (_, df) in 모음.items()
+    }
+    종목표 = {
+        심볼: (코드, m)
+        for 코드, 모음 in 섹터시세.items() if 코드 in 살섹터
+        for 심볼, (m, _) in 모음.items()
+    }
+    마지막날들 = {심볼: df["trade_date"].iloc[-1] for 심볼, df in 쓸시세.items()}
+
+    껍데기 = as_portfolio_strategy(strategy)
+    껍데기.prepare(쓸시세)
+    # 마지막 봉이 종목마다 다를 수 있다(거래 정지 등). 각 종목의 마지막
+    # 날짜로 확인한다. 안 그러면 오래된 신호로 오늘 산다.
+    오늘신호 = 껍데기.evaluate(MarketContext(
+        as_of=max(마지막날들.values()),
+        histories=쓸시세,
+        held=frozenset(보유심볼),
+    ))
+
     신호들 = []
-    for 코드, 모음 in 섹터시세.items():
-        if 코드 not in 살섹터:
+    묶음: dict[str, list] = {}
+    for sig in 오늘신호:
+        if sig.signal_type != SignalType.BUY:
             continue
-        for 심볼, (m, df) in 모음.items():
-            if 심볼 in 보유심볼:
-                continue
-            # **마지막 봉의 신호만** 본다. generate_signals는 히스토리 전체의
-            # 신호를 돌려주므로, 거르지 않으면 3년 전 신호로 오늘 산다.
-            마지막날 = df["trade_date"].iloc[-1]
-            살것 = [
-                sig for sig in strategy.generate_signals(심볼, df)
-                if sig.trade_date == 마지막날 and sig.signal_type == SignalType.BUY
-            ]
-            if not 살것:
-                continue
-            sig = max(살것, key=lambda s: s.score)
-            신호들.append((sig.score, 후보(
-                symbol=심볼, name=m.name, strategy=sig.strategy_name,
-                quantity=0,  # 수량은 매수 단계에서 그때 현금으로 정한다
-                price=float(df["close"].iloc[-1]),
-                reason=sig.reason, sector=코드, sector_name=이름표.get(코드, 코드),
-                사흘등락=사흘등락(df),
-            )))
+        if sig.symbol in 보유심볼 or sig.symbol not in 종목표:
+            continue
+        if sig.trade_date != 마지막날들.get(sig.symbol):
+            continue
+        묶음.setdefault(sig.symbol, []).append(sig)
+
+    for 심볼, 살것 in 묶음.items():
+        코드, m = 종목표[심볼]
+        df = 쓸시세[심볼]
+        sig = max(살것, key=lambda s: s.score)
+        신호들.append((sig.score, 후보(
+            symbol=심볼, name=m.name, strategy=sig.strategy_name,
+            quantity=0,  # 수량은 매수 단계에서 그때 현금으로 정한다
+            price=float(df["close"].iloc[-1]),
+            reason=sig.reason, sector=코드, sector_name=이름표.get(코드, 코드),
+            사흘등락=사흘등락(df),
+        )))
 
     살펴본수 = sum(
         1 for 코드, 모음 in 섹터시세.items() if 코드 in 살섹터
