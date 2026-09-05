@@ -113,3 +113,20 @@ jobs:
       - id: deploy
         name: Pages에 올리기
         uses: actions/deploy-pages@v4
+
+      # **배포가 실패하면 주인 화면만 옛것으로 남는다.** 매매는 그대로
+      # 돌아서 아무 데도 안 빨개진다. 2026-09-03에 이것 때문에 이틀치
+      # 화면 작업이 안 보였고, 주인이 말해서야 알았다.
+      #
+      # **이 잡은 sdlab_trading에서만 돈다.** 그래서 텔레그램 비밀값도 그
+      # 저장소에 있어야 한다(Settings → Secrets → Actions에
+      # TELEGRAM_BOT_TOKEN과 TELEGRAM_CHAT_ID). 없으면 알림만 못 가고
+      # 배포는 그대로 도는데, 그때는 로그에 오류 한 줄이 남는다.
+      - name: 실패했으면 알린다
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          what: "대시보드 배포"
+          extra: "화면이 옛 자료 그대로 남아 있습니다. 매매는 그대로 돕니다."
