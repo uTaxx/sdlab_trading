@@ -129,3 +129,15 @@ jobs:
         with:
           name: propose-buys-${{ github.run_number }}
           path: propose.txt
+
+      # **실패했으면 반드시 알린다.** GitHub 화면의 빨간불을 매일 보는
+      # 사람이 없으면 빨간불은 없는 것과 같다. 2026-09-04에 08:30 후보
+      # 산출이 죽었는데 주인은 다음 날까지 모르셨다.
+      - name: 실패했으면 알린다
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          what: "08:30 매수 후보 산출"
+          extra: "오늘 매수 후보가 나오지 않았습니다."

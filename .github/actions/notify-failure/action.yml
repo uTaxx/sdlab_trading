@@ -1,0 +1,102 @@
+# 워크플로가 실패했을 때 텔레그램으로 알린다.
+#
+# ## 왜 만들었나 (2026-09-05)
+#
+# **저장소 전체에 실패 알림이 하나도 없었다.** 워크플로 서른세 개 중
+# `if: failure()`가 붙은 것이 0개였다.
+#
+# 2026-09-04 08:30 매수 후보 산출이 통째로 죽었는데 주인은 모르셨다. 다음
+# 날 우연히 로그를 열어 보고 알았다. **그날 매수 후보가 하나도 안 나왔고,
+# 아무도 그 사실을 몰랐다.**
+#
+# 이 저장소는 "조용히 성공한 척하는 실패가 제일 비싸다"를 세 번 적어 뒀다
+# (docs/사고_2026-08-25_조용한실패.md). 그런데 실패했을 때 빨간불을 누가
+# 보는지는 아무도 정하지 않았다. GitHub 화면을 매일 여는 사람이 없으면
+# 빨간불은 없는 것과 같다.
+#
+# ## 폴더와 입력 이름은 영문이다
+#
+# **GitHub Actions에 한글 식별자를 쓰면 파일 전체가 파싱에 실패한다.**
+# `id: 배포`로 워크플로가 0초 만에 죽고 로그도 안 남은 적이 있다
+# (2026-08-28). `uses:` 경로와 `with:` 키도 같은 자리로 보고 영문으로 둔다.
+# 사람이 읽는 name과 description과 값만 한글이다.
+#
+# ## 쓰는 법
+#
+#     - name: 실패했으면 알린다
+#       if: failure()
+#       uses: ./.github/actions/notify-failure
+#       with:
+#         bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+#         chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+#         what: "08:30 매수 후보 산출"
+#
+# ## 이 단계가 실패해도 워크플로를 더 빨갛게 만들지 않는다
+#
+# 이미 실패한 실행이다. 알림까지 실패했다고 종료 코드를 덮으면 진짜 원인이
+# 로그 아래로 밀린다. 대신 못 보냈다는 사실을 로그에 남긴다.
+#
+# ## 비밀값이 없으면 조용히 넘어가지 않는다
+#
+# 토큰이 비어 있으면 알림이 영영 안 간다. 그 사실을 로그에 크게 적는다.
+# 안 적으면 "알림을 붙였으니 됐다"고 믿게 되는데, 그게 지금까지의 상태와
+# 똑같다.
+
+name: 실패 알림
+description: 워크플로가 실패하면 텔레그램으로 알린다
+
+inputs:
+  bot-token:
+    description: 텔레그램 봇 토큰
+    required: true
+  chat-id:
+    description: 알림을 받을 대화방
+    required: true
+  what:
+    description: 무엇이 실패했는지 사람이 읽을 이름
+    required: true
+  extra:
+    description: 같이 보낼 한 줄. 없으면 안 붙인다
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: 텔레그램으로 보내기
+      shell: bash
+      # 입력을 `run:` 글자 안에 직접 박지 않는다. 환경변수로 넘기면 셸이
+      # 그 값을 글자로만 본다.
+      env:
+        BOT_TOKEN: ${{ inputs.bot-token }}
+        CHAT_ID: ${{ inputs.chat-id }}
+        WHAT: ${{ inputs.what }}
+        EXTRA: ${{ inputs.extra }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
+          echo "::error::텔레그램 비밀값이 비어 있어 실패를 알리지 못했습니다."
+          echo "::error::TELEGRAM_BOT_TOKEN과 TELEGRAM_CHAT_ID를 저장소 비밀값에 넣어 주세요."
+          exit 0
+        fi
+        MSG="⚠️ ${WHAT}이(가) 실패했습니다."
+        if [ -n "$EXTRA" ]; then
+          MSG="${MSG}
+        ${EXTRA}"
+        fi
+        MSG="${MSG}
+
+        실행 기록에서 빨간 단계를 열어 보세요.
+        ${RUN_URL}"
+        # 알림이 실패해도 종료 코드를 덮지 않는다. 이미 실패한 실행이고,
+        # 여기서 덮으면 진짜 원인이 로그 아래로 밀린다.
+        CODE=$(curl -sS -o /tmp/notify.json -w "%{http_code}" --max-time 20 \
+          -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+          --data-urlencode "chat_id=${CHAT_ID}" \
+          --data-urlencode "text=${MSG}" || echo "000")
+        if [ "$CODE" = "200" ]; then
+          echo "실패를 텔레그램으로 알렸습니다."
+        else
+          echo "::error::실패 알림을 못 보냈습니다. 텔레그램 응답 코드 ${CODE}"
+          cat /tmp/notify.json 2>/dev/null || true
+        fi

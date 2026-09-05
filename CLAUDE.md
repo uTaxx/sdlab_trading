@@ -328,11 +328,25 @@
 
 올리는 방법은 이렇다. 두 저장소는 파일이 같아야 하므로 통째로 옮긴다.
 
-    cd /home/user/sdlab_trading && git fetch origin main
-    git checkout main && git reset --hard origin/main
-    git ls-files -z | xargs -0 rm -f
-    git -C /home/user/muwon406 archive HEAD | tar -x -C /home/user/sdlab_trading
-    git add -A && git commit && git push origin main
+    python scripts/publish_dashboard.py --화면저장소 /home/user/sdlab_trading
+    python scripts/publish_dashboard.py --화면저장소 /home/user/sdlab_trading \
+        --올리기 --메시지 "무엇을 옮겼는지 (muwon406에서 옮김)"
+
+**손으로 `git ls-files | xargs rm -f` 하지 않는다**(2026-09-05에 바꿈).
+전에는 화면 저장소를 통째로 비우고 매매 저장소를 풀었는데, 그러면 **화면
+저장소에만 있는 파일이 생기는 순간 조용히 사라진다.** 지금까지는 그런
+파일이 없어서 우연히 안전했을 뿐이다.
+
+스크립트는 매매 저장소에 없는 파일을 발견하면 멈추고 이름을 보여 준다.
+지워도 되면 `--지워도됨`을, 화면 저장소에 남겨야 하면
+`publish_dashboard.py`의 `전용파일`에 적는다. `--올리기`를 안 주면 무엇이
+바뀌는지만 보여 준다.
+
+**두 저장소가 서로 엉키지는 않는다**(2026-09-05에 확인). 시간표로 저절로
+도는 워크플로 일곱 개가 전부 `github.repository == 'uTaxx/muwon406'`으로
+막혀 있어서 화면 저장소에서는 job 자체가 건너뛰어진다. 배포는 반대로
+`uTaxx/sdlab_trading`에서만 돈다. 새 워크플로에 시간표를 달 때는 이 조건을
+같이 달아야 한다.
 
 **화면 파일만 옮기면 배포가 막힌다.** 배포 워크플로가 올리기 전에
 `scripts/export_dashboard_data.py --check`를 돌려서 `dashboard/자료`의 JSON이

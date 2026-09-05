@@ -303,3 +303,112 @@ def test_섹터당_상한을_워크플로에_박아_두지_않는다():
 
     자리 = 글.index("max_per_sector:")
     assert 'default: "-1"' in 글[자리:자리 + 200], 글[자리:자리 + 200]
+
+
+# ── 실패했을 때 주인이 아는가 (2026-09-05) ────────────────────────
+#
+# 저장소 전체에 실패 알림이 하나도 없었다. 워크플로 서른세 개 중
+# `if: failure()`가 붙은 것이 0개였다.
+#
+# 2026-09-04 08:30 매수 후보 산출이 통째로 죽었는데 주인은 모르셨다.
+# 다음 날 우연히 로그를 열어 보고 알았다. 그날 매수 후보가 하나도 안
+# 나왔고 아무도 그 사실을 몰랐다.
+#
+# **GitHub 화면의 빨간불을 매일 보는 사람이 없으면 빨간불은 없는 것과
+# 같다.** 이 저장소가 "조용히 성공한 척하는 실패가 제일 비싸다"를 세 번
+# 적어 두고도 비어 있던 자리다.
+
+#: 사람이 안 보고 있어도 도는 것들. 여기서 실패하면 알림 말고는 알 길이 없다.
+알려야하는것 = {
+    "propose-buys.yml",      # 08:30 매수 후보
+    "execute-approved.yml",  # 09:05 실제 주문
+    "watch-stops.yml",       # 장중 손절 감시
+    "settle-fills.yml",      # 17:30 체결 정산
+    "push-records.yml",      # 17:40 기록
+    "strategy-apply.yml",    # 08:20 전략 반영
+    "strategy-review.yml",   # 17:50 검토
+    "collect-intraday.yml",  # 분봉 (그날 안에만 받을 수 있다)
+    "store-window-scan.yml",
+    "update-universe.yml",
+}
+
+
+def _워크플로들():
+    from pathlib import Path
+
+    뿌리 = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+    return {길.name: 길.read_text(encoding="utf-8") for 길 in sorted(뿌리.glob("*.yml"))}
+
+
+def test_사람이_안_보는_워크플로는_실패를_알린다():
+    import yaml
+
+    빠진것 = []
+    for 이름 in sorted(알려야하는것):
+        글 = _워크플로들()[이름]
+        문서 = yaml.safe_load(글)
+        붙었나 = False
+        for 잡 in 문서["jobs"].values():
+            for 단계 in 잡.get("steps", []):
+                if (단계.get("if") == "failure()"
+                        and "notify-failure" in str(단계.get("uses", ""))):
+                    붙었나 = True
+        if not 붙었나:
+            빠진것.append(이름)
+    assert not 빠진것, (
+        "실패해도 주인이 모르는 워크플로입니다. `if: failure()`로 "
+        "`./.github/actions/notify-failure`를 붙이세요:\n  " + "\n  ".join(빠진것)
+    )
+
+
+def test_실패_알림이_워크플로를_더_빨갛게_만들지_않는다():
+    """이미 실패한 실행이다. 알림까지 실패했다고 종료 코드를 덮으면 진짜
+    원인이 로그 아래로 밀린다. 이 저장소가 겪은 일이다."""
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent
+          / ".github" / "actions" / "notify-failure" / "action.yml"
+          ).read_text(encoding="utf-8")
+    assert "exit 0" in 글, "비밀값이 없을 때 종료 코드를 0으로 두어야 합니다"
+    assert "|| echo \"000\"" in 글, "curl이 죽어도 단계가 실패하지 않아야 합니다"
+
+
+def test_실패_알림이_비밀값_없을_때_조용히_넘어가지_않는다():
+    """토큰이 비어 있으면 알림이 영영 안 간다. 그것을 안 적으면 '알림을
+    붙였으니 됐다'고 믿게 되는데, 그게 지금까지의 상태와 똑같다."""
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent
+          / ".github" / "actions" / "notify-failure" / "action.yml"
+          ).read_text(encoding="utf-8")
+    assert "::error::텔레그램 비밀값이 비어 있어" in 글
+
+
+def test_실패_알림_액션에_한글_식별자를_안_쓴다():
+    """GitHub Actions에 한글 식별자를 쓰면 파일 전체가 파싱에 실패한다.
+    `id: 배포`로 워크플로가 0초 만에 죽고 로그도 안 남은 적이 있다."""
+    import re
+    from pathlib import Path
+
+    자리 = Path(__file__).resolve().parent.parent / ".github" / "actions"
+    for 길 in 자리.rglob("action.yml"):
+        # 폴더 이름
+        assert not re.search(r"[가-힣]", str(길.relative_to(자리))), 길
+        import yaml
+        문서 = yaml.safe_load(길.read_text(encoding="utf-8"))
+        for 키 in 문서.get("inputs", {}):
+            assert not re.search(r"[가-힣]", 키), f"{길}: 입력 이름 {키}"
+
+
+def test_실패_알림이_무엇이_실패했는지_적는다():
+    """'워크플로가 실패했습니다'만 오면 무엇을 해야 할지 모른다."""
+    import yaml
+
+    표 = _워크플로들()
+    for 이름 in sorted(알려야하는것):
+        문서 = yaml.safe_load(표[이름])
+        for 잡 in 문서["jobs"].values():
+            for 단계 in 잡.get("steps", []):
+                if "notify-failure" in str(단계.get("uses", "")):
+                    무엇 = 단계.get("with", {}).get("what", "")
+                    assert len(무엇) >= 4, f"{이름}: what이 너무 짧습니다({무엇!r})"

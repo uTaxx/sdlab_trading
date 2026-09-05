@@ -1,0 +1,44 @@
+name: 실패 알림 확인
+
+# 실패 알림이 진짜로 텔레그램까지 가는지 확인한다.
+#
+# **알림을 붙여 놓고 확인 안 하면 붙인 적 없는 것과 같다.** 이 저장소가
+# 겪은 것이 정확히 그것이다. try/except가 텔레그램 실패를 삼켜서 초록불이
+# 여덟 번 났는데 리포트는 한 번도 안 왔다.
+#
+# 사람이 눌러야만 돈다. 주문도 안 나가고 상태 DB도 안 건드린다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      fail_on_purpose:
+        description: "true면 일부러 실패시켜 알림이 가는지 본다"
+        type: choice
+        options: ["true", "false"]
+        default: "true"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 일부러 실패시키기
+        env:
+          ON_PURPOSE: ${{ github.event.inputs.fail_on_purpose }}
+        run: |
+          if [ "$ON_PURPOSE" = "true" ]; then
+            echo "알림이 가는지 보려고 일부러 실패합니다."
+            exit 1
+          fi
+          echo "실패시키지 않았습니다. 알림도 안 갑니다."
+
+      - name: 실패했으면 알린다
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          what: "실패 알림 확인 (일부러 낸 실패입니다)"
+          extra: "이 알림이 왔다면 실패 알림이 제대로 붙은 것입니다. 매매와 무관합니다."
