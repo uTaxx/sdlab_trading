@@ -30,6 +30,7 @@ from muwon.db.models import (
     PositionRow,
     RunLogRow,
     SignalRow,
+    StrategyChangeRow,
     TradeRow,
     UniverseSnapshotRow,
 )
@@ -177,6 +178,47 @@ def main() -> None:
             print("  없음. 기본 18종목으로 매매하고 있다는 뜻이다.")
         for row in latest:
             print(f"  {row.snapshot_at:%Y-%m-%d %H:%M} kind={row.kind} {row.symbol} {row.name}")
+
+        # **예약해 놓고 확인할 자리가 없었다**(2026-09-05에 붙임).
+        #
+        # 화면이나 텔레그램에서 전략 변경을 예약하면 다음 거래일 08:20에
+        # 반영된다. 그런데 그때까지 예약이 진짜로 들어갔는지 볼 방법이
+        # 없었다. 반영이 안 되고 나서야 알게 되는데, 그때는 이미 그날
+        # 매매가 옛 전략으로 돈 뒤다.
+        print("\n■ 아직 반영 안 된 전략 변경 예약")
+        기다리는것 = session.scalars(
+            select(StrategyChangeRow)
+            .where(StrategyChangeRow.상태.in_(("고름", "확정")))
+            .order_by(StrategyChangeRow.만든때.desc())
+        ).all()
+        if not 기다리는것:
+            print("  없음. 다음 08:20에 전략이 안 바뀐다는 뜻이다.")
+        for r in 기다리는것:
+            경로 = r.승인경로 or "(빈칸=텔레그램으로 본다)"
+            print(
+                f"  {r.만든때:%m-%d %H:%M}(UTC) [{r.상태}] {r.이전전략 or '(없음)'}"
+                f" → {r.새전략} · 제안일 {r.제안일} · 경로 {경로}"
+            )
+        # **둘 이상이면 다음 날 무엇이 반영되는지 알 수 없다.** 규칙은
+        # 하나만 두게 돼 있으므로, 둘이 보이면 그 규칙이 새고 있는 것이다.
+        if len(기다리는것) > 1:
+            print(f"  ⚠ 기다리는 예약이 {len(기다리는것)}개다. 하나만 있어야 한다.")
+
+        print("\n■ 최근 전략 변경 이력 5건")
+        지난것 = session.scalars(
+            select(StrategyChangeRow)
+            .where(StrategyChangeRow.상태.notin_(("고름", "확정")))
+            .order_by(StrategyChangeRow.만든때.desc())
+            .limit(5)
+        ).all()
+        if not 지난것:
+            print("  없음.")
+        for r in 지난것:
+            때 = f"{r.반영때:%m-%d %H:%M}" if r.반영때 else "  -  "
+            print(
+                f"  {때} [{r.상태}] {r.이전전략 or '(없음)'} → {r.새전략}"
+                + (f" · 막힌까닭: {r.막힌까닭}" if r.막힌까닭 else "")
+            )
 
     if args.kis:
         _계좌대조(session_factory)

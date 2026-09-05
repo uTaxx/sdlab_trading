@@ -300,3 +300,33 @@ def test_매도가_꺼져_있으면_설명이_크게_말한다():
     글 = describe(정책, 출처, None)
     assert "매도가 꺼져 있습니다" in 글
     assert "손절" in 글
+
+
+# ── 비밀값이 로그로 새지 않는지 ────────────────────────────────────
+#
+# 2026-09-05에 `sync_sector_sheet.py --check`가 설정 탭을 그대로 찍으면서
+# `dashboard_key` 값을 공개 로그에 흘렸다(실행 33966305484). 그 값 하나면
+# 화면 단추 전부가 남의 손에 넘어간다.
+
+
+def test_n8n이_읽는_이름은_모르는_이름이_아니다():
+    """`dashboard_key`는 시트에 있는 것이 맞다.
+
+    모르는 이름으로 세면 `--check`가 늘 실패로 끝난다. 실제로 그랬다."""
+    설정 = parse_settings(기본설정(dashboard_key="820463"))
+
+    assert 설정.모르는이름 == ()
+
+
+def test_n8n이_읽는_값은_파싱_결과에_안_담긴다():
+    """담기면 화면과 로그로 흘러 나갈 자리가 늘어난다."""
+    설정 = parse_settings(기본설정(dashboard_key="820463"))
+
+    assert "dashboard_key" not in 설정.값
+    assert "dashboard_key" not in 설정.덮개
+
+
+def test_설명글에_비밀값이_안_나온다():
+    정책, 출처 = apply(RiskPolicy(), parse_settings(기본설정(dashboard_key="820463")))
+
+    assert "820463" not in describe(정책, 출처, None)

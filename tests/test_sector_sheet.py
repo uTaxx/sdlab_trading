@@ -201,3 +201,32 @@ def test_only_an_explicit_mark_turns_something_off():
     assert 종목["000660"].활성
     assert 종목["042700"].활성, "소문자 y도 켜진 것"
     assert not 종목["000990"].활성, "N만 꺼진 것"
+
+
+# ── 로그로 새지 않는지 ─────────────────────────────────────────────
+
+
+def test_기준표에_없는_이름은_값을_가린다():
+    """2026-09-05에 `dashboard_key`가 공개 Actions 로그에 그대로 찍혔다.
+
+    이 저장소도 로그도 공개다. 시트에 사람이 무엇을 적어 둘지 코드가 알 수
+    없으므로, 아는 이름만 값을 찍고 나머지는 전부 가린다."""
+    from scripts.sync_sector_sheet import 가릴값
+
+    가려진것 = 가릴값("dashboard_key", "820463")
+
+    assert "820463" not in 가려진것
+    assert "가림" in 가려진것
+
+
+def test_아는_이름은_그대로_찍는다():
+    """전부 가리면 무엇이 걸려 있는지 볼 수가 없다."""
+    from scripts.sync_sector_sheet import 가릴값
+
+    assert 가릴값("max_holding_days", "5") == "5"
+
+
+def test_빈칸은_길이를_안_흘린다():
+    from scripts.sync_sector_sheet import 가릴값
+
+    assert 가릴값("dashboard_key", "") == "(빈칸)"

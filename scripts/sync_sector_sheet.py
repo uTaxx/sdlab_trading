@@ -37,8 +37,24 @@ from muwon.cloud.sector_sheet import (
     read,
     write_all,
 )
-from muwon.settings.from_sheet import apply, describe, parse_settings
+from muwon.settings.from_sheet import apply, describe, parse_settings, 기준표
 from muwon.settings.schema import RiskPolicy
+
+
+def 가릴값(이름: str, 값: str) -> str:
+    """로그에 찍어도 되는 글자로 바꾼다.
+
+    **이 저장소는 공개고 GitHub Actions 로그도 공개다.** 시트의 설정 탭을
+    그대로 찍고 있었는데 거기에 `dashboard_key`가 들어 있었다. 2026-09-05에
+    실행 33966305484 로그에서 값이 그대로 보이는 것을 확인했다. 화면 단추
+    전부를 지키는 값이라 그것 하나로 예약과 실행이 남의 손에 넘어간다.
+
+    **기준표에 있는 이름만 값을 찍는다.** 그 밖은 전부 가린다. 사람이
+    시트에 무엇을 적어 둘지 코드가 알 수 없기 때문이다. 새고 있던 것도
+    바로 그런 이름이었다. 뒤에 비밀값을 하나 더 적어도 저절로 가려진다."""
+    if 이름 in 기준표:
+        return 값
+    return f"(가림 · {len(값)}글자)" if 값 else "(빈칸)"
 
 
 def main() -> int:
@@ -155,7 +171,7 @@ def main() -> int:
 
     print(f"\n■ 설정 {len(내용.설정)}개: 시트에 적힌 그대로")
     for 이름, 값 in 내용.설정.items():
-        print(f"  {이름:<28}{값}")
+        print(f"  {이름:<28}{가릴값(이름, 값)}")
 
     # 적힌 것과 **실제로 걸리는 것**은 다르다. 단위가 바뀌고(15 → 0.15),
     # 시트에 없는 항목은 DB 값이 살고, 모르는 이름은 아무 효과가 없다.
