@@ -133,7 +133,7 @@ jobs:
           python scripts/run_period_check.py \
             --기간 "$MUWON_PERIOD" \
             --전략 "$MUWON_STRATEGIES" \
-            --쪼갬 "$MUWON_SPLIT" \
+            --나눔 "$MUWON_SPLIT" \
             --유니버스 "$MUWON_UNIVERSE" \
             ${{ github.event.inputs.no_cache == 'true' && '--no-cache' || '' }} \
             | tee period-check.txt
@@ -144,3 +144,16 @@ jobs:
           name: period-check-${{ github.run_number }}
           path: period-check.txt
           retention-days: 30
+
+      # **토요일 09:00에 저절로 돈다. 아무도 안 보고 있다.**
+      # 2026-09-01에 스크립트 인자 이름이 바뀌었는데 여기를 같이 안 고쳐서
+      # 나흘 동안 한 번도 성공하지 못했다. 빨간불은 났지만 알리는 자리가
+      # 없어서 아무도 몰랐고, 화면의 검증 단추도 같이 죽어 있었다.
+      - name: 실패했으면 알린다
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          what: "기간별 전략 검증"
+          extra: "지금 설정된 전략을 다시 볼 이유가 있는지 못 봤습니다. 매매는 그대로 돕니다."

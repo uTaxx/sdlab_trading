@@ -333,6 +333,9 @@ def test_섹터당_상한을_워크플로에_박아_두지_않는다():
     # 배포가 실패하면 화면만 옛것으로 남는다. 매매는 그대로 돌아서
     # 아무 데도 안 빨개진다. 2026-09-03에 이틀치가 안 보였다.
     "deploy-dashboard.yml",
+    # 토요일 09:00에 저절로 돈다. 2026-09-01부터 나흘 동안 인자 이름이
+    # 어긋나 한 번도 성공하지 못했는데 아무도 몰랐다.
+    "period-check.yml",
 }
 
 
@@ -415,3 +418,77 @@ def test_실패_알림이_무엇이_실패했는지_적는다():
                 if "notify-failure" in str(단계.get("uses", "")):
                     무엇 = 단계.get("with", {}).get("what", "")
                     assert len(무엇) >= 4, f"{이름}: what이 너무 짧습니다({무엇!r})"
+
+
+# ── 워크플로가 부르는 인자가 스크립트에 실제로 있나 ────────────────
+#
+# `period-check.yml`이 `--쪼갬`을 넘기는데 스크립트는 2026-09-01에
+# `--나눔`으로 이름을 바꿨다. 그날부터 이 워크플로는 한 번도 성공하지
+# 못했다. 토요일 09:00 전략 점검과 화면의 검증 단추가 둘 다 여기를 지난다.
+#
+# **빨간불이 났는데 아무도 안 열어 봤다.** 실패 알림을 붙이기 전이라
+# 어디에도 안 알렸고, 실패한 워크플로는 목록에서 조용히 밀려 내려간다.
+# 사람의 기억으로는 못 막으므로 여기서 막는다.
+
+import ast
+import re
+
+
+def _스크립트인자(길: Path) -> set[str]:
+    """`add_argument("--이름")`에 적힌 이름을 전부 모은다."""
+    이름들: set[str] = set()
+    나무 = ast.parse(길.read_text(encoding="utf-8"))
+    for 마디 in ast.walk(나무):
+        if not isinstance(마디, ast.Call):
+            continue
+        함수 = 마디.func
+        if not (isinstance(함수, ast.Attribute) and 함수.attr == "add_argument"):
+            continue
+        for ㄱ in 마디.args:
+            if isinstance(ㄱ, ast.Constant) and isinstance(ㄱ.value, str):
+                이름들.add(ㄱ.value)
+    return 이름들
+
+
+def _본문(설정) -> str:
+    """워크플로 안의 `run:` 글자를 전부 이어 붙인다.
+
+    **셸의 줄바꿈 이어짐(`\\` + 줄바꿈)을 먼저 없앤다.** 명령 하나가 여러
+    줄에 걸쳐 있는데, 그대로 두면 첫 줄까지만 읽고 아래 인자들을 못 본다.
+    처음에 이걸 안 해서 시험이 `--쪼갬`을 놓쳤다."""
+    조각 = []
+    for 일 in (설정.get("jobs") or {}).values():
+        for 단계 in 일.get("steps") or []:
+            if isinstance(단계, dict) and isinstance(단계.get("run"), str):
+                조각.append(단계["run"])
+    return "\n".join(조각).replace("\\\n", " ")
+
+
+@pytest.mark.parametrize("길", _워크플로, ids=lambda p: p.name)
+def test_워크플로가_넘기는_인자가_스크립트에_있다(길: Path):
+    설정 = yaml.safe_load(길.read_text(encoding="utf-8"))
+    본문 = _본문(설정)
+    뿌리 = 길.parent.parent.parent
+
+    for 스크립트 in sorted(set(re.findall(r"scripts/([\w.]+\.py)", 본문))):
+        파일 = 뿌리 / "scripts" / 스크립트
+        if not 파일.exists():
+            continue
+        아는것 = _스크립트인자(파일)
+        if not 아는것:
+            continue  # argparse를 안 쓰는 스크립트
+
+        # 그 스크립트를 부르는 줄만 본다. 한 워크플로가 여러 스크립트를
+        # 부르면 다른 스크립트의 인자를 이쪽 것으로 착각하게 된다.
+        for 줄 in re.findall(rf"python scripts/{re.escape(스크립트)}([^\n]*)", 본문):
+            for 인자 in re.findall(r"(?<![\w-])--[^\s\"'\\]+", 줄):
+                if 인자 in 아는것:
+                    continue
+                # 하이픈과 밑줄을 섞어 쓰는 곳이 있다. argparse도 같게 본다.
+                if 인자.replace("-", "_", 2) in 아는것:
+                    continue
+                pytest.fail(
+                    f"{길.name}이 {스크립트}에 {인자}를 넘기는데 "
+                    f"스크립트에는 그 인자가 없습니다. "
+                    f"아는 것: {sorted(아는것)}"
+                )
