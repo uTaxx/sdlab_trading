@@ -56,6 +56,11 @@ on:
       reserve:
         description: "true면 다음 거래일 08:20에 반영되도록 예약만 한다. 텔레그램 버튼과 같은 길이라 시트 사본과 변경 이력과 알림이 따라온다"
         default: "false"
+      via:
+        description: "어디서 고른 것인가. 최소 운용기간 30일을 따질지 정한다"
+        type: choice
+        options: ["대화", "화면"]
+        default: "대화"
 
 concurrency:
   # 상태 DB를 고치는 일이라 겹치면 나중 것이 앞 것을 덮는다.
@@ -85,15 +90,31 @@ jobs:
           echo "MUWON_MASTER_KEY=${{ secrets.MUWON_MASTER_KEY }}" >> .env
 
       - name: 바꾸기
+        # **입력값을 `run:` 안에 직접 박지 않는다**(2026-09-05에 고침).
+        # `${{ github.event.inputs.* }}`는 셸 글자 안으로 그대로 치환돼서
+        # 따옴표나 `$(...)`가 섞인 값이 명령으로 실행된다. 화면에서 전략을
+        # 골라 보낼 수 있게 한 뒤로 이 자리에 아무 글자나 들어올 수 있다.
+        # 환경변수로 넘기면 셸이 그 값을 글자로만 본다.
+        env:
+          KEY: ${{ github.event.inputs.key }}
+          SELL_KEY: ${{ github.event.inputs.sell_key }}
+          VIA: ${{ github.event.inputs.via }}
+          APPLY: ${{ github.event.inputs.apply }}
+          RESERVE: ${{ github.event.inputs.reserve }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
           # 실패가 이 저장소에서 제일 비싼 종류다.
           set -o pipefail
+          # **셸 변수 이름은 영문이어야 한다.** 한글로 대입하면 bash가
+          # `command not found`로 죽는다(2026-09-01에 겪음).
+          ARGS=""
+          if [ "$APPLY" = "true" ]; then ARGS="$ARGS --apply"; fi
+          if [ "$RESERVE" = "true" ]; then ARGS="$ARGS --reserve"; fi
+          if [ -n "$VIA" ]; then ARGS="$ARGS --via $VIA"; fi
           python scripts/switch_strategy.py \
-            --key "${{ github.event.inputs.key }}" \
-            --sell-key "${{ github.event.inputs.sell_key }}" \
-            ${{ github.event.inputs.apply == 'true' && '--apply' || '' }} \
-            ${{ github.event.inputs.reserve == 'true' && '--reserve' || '' }} \
+            --key "$KEY" \
+            --sell-key "$SELL_KEY" \
+            $ARGS \
             | tee switch.txt
 
       # 미리보기였으면 DB가 안 바뀌었으므로 올릴 것도 없다. 그래도 올리면

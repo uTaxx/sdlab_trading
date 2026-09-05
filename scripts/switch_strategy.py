@@ -141,6 +141,11 @@ def main() -> int:
     parser.add_argument("--reserve", action="store_true",
                         help="다음 거래일 08:20에 반영되도록 예약한다. 텔레그램 버튼과 같은 길이다")
     parser.add_argument("--reason", default="대화에서 주인이 지시했습니다.", help="예약 사유")
+    # 어디서 고른 것인가. 최소 운용기간(30일)을 따질지 말지가 여기서 갈린다.
+    # 텔레그램은 기계가 낸 후보를 받아들이는 것이라 제한을 받고, 화면과
+    # 대화는 목록에서 사람이 스스로 고르는 것이라 안 받는다.
+    parser.add_argument("--via", default="대화", choices=["대화", "화면", "텔레그램"],
+                        help="예약을 어디서 했나. 반영 때 최소 운용기간을 따질지 정한다")
     args = parser.parse_args()
 
     print("■ 모드: " + ("실제로 바꿈(--apply)" if args.apply else "예약(--reserve)" if args.reserve else "미리보기만"))
@@ -232,7 +237,7 @@ def main() -> int:
                 session, 제안일=한국오늘, 오늘=한국오늘,
                 이전전략=지금, 새전략=키,
                 아는전략들=[d.key for d in list_definitions()],
-                사유=args.reason, 승인경로="대화",
+                사유=args.reason, 승인경로=args.via,
             )
             session.commit()
         if not 결과.된것 or 결과.줄 is None:
