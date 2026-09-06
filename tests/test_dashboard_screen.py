@@ -1301,3 +1301,33 @@ def test_지금_걸린_전략과_같으면_예약_단추가_잠긴다():
 def test_예약이_실패하면_그렇다고_적는다():
     """조용히 성공한 척하지 않는다."""
     assert "예약하지 못했습니다" in 글
+
+
+def test_전략찾기_표가_종목수를_줄마다_싣는다():
+    """**머리 하나로 전부를 말하면 옛 조건이 새 종목 수로 둔갑한다.**
+
+    2026-09-06에 실제로 그랬다. 매매 대상을 63종목에서 39종목으로 좁히고
+    최근 3개월만 다시 쟀는데, 5년 줄은 63종목 때 값 그대로인 채로 파일
+    머리에는 39종목이라고 적혀 있었다. 화면은 그 머리를 읽는다."""
+    from pathlib import Path
+
+    뿌리 = Path(__file__).resolve().parent.parent
+    뽑기 = (뿌리 / "scripts" / "export_window_data.py").read_text(encoding="utf-8")
+    화면 = (뿌리 / "dashboard" / "app.js").read_text(encoding="utf-8")
+
+    assert '"종목수",' in 뽑기, "칸들에 종목수가 있어야 줄마다 실린다"
+    assert '"종목수": ㄱ.종목수' in 뽑기, "한줄()이 줄마다 종목수를 담아야 한다"
+    assert "종목수이 섞임" in 화면 or "종목수이 섞임" in 화면 or "섞임" in 화면, (
+        "화면이 종목 수가 섞인 것을 말해야 한다"
+    )
+
+
+def test_종목수가_섞이면_화면이_경고한다():
+    """섞인 줄끼리 직접 비교하면 안 된다는 것을 화면이 적어야 한다."""
+    from pathlib import Path
+
+    화면 = (Path(__file__).resolve().parent.parent / "dashboard" / "app.js").read_text(
+        encoding="utf-8"
+    )
+    assert "서로 다른 종목 수로 계산되어" in 화면
+    assert "직접 비교할 수 없습니다" in 화면
