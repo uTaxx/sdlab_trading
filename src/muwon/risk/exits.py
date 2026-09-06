@@ -66,6 +66,24 @@ def 보유상한(전략, 정책) -> int | None:
     return getattr(전략, "max_holding_days", None)
 
 
+def 최소보유일(전략, 정책) -> int:
+    """며칠까지는 안 팔 것인가. **0이면 안 건다.**
+
+    `보유상한`·`익절기준`과 같은 규칙이다. 기초설정에 숫자가 있으면 그것이
+    이기고, 0이면 전략이 정한 대로 가고, 전략도 안 정했으면 0이다.
+
+    ## 상한이 최소보다 짧으면 상한이 이긴다
+
+    최소 7일에 상한 5일처럼 어긋나게 적힐 수 있다. 상한은 전략마다 다르고
+    설정에서 덮을 수도 있어서 미리 막을 수가 없다. 그럴 때는 **파는 쪽**이
+    이긴다. 상한을 넘겨 들고 있는 것이 더 나쁘기 때문이다. 엔진이 보유
+    상한을 최소 보유기간보다 먼저 보므로 저절로 그렇게 된다."""
+    덮개 = int(getattr(정책, "min_holding_days", 0) or 0)
+    if 덮개 > 0:
+        return 덮개
+    return int(getattr(전략, "min_holding_days", 0) or 0)
+
+
 def evaluate_exit(
     *,
     entry_price: float,
@@ -76,13 +94,31 @@ def evaluate_exit(
     atr: pd.Series | None = None,
     history: pd.DataFrame | None = None,
     익절: float | None = None,
+    최소보유일: int = 0,
+    들고있던일: int | None = None,
 ) -> ExitDecision:
-    """청산해야 하는가. 손절이 먼저, 그다음 트레일링.
+    """청산해야 하는가. 손절이 먼저, 그다음 익절, 그다음 트레일링.
 
     ATR을 못 구하면(데이터 부족·지표 미계산) 고정 % 손절로 되돌아간다.
-    변동성 정보가 없다고 손절 자체가 사라지면 안 된다."""
+    변동성 정보가 없다고 손절 자체가 사라지면 안 된다.
+
+    ## 최소 보유기간은 손절을 막지 못한다 (2026-09-06)
+
+    `최소보유일`을 걸면 그 기간 안에는 **손절만** 판다. 익절과 트레일링은
+    기간이 지난 뒤부터 본다. 주인이 정한 규칙이다.
+
+    손절을 예외로 두는 까닭은, 최소 보유기간은 "너무 일찍 이익을 확정하지
+    마라"는 뜻이지 "손실을 끝까지 안고 가라"가 아니기 때문이다. 최소 3일을
+    걸었다고 이틀째 -8%를 그냥 두면 지금 리스크 관리와 정면으로 부딪친다.
+
+    `들고있던일`을 안 넘기면 기간을 못 세므로 막지 않는다. **막는 쪽으로
+    기울이면 손절이 조용히 사라진다.** 그것이 훨씬 나쁘다."""
     if entry_price <= 0:
         return ExitDecision(False)
+
+    아직이르다 = (
+        최소보유일 > 0 and 들고있던일 is not None and 들고있던일 < 최소보유일
+    )
 
     atr_at_entry = _value_at(atr, entry_date) if getattr(policy, "atr_stop_enabled", False) else None
 
@@ -102,6 +138,10 @@ def evaluate_exit(
     take_profit = 익절 if 익절 is not None else (
         getattr(policy, "take_profit_pct", 0.0) or 0.0
     )
+    if 아직이르다:
+        # 여기서부터는 손실을 막는 것이 아니라 이익을 확정하는 쪽이다.
+        # 최소 보유기간이 막으려는 것이 정확히 이것이다.
+        return ExitDecision(False)
     if take_profit > 0 and (current_price / entry_price - 1) >= take_profit:
         gain_pct = (current_price / entry_price - 1) * 100
         return ExitDecision(True, f"익절 ({gain_pct:+.1f}%)")

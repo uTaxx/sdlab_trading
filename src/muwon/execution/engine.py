@@ -39,6 +39,7 @@ from muwon.risk.exits import (
     보유만료글,
     보유상한,
     익절기준,
+    최소보유일,
 )
 from muwon.risk.manager import RiskManager
 from muwon.strategy.portfolio import (
@@ -511,6 +512,10 @@ class TradingEngine:
             산전략 = 청산전략표.get(self._산전략키(position), self._strategy)
             # 기준에서 덮어썼으면 그것이, 아니면 **산 전략**이 정한 대로.
             max_holding_days = 보유상한(산전략, policy)
+            최소일 = 최소보유일(산전략, policy)
+            들고있던일 = bars_since(
+                all_trade_dates.get(symbol, []), position.entry_date, trade_date
+            )
             stop = evaluate_exit(
                 entry_price=position.entry_price,
                 entry_date=position.entry_date,
@@ -522,15 +527,19 @@ class TradingEngine:
                 else None,
                 history=histories.get(symbol),
                 익절=익절기준(산전략, policy),
+                최소보유일=최소일,
+                들고있던일=들고있던일,
             )
             if stop.should_exit:
                 exit_reason = stop.reason
-            elif max_holding_days is not None and (
-                들고있던일 := bars_since(
-                    all_trade_dates.get(symbol, []), position.entry_date, trade_date
-                )
-            ) >= max_holding_days:
+            elif max_holding_days is not None and 들고있던일 >= max_holding_days:
+                # 상한은 최소 보유기간보다 먼저 본다. 둘이 어긋나게 적혀도
+                # 상한을 넘겨 들고 있지 않게 하려는 것이다.
                 exit_reason = 보유만료글(max_holding_days, 들고있던일)
+            elif 최소일 > 0 and 들고있던일 < 최소일:
+                # 최소 보유기간 안이다. 손절은 위에서 이미 봤고, 여기서부터는
+                # 안 판다. 전략의 매도 신호도 이 기간에는 안 본다.
+                pass
             else:
                 # 매도 신호도 산 전략이 낸 것만 본다. 지금 전략이 낸 신호를
                 # 섞으면 한 종목에 두 전략이 걸려서 왜 팔렸는지 설명할 수 없다.

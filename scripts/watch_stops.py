@@ -59,6 +59,7 @@ from muwon.execution.kis_order_executor import KISOrderExecutor
 from muwon.notify.telegram import TelegramNotifier
 from muwon.risk.exits import atr_series, evaluate_exit
 from muwon.settings.service import build_settings_service
+from muwon.strategy.portfolio import bars_since
 
 #: 장 시간. 15:20에 멈추는 이유는 동시호가(15:20~15:30) 때문이다. 그 구간의
 #: 시장가 주문은 예상체결가로 접수돼 우리가 본 값과 다르게 체결된다.
@@ -78,10 +79,14 @@ def 장중인가(지금: datetime) -> tuple[bool, str]:
 
 
 def _일봉이필요한가(정책) -> bool:
-    """고정 비율 손절만 켜져 있으면 지금 값 하나로 판단이 끝난다."""
+    """고정 비율 손절만 켜져 있으면 지금 값 하나로 판단이 끝난다.
+
+    **최소 보유기간을 걸었으면 일봉이 있어야 한다**(2026-09-06에 더함).
+    며칠 들고 있었는지를 거래일로 세야 하는데, 그 답이 일봉에만 있다."""
     return bool(
         getattr(정책, "atr_stop_enabled", False)
         or getattr(정책, "trailing_stop_enabled", False)
+        or int(getattr(정책, "min_holding_days", 0) or 0) > 0
     )
 
 
@@ -215,6 +220,15 @@ def main() -> int:
         # 09:05 회차와 같은 규칙으로 판단한다. 일봉은 ATR·트레일링을 켜
         # 뒀을 때만 있고, 고정 비율 손절만 켜져 있으면 None이라 안 쓴다.
         기록 = 일봉.get(p.symbol)
+        # **09:05 회차와 같은 기간 계산을 써야 한다.** 여기서만 익절이
+        # 나가면 최소 보유기간이 반쪽이 된다. 일봉이 없으면 셀 수가 없어
+        # None을 넘기고, 그러면 막지 않는다. 손절이 조용히 사라지는 쪽보다
+        # 낫다(risk/exits.evaluate_exit에 같은 이유가 적혀 있다).
+        들고있던일 = (
+            bars_since(list(기록["trade_date"]), p.entry_date, 오늘)
+            if 기록 is not None and len(기록)
+            else None
+        )
         판정 = evaluate_exit(
             entry_price=p.entry_price,
             entry_date=p.entry_date,
@@ -223,6 +237,8 @@ def main() -> int:
             policy=정책,
             atr=atr_series(기록, 정책.atr_window) if 기록 is not None else None,
             history=기록,
+            최소보유일=int(getattr(정책, "min_holding_days", 0) or 0),
+            들고있던일=들고있던일,
         )
         수익률 = 지금값 / p.entry_price - 1 if p.entry_price else 0.0
         표시 = f"  {p.symbol} {p.quantity:,}주 · 산 값 {p.entry_price:,.0f}원 · 지금 {지금값:,.0f}원 ({수익률:+.1%})"

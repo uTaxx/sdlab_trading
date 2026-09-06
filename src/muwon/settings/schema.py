@@ -48,6 +48,16 @@ class RiskPolicy:
     #: 지금까지의 전략 평가 결과가 전부 그 상태에서 나온 숫자다.
     max_holding_days: int = 0
 
+    #: 며칠까지는 안 판다. 0이면 안 건다(2026-09-06에 더함).
+    #:
+    #: **손절은 이것을 무시한다.** 최소 보유기간은 "너무 일찍 이익을
+    #: 확정하지 마라"는 뜻이지 "손실을 끝까지 안고 가라"가 아니다. 막는
+    #: 것은 익절과 트레일링과 전략의 매도 신호 셋이다.
+    #:
+    #: 상한보다 크게 적히면 상한이 이긴다. 엔진이 보유 상한을 먼저 보므로
+    #: 저절로 그렇게 되고, 파는 쪽으로 기우는 것이 안전하다.
+    min_holding_days: int = 0
+
     atr_stop_enabled: bool = False
     atr_stop_multiple: float = 2.0
     trailing_stop_enabled: bool = False
