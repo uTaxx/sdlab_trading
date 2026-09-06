@@ -345,3 +345,44 @@ def test_제한없는경로_목록을_고정한다():
     from muwon.cloud.strategy_approval import 제한없는경로
 
     assert set(제한없는경로) == {"화면", "대화"}
+
+
+# ── 예약 취소가 저장되는가 ─────────────────────────────────────────
+#
+# 2026-09-06에 실제로 겪었다. 같은 전략을 두 번 예약하면 두 번째는 취소로
+# 읽히는데, 스크립트가 그것을 종료 코드 1로 끝냈다. 그러면 워크플로가
+# 빨개지고 **상태 DB를 올리는 단계가 건너뛰어져서 취소가 저장되지 않는다.**
+# 화면에는 "취소했습니다"라고 찍히는데 다음 날 08:20에 그대로 반영된다.
+
+
+def test_취소도_성공으로_끝낸다():
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent / "scripts" / "switch_strategy.py"
+          ).read_text(encoding="utf-8")
+
+    assert "if not 결과.된것:" in 글, "못 한 것과 취소를 갈라야 한다"
+    assert "취소했습니다" in 글
+    # 취소 갈래가 0으로 끝나야 워크플로가 DB를 올린다.
+    자리 = 글.index("취소했습니다")
+    뒤 = 글[자리:자리 + 400]
+    assert "return 0" in 뒤, "취소는 성공으로 끝내야 상태 DB가 올라간다"
+
+
+def test_상태DB_올리기가_실패해도_돈다():
+    """파이썬이 DB에 쓰고 나서 실패로 끝나는 길이 있다."""
+    from pathlib import Path
+
+    import yaml
+
+    길 = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
+          / "switch-strategy.yml")
+    문서 = yaml.safe_load(길.read_text(encoding="utf-8"))
+    올리기 = [
+        ㄷ for ㅈ in 문서["jobs"].values() for ㄷ in ㅈ.get("steps", [])
+        if "상태 DB 올리기" in str(ㄷ.get("name", ""))
+    ]
+    assert 올리기, "상태 DB 올리는 단계가 있어야 한다"
+    assert "always()" in str(올리기[0].get("if", "")), (
+        "앞 단계가 실패해도 DB는 올려야 한다. 안 그러면 쓴 것이 사라진다"
+    )

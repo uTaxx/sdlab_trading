@@ -222,13 +222,31 @@ def test_slippage_makes_you_buy_higher_and_sell_lower():
     assert costs.sell_price(10_000) == pytest.approx(9_990)
 
 
-def test_default_costs_keep_the_close_price_assumption():
-    """기본값을 바꾸면 지금까지 낸 모든 숫자와 비교가 안 된다.
-    얼마가 맞는지는 실측으로 정할 문제라 기본은 0으로 둔다."""
+def test_기본_거래비용에_슬리피지가_들어_있다():
+    """**기본값이 2026-09-06에 0에서 편도 0.1%로 바뀌었다.**
+
+    주인이 앞으로 모든 분석에 거래비용을 반영하라고 정했다. 그 전에는
+    기간 검증, 저녁 전략 검토, 견고성 검사가 전부 이 기본값을 써서
+    슬리피지 0으로 계산되고 있었다.
+
+    이 시험이 값을 고정하는 이유는, 0으로 되돌아가면 회전이 빠른 전략이
+    실제보다 훨씬 좋게 나오는데 그 사실이 화면 어디에도 안 남기 때문이다.
+    바꿀 때는 이 시험이 먼저 빨개져서 "의도한 변경인가"를 한 번 묻는다."""
     from muwon.backtest.costs import TransactionCosts
 
     costs = TransactionCosts()
 
-    assert costs.slippage_pct == 0.0
+    assert costs.slippage_pct == 0.001
+    # 편도다. 살 때 비싸게, 팔 때 싸게 잡으므로 왕복 0.2%다.
+    assert costs.buy_price(10_000) == pytest.approx(10_010)
+    assert costs.sell_price(10_000) == pytest.approx(9_990)
+
+
+def test_슬리피지를_0으로_두려면_일부러_적어야_한다():
+    """민감도를 볼 때는 0도 재야 한다. 다만 **일부러 적어야** 한다."""
+    from muwon.backtest.costs import TransactionCosts
+
+    costs = TransactionCosts(slippage_pct=0.0)
+
     assert costs.buy_price(10_000) == 10_000
     assert costs.sell_price(10_000) == 10_000

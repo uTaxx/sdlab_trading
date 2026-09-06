@@ -119,8 +119,14 @@ jobs:
 
       # 미리보기였으면 DB가 안 바뀌었으므로 올릴 것도 없다. 그래도 올리면
       # 그 사이 다른 실행이 쓴 것을 옛 것으로 덮을 수 있다.
+      #
+      # **앞 단계가 실패해도 올린다**(2026-09-06에 고침). 파이썬이 DB에
+      # 쓰고 나서 종료 코드 1로 끝나는 길이 있다. 실제로 예약 취소가
+      # 그랬다. 그때 이 단계를 건너뛰면 취소가 로컬 파일에만 남고
+      # 드라이브에는 안 올라가서, 화면에는 취소했다고 찍히는데 다음 날
+      # 아침에 그대로 반영된다.
       - name: 상태 DB 올리기
-        if: github.event.inputs.apply == 'true' || github.event.inputs.reserve == 'true'
+        if: always() && (github.event.inputs.apply == 'true' || github.event.inputs.reserve == 'true')
         env:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
         run: |

@@ -229,9 +229,16 @@ def test_reserve는_확정_예약을_남긴다(tmp_path, monkeypatch):
     assert s.get_strategy_selection().active_key == "gap_up_go"
 
 
-def test_reserve가_안_되면_빨갛게_끝난다(tmp_path, monkeypatch, capsys):
-    """같은 것을 두 번 예약하면 두 번째는 취소로 읽힌다. 그것을 0으로 끝내면
-    '예약했다'고 믿고 내일 아무 일도 안 일어난다."""
+def test_같은_것을_두_번_누르면_취소되고_성공으로_끝난다(tmp_path, monkeypatch, capsys):
+    """**취소는 실패가 아니다**(2026-09-06에 바꿈).
+
+    전에는 이것을 종료 코드 1로 끝냈다. 그러면 워크플로가 빨개지고 상태
+    DB를 올리는 단계가 건너뛰어져서 **취소가 드라이브에 저장되지 않는다.**
+    화면에는 취소했다고 찍히는데 다음 날 08:20에 그대로 반영된다. 실제로
+    그랬다.
+
+    지키려던 것은 "예약했다고 믿게 만들지 마라"이고, 그것은 종료 코드가
+    아니라 문장이 지킨다. 그래서 문장을 대신 고정한다."""
     from muwon.cloud import strategy_approval as approval
     from muwon.db.session import make_session_factory
 
@@ -245,7 +252,13 @@ def test_reserve가_안_되면_빨갛게_끝난다(tmp_path, monkeypatch, capsys
     )
 
     assert switch_strategy.main() == 0
-    assert switch_strategy.main() == 1
-    assert "예약하지 못했습니다" in capsys.readouterr().out
+    # 두 번째는 취소다. 0으로 끝나야 워크플로가 상태 DB를 올린다.
+    assert switch_strategy.main() == 0
+    글 = capsys.readouterr().out
+    assert "취소했습니다" in 글
+    # **예약했다고 읽히면 안 된다.** 그것이 원래 지키려던 것이다.
+    assert "예약했습니다: gap_up_go → volume_surge_3d_us60_2. 다음" not in 글.split(
+        "취소했습니다"
+    )[-1]
     with make_session_factory(db)() as session:
         assert approval.지금예약(session) is None

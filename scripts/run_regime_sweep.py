@@ -107,7 +107,9 @@ def 한칸(histories, 정의, 끝, 동시보유: int, 손절: float, 섹터당: 
     for ㅈ in list_definitions():
         try:
             성적 = 돌려보기(정의, (lambda k=ㅈ.key: build_strategy(k)), histories, 끝,
-                        정책, costs=TransactionCosts(slippage_pct=0.0), **제약)
+                        정책, # 기본값(편도 0.1%)을 쓴다. 2026-09-06 전에는 여기에 0을 박아 두고
+                        # 있었다. 주인이 모든 분석에 거래비용을 반영하라고 정했다.
+                        costs=TransactionCosts(), **제약)
         except Exception as 탈:  # noqa: BLE001 (전략 하나 때문에 훑기가 멈추면 안 된다)
             print(f"    건너뜀 {ㅈ.key} ({type(탈).__name__})", file=sys.stderr)
             continue
