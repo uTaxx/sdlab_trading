@@ -195,8 +195,10 @@ def main() -> int:
         source_symbol = lambda t: t.yahoo_symbol
         # 흉내 실행에는 증권사가 없어서 지금 값을 물어볼 곳도 없다.
         지금값 = None
+        시세하나 = None
         print("■ --dry-run: 야후 시세로 주문 흉내만 냅니다. KIS에 안 붙습니다.")
         print("■ 손절은 어제 종가로 계산합니다 (지금 값을 물어볼 곳이 없습니다).")
+        print("■ 갭 확인도 건너뜁니다 (지금 값을 물어볼 곳이 없습니다).")
     else:
         from muwon.execution.kis_order_executor import KISOrderExecutor
 
@@ -215,6 +217,17 @@ def main() -> int:
             return {h.symbol: h.current_price for h in client.get_balance().holdings}
 
         print("■ 손절은 어제 종가가 아니라 지금 값으로 계산합니다.")
+
+        # 매수 직전에 갭을 재려면 **새로 살 종목**의 값이 있어야 한다.
+        # 위의 지금값()은 잔고조회라 들고 있는 종목만 나온다. 그걸로 재려
+        # 하면 값이 늘 없어서 모든 매수가 막힌다.
+        시세하나 = client.get_current_price
+        한계 = float(getattr(정책, "max_entry_slip_pct", 0.0) or 0.0)
+        print(
+            f"■ 승인할 때 본 값보다 {한계:.1%} 넘게 비싸면 안 삽니다."
+            if 한계 > 0 else
+            "■ 갭 확인이 꺼져 있습니다 (최대 진입 갭 0%)."
+        )
 
     # 섹터당 보유 상한. **여기서도 센다**(2026-09-02에 더함).
     #
@@ -239,6 +252,7 @@ def main() -> int:
         source_symbol=source_symbol,
         orderable_provider=살수있는수량,
         현재가공급자=지금값,
+        시세공급자=시세하나,
         섹터표=섹터표,
         섹터상한=섹터당,
     )

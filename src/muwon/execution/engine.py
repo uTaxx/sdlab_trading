@@ -282,6 +282,13 @@ class TradingEngine:
         initial_cash: float = 10_000_000.0,
         orderable_provider: Callable[[str, float], int] | None = None,
         현재가공급자: Callable[[], dict[str, float]] | None = None,
+        #: 종목 하나의 지금 값. **매수 직전에 갭을 재는 데만 쓴다.**
+        #:
+        #: `현재가공급자`와 나눠 두는 이유가 있다. 그쪽은 잔고조회 한 번으로
+        #: **들고 있는 종목**의 값을 한꺼번에 받는다. 새로 사려는 종목은
+        #: 잔고에 없으므로 거기에 안 들어 있다. 그걸로 갭을 재려 하면 값이
+        #: 늘 없어서 **모든 매수가 막힌다.**
+        시세공급자: Callable[[str], float | None] | None = None,
         섹터표: dict[str, str] | None = None,
         섹터상한: int = 0,
     ):
@@ -309,6 +316,7 @@ class TradingEngine:
         #: 없으면 예전처럼 어제 종가로 잰다. 백테스트와 흉내 실행은
         #: 증권사가 없으니 물어볼 곳도 없다.
         self._현재가공급자 = 현재가공급자
+        self._시세공급자 = 시세공급자
 
         #: 종목코드 → 섹터 이름. 섹터 상한을 걸려면 이것이 있어야 한다.
         #:
@@ -636,6 +644,23 @@ class TradingEngine:
             #
             # 못 물어봤을 때(-1)는 예전처럼 우리 현금으로 간다. 조회 한 번
             # 실패한 것이 그날 매수를 통째로 막으면 안 된다.
+            # **승인할 때 본 값보다 너무 비싸면 안 산다**(2026-09-06에 더함).
+            #
+            # 여기서 쓰는 `price`는 어제 종가다. 주문은 지금 시장가로 나간다.
+            # 그 사이에 밤이 하나 있어서, 갭이 크게 뜬 날에는 승인할 때 본
+            # 값과 전혀 다른 값에 산다. 손절선이 -5%인데 +5%에 사면 사자마자
+            # 손절 근처다.
+            #
+            # 거래량 급증 계열은 전날 거래가 터진 종목을 사는 규칙이라 다음
+            # 날 아침 갭이 특히 잦다.
+            막힘 = self._갭이너무크나(symbol, price, policy)
+            if 막힘:
+                summary.rejections.append(
+                    f"{_find_ticker(self._universe, symbol).name}({symbol}): {막힘}"
+                )
+                summary.거부사유[symbol] = 막힘
+                continue
+
             살수있는수량 = self._orderable(symbol, price)
             if 살수있는수량 == 0:
                 사유 = "증권사가 살 수 있는 수량을 0주로 알려 줬습니다. 주문가능현금이 모자랍니다"
@@ -732,6 +757,55 @@ class TradingEngine:
             return self._orderable_provider(symbol, price)
         except Exception:  # noqa: BLE001 (조회 실패가 매매를 멈춰선 안 된다)
             return -1
+
+    def _갭이너무크나(self, symbol: str, 기준가: float, policy) -> str:
+        """승인할 때 본 값보다 너무 비싸면 그 까닭을, 아니면 빈 글자.
+
+        ## 비싼 쪽만 막는다
+
+        싸게 시작한 날은 그대로 산다. 그것까지 막는 것은 슬리피지 방어가
+        아니라 "신호가 깨졌다"는 다른 판단이고, 그건 재 보고 정할 일이다.
+
+        ## 지금 값을 못 받으면 안 산다
+
+        `get_orderable`은 반대로 해 두었다. 못 물어봤으면 우리 현금 계산으로
+        간다. 거기서는 조회가 실패해도 **말이 되는 주문**이 나오기 때문이다.
+
+        여기는 다르다. 지금 값을 모르면 **막을 방법 자체가 없다.** 모르는
+        채로 사면 이 장치를 안 단 것과 같다. 그래서 그 종목만 건너뛰고
+        까닭을 적는다. 조용히 넘어가지 않으므로 매수 알림에 그대로 뜬다."""
+        한계 = float(getattr(policy, "max_entry_slip_pct", 0.0) or 0.0)
+        if 한계 <= 0 or 기준가 <= 0 or self._시세공급자 is None:
+            # 물어볼 곳이 아예 없으면 이 장치를 안 단 것이다. 흉내 실행
+            # (--dry-run)과 백테스트가 그렇다. 거기서 막으면 아무것도 안 산다.
+            return ""
+        지금 = self._지금값하나(symbol)
+        if 지금 is None:
+            return (
+                "지금 값을 못 받아서 승인할 때 본 값과 얼마나 벌어졌는지 "
+                f"확인하지 못했습니다. 확인 못 한 채로는 사지 않습니다 "
+                f"(기준 {기준가:,.0f}원)"
+            )
+        벌어짐 = 지금 / 기준가 - 1
+        if 벌어짐 > 한계:
+            return (
+                f"승인할 때 본 값보다 {벌어짐:+.1%} 비쌉니다. "
+                f"{기준가:,.0f}원 → {지금:,.0f}원. "
+                f"한계 {한계:.1%}를 넘어 사지 않습니다"
+            )
+        return ""
+
+    def _지금값하나(self, symbol: str) -> float | None:
+        """그 종목의 지금 값. 못 받으면 None."""
+        try:
+            값 = self._시세공급자(symbol)
+        except Exception:  # noqa: BLE001 (조회 실패를 값으로 바꾸면 안 된다)
+            return None
+        try:
+            값 = float(값)
+        except (TypeError, ValueError):
+            return None
+        return 값 if 값 > 0 else None
 
     def _notify(self, message: str) -> None:
         self._notifier.send(message)

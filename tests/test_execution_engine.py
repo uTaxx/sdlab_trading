@@ -562,3 +562,88 @@ def test_조회가_터져도_매매가_안_멈춘다():
     engine, _, _ = make_engine(data_source, orderable_provider=터짐)
 
     assert engine.run_once().actions[0].quantity > 0
+
+
+# ── 매수 직전 갭 확인 (2026-09-06) ────────────────────────────────
+#
+# 09:05 매수는 어제 종가로 시장가 주문을 낸다. 그 사이에 밤이 하나 있어서
+# 갭이 크게 뜬 날에는 승인할 때 본 값과 전혀 다른 값에 산다. 손절선이
+# -5%인데 +5%에 사면 사자마자 손절 근처다.
+
+
+def test_갭이_한계를_넘으면_안_산다():
+    from muwon.execution.engine import TradingEngine
+    from muwon.settings.schema import RiskPolicy
+
+    엔진 = TradingEngine.__new__(TradingEngine)
+    엔진._시세공급자 = lambda ㅅ: 11_000.0  # 10,000원 기준 대비 +10%
+    까닭 = 엔진._갭이너무크나("005930", 10_000.0, RiskPolicy(max_entry_slip_pct=0.05))
+
+    assert 까닭
+    assert "+10.0%" in 까닭
+    assert "10,000원 → 11,000원" in 까닭
+
+
+def test_한계_안이면_산다():
+    from muwon.execution.engine import TradingEngine
+    from muwon.settings.schema import RiskPolicy
+
+    엔진 = TradingEngine.__new__(TradingEngine)
+    엔진._시세공급자 = lambda ㅅ: 10_400.0  # +4%
+    assert 엔진._갭이너무크나("005930", 10_000.0, RiskPolicy(max_entry_slip_pct=0.05)) == ""
+
+
+def test_싸게_시작한_날은_안_막는다():
+    """**비싼 쪽만 막는다.** 싸게 시작한 것까지 막는 것은 슬리피지 방어가
+    아니라 '신호가 깨졌다'는 다른 판단이다."""
+    from muwon.execution.engine import TradingEngine
+    from muwon.settings.schema import RiskPolicy
+
+    엔진 = TradingEngine.__new__(TradingEngine)
+    엔진._시세공급자 = lambda ㅅ: 8_000.0  # -20%
+    assert 엔진._갭이너무크나("005930", 10_000.0, RiskPolicy(max_entry_slip_pct=0.05)) == ""
+
+
+def test_지금_값을_못_받으면_안_산다():
+    """모르는 채로 사면 이 장치를 안 단 것과 같다. 조용히 넘어가지 않는다."""
+    from muwon.execution.engine import TradingEngine
+    from muwon.settings.schema import RiskPolicy
+
+    엔진 = TradingEngine.__new__(TradingEngine)
+    엔진._시세공급자 = lambda ㅅ: None
+    까닭 = 엔진._갭이너무크나("005930", 10_000.0, RiskPolicy(max_entry_slip_pct=0.05))
+
+    assert 까닭
+    assert "확인하지 못했습니다" in 까닭
+
+
+def test_물어볼_곳이_없으면_안_막는다():
+    """흉내 실행과 백테스트에는 시세를 물어볼 곳이 없다. 거기서 막으면
+    아무것도 안 산다."""
+    from muwon.execution.engine import TradingEngine
+    from muwon.settings.schema import RiskPolicy
+
+    엔진 = TradingEngine.__new__(TradingEngine)
+    엔진._시세공급자 = None
+    assert 엔진._갭이너무크나("005930", 10_000.0, RiskPolicy(max_entry_slip_pct=0.05)) == ""
+
+
+def test_0이면_안_막는다():
+    from muwon.execution.engine import TradingEngine
+    from muwon.settings.schema import RiskPolicy
+
+    엔진 = TradingEngine.__new__(TradingEngine)
+    엔진._시세공급자 = lambda ㅅ: 20_000.0  # +100%인데도
+    assert 엔진._갭이너무크나("005930", 10_000.0, RiskPolicy(max_entry_slip_pct=0.0)) == ""
+
+
+def test_파는_길에는_갭_확인이_없다():
+    """**갭 하락한 날 손절을 막으면 이 값이 손실을 키우는 장치가 된다.**"""
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent / "src" / "muwon" / "execution"
+          / "engine.py").read_text(encoding="utf-8")
+    자리 = 글.index("_갭이너무크나(symbol")
+    # 부르는 자리가 하나뿐이고, 그 앞이 매수 수량 계산이어야 한다.
+    assert 글.count("self._갭이너무크나(") == 1
+    assert "OrderSide.BUY" in 글[자리:자리 + 3000]

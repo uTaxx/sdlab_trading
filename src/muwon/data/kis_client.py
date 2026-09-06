@@ -70,6 +70,10 @@ _BALANCE_TR_ID = {"paper": "VTTC8434R", "real": "TTTC8434R"}
 #: 채로 그 위에서 비중 상한이 돌았다.
 _PSBL_ORDER_TR_ID = {"paper": "VTTC8908R", "real": "TTTC8908R"}
 
+#: 주식현재가 시세. **시세 조회는 모의와 실전이 같은 TR_ID를 쓴다.**
+#: 계좌를 안 보고 시세만 보는 것이라 환경을 나눌 이유가 없다.
+_PRICE_TR_ID = "FHKST01010100"
+
 # 주식주문(정정취소) TR_ID. 취소는 모의투자에서도 된다.
 #
 # 짝이 되는 "주식정정취소가능주문조회"(TTTC0084R)는 **실전에만 있다**.
@@ -690,6 +694,55 @@ class KISClient(MarketDataSource):
             f"{order.remaining}주 → 취소주문 {새주문번호}"
         )
         return 새주문번호
+
+    def get_current_price(self, symbol: str) -> float | None:
+        """지금 값. **못 받으면 None이다. 0이 아니다.**
+
+        ## 왜 필요한가 (2026-09-06)
+
+        09:05 매수는 **어제 종가로 시장가 주문**을 낸다. 그 사이에 밤이
+        하나 있고, 그동안 값이 얼마나 벌어졌는지는 아무도 안 봤다. 갭이
+        크게 뜬 날에는 승인할 때 본 값과 전혀 다른 값에 산다.
+
+        거래량 급증 계열은 전날 거래가 터진 종목을 사는 규칙이라, 다음 날
+        아침에 갭이 크게 뜨는 일이 특히 잦다. 그것을 막으려면 주문 직전에
+        지금 값을 알아야 한다.
+
+        ## None과 0을 가른다
+
+        `get_orderable`과 같은 이유다. 0은 "값이 0원"이라는 답이고 None은
+        "못 물어봤다"인데, 둘을 같게 두면 조회 한 번 실패한 것이 값이
+        폭락한 것으로 읽힌다. 부르는 쪽이 그 둘에 다르게 대응해야 한다."""
+        try:
+            response = self._get_통신재시도(
+                f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price",
+                headers=self._auth_headers(_PRICE_TR_ID),
+                params={"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": symbol},
+                timeout=10,
+            )
+            payload = response.json()
+        except Exception as e:  # noqa: BLE001 (조회 실패를 값으로 바꾸면 안 된다)
+            logger.warning(f"현재가를 못 받았습니다({symbol}): {type(e).__name__}: {e}")
+            return None
+
+        if str(payload.get("rt_cd", "")) != "0":
+            logger.warning(
+                f"현재가 조회를 증권사가 거부했습니다({symbol}): "
+                f"{payload.get('msg1')} (msg_cd={payload.get('msg_cd')})"
+            )
+            return None
+
+        칸 = str((payload.get("output") or {}).get("stck_prpr", "")).strip()
+        if not 칸:
+            logger.warning(f"현재가 답에 값이 없습니다({symbol}).")
+            return None
+        try:
+            값 = float(칸)
+        except ValueError:
+            logger.warning(f"현재가를 숫자로 못 읽었습니다({symbol}): {칸!r}")
+            return None
+        # 장 시작 전에는 0으로 오기도 한다. 그것도 "모른다"로 본다.
+        return 값 if 값 > 0 else None
 
     def get_orderable(self, symbol: str, price: float) -> int:
         """이 종목을 **미수 없이** 몇 주까지 살 수 있나. 못 물어보면 -1.
