@@ -371,6 +371,33 @@ input:disabled, select:disabled, textarea:disabled {
 .때 { color: var(--흐린글); font-size: 12px; margin-top: 16px; letter-spacing: 0; }
 details { margin-top: 20px; font-size: 13px; color: var(--흐린글); }
 summary { cursor: pointer; }
+
+/* 머리의 워크플로우 메뉴 (2026-09-06).
+
+   하루에 무엇이 언제 도는지는 어느 탭에서 보든 같은 질문이라 머리에 둔다.
+   전에는 손익 탭 맨 아래에 있어서, 그것을 찾으려고 손익 화면을 지나가야
+   했다. 접어 두는 것은 한 번 익히면 되는 내용이기 때문이다. */
+.워크플로우 {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--선);
+  border-radius: 10px;
+  background: var(--칸바탕, transparent);
+}
+.워크플로우 > summary { font-weight: 600; color: var(--글); font-size: 14px; }
+.워크플로우 .h2곁말 { margin-top: 8px; }
+
+/* 검토 탭 안에 접어 둔 근거 구역. 안에 표와 그림이 통째로 들어가므로
+   글자 크기와 색을 본문과 같게 되돌린다. details의 기본 스타일(작고 흐린
+   글씨)을 그대로 두면 표가 읽히지 않는다. */
+.근거 { font-size: inherit; color: inherit; }
+.근거 > summary {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--글);
+  padding: 10px 0;
+  border-top: 1px solid var(--선);
+}
 /* 아직 아무것도 없는 자리.
 
    점선 상자는 **표 밖에 홀로 놓일 때만** 두른다. 표 안에서는 `<td>`로
@@ -582,3 +609,11 @@ button.글단추:hover:not(:disabled) {
 }
 button.글단추[aria-pressed="true"] { text-decoration-style: solid; }
 button.글단추[aria-pressed="true"]::before { content: "● "; }
+
+/* 주간 전략 선택 탭의 단계 목록 (2026-09-06).
+
+   전략을 고르는 과정을 화면에 그대로 세운다. 표만 나열해 두면 무엇을 먼저
+   보고 무엇을 나중에 봐야 하는지가 화면에 없다. */
+ol.단계 { margin: 10px 0 6px; padding-left: 22px; line-height: 1.7; }
+ol.단계 > li { margin-bottom: 8px; }
+ol.단계 > li::marker { font-weight: 700; color: var(--흐린글); }
