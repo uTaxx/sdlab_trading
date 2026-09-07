@@ -40,14 +40,12 @@ concurrency:
 jobs:
   update:
     # ── 예약은 운영 저장소에서만 돈다 ──────────────────────────
-    # 이 코드는 두 저장소(muwon406·sdlab_trading)에 똑같이 들어 있다.
-    # 양쪽에서 예약이 울리면 같은 일이 하루에 두 번 돌고, push-records는
-    # 시트에 같은 줄을 두 번 쌓는다.
-    #
-    # n8n 시계가 아직 muwon406을 부르므로 그쪽이 운영이다. n8n을 옮기는
-    # 날 이 이름을 sdlab_trading으로 바꾼다. **양쪽 저장소에서 같이.**
-    # 손으로 부르는 것(workflow_dispatch)은 어느 쪽에서든 그대로 된다.
-    if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
+    # 운영 저장소는 uTaxx/sdlab_trading 하나다(2026-09-07에 muwon406에서
+    # 분리, docs/저장소_분리_2026-09-07.md). 이 파일이 다른 저장소에
+    # 복사돼 있어도 거기서는 예약이 건너뛰어진다. 양쪽에서 울리면 같은
+    # 일이 하루에 두 번 돌고 push-records는 시트에 같은 줄을 두 번 쌓는다.
+    # 손으로 부르는 것(workflow_dispatch)은 어느 저장소에서든 그대로 된다.
+    if: github.event_name != 'schedule' || github.repository == 'uTaxx/sdlab_trading'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

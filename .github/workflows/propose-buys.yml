@@ -56,9 +56,10 @@ concurrency:
 
 jobs:
   propose:
-    # 예약은 운영 저장소에서만 돈다(다른 워크플로와 같은 규칙).
-    # 손으로 부르는 것과 n8n이 부르는 것은 어느 쪽에서든 그대로 된다.
-    if: github.event_name != 'schedule' || github.repository == 'uTaxx/muwon406'
+    # 예약은 운영 저장소 uTaxx/sdlab_trading에서만 돈다(다른 워크플로와
+    # 같은 규칙, 2026-09-07). 손으로 부르는 것과 n8n이 부르는 것은 어느
+    # 저장소에서든 그대로 된다.
+    if: github.event_name != 'schedule' || github.repository == 'uTaxx/sdlab_trading'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

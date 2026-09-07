@@ -120,14 +120,14 @@ def 전략설명() -> list[dict]:
 #: 시트 기준표에 없는, DB에만 있는 열쇠말. 변경 이력은 DB에서 나오므로
 #: 이쪽 이름이 그대로 화면에 뜬다.
 _디비칸 = {
-    "strategy.active_keys": "쓰는 전략",
-    "strategy.active_key": "쓰는 전략(옛 칸)",
-    "strategy.sell_keys": "파는 쪽 전략",
+    "strategy.active_keys": "매수 전략",
+    "strategy.active_key": "매수 전략(옛 항목)",
+    "strategy.sell_keys": "매도 전략",
     "strategy.combine": "전략 합치는 방식(AND/OR)",
     "strategy.factor_config": "종합점수 가중치",
     "risk.atr_stop_enabled": "변동성 손절 켜기",
     "risk.atr_stop_multiple": "변동성 손절 배수",
-    "risk.atr_window": "변동성 재는 기간(일)",
+    "risk.atr_window": "변동성 계산 기간(일)",
     "risk.trailing_stop_enabled": "트레일링 손절 켜기",
     "risk.trailing_stop_multiple": "트레일링 손절 배수",
     "kis.account_no": "증권사 계좌번호",
