@@ -1,0 +1,9 @@
+{
+  "name": "sdlab-apps-script",
+  "private": true,
+  "description": "Apps Script 두 프로젝트(trading, lxgroup)의 순수 함수 시험. Node 22의 내장 test runner를 쓴다.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "check": "node --check trading/src/*.js && node --check lxgroup/src/*.js"
+  }
+}
