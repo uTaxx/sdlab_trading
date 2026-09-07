@@ -51,7 +51,7 @@ def test_기준이름에_시트칸과_DB칸이_모두_있다():
 
     assert 표["stop_loss_pct"]["이름"] == "손절선"
     assert 표["risk.stop_loss_pct"]["이름"] == "손절선"
-    assert 표["strategy.active_keys"]["이름"] == "쓰는 전략"
+    assert 표["strategy.active_keys"]["이름"] == "매수 전략"
     # 열쇠말이 그대로 남은 칸이 있으면 화면에서 그 줄만 영어로 뜬다.
     안옮긴것 = [열쇠 for 열쇠, ㄱ in 표.items() if ㄱ["이름"] == 열쇠]
     assert not 안옮긴것, f"사람이 읽을 이름이 없는 칸: {안옮긴것}"

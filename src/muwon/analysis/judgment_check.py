@@ -363,7 +363,7 @@ def 무작위대조군(
         최악들.append(min(값들))
         플러스들.append(sum(1 for ㄱ in 값들 if ㄱ > 0) / len(값들) * 100)
     return 대조군(
-        이름=f"무작위로 고름 ({횟수}번의 가운데값)",
+        이름=f"무작위로 고른 경우 ({횟수}회 중앙값)",
         판정수=칸수 - 돌아볼,
         중앙값=statistics.median(중앙값들),
         최악=statistics.median(최악들),
@@ -388,6 +388,16 @@ def 전체평균대조군(
     )
 
 
+def _전략이름(키: str) -> str:
+    """사람에게 보이는 이름. 전략 키가 화면에 그대로 새면 못 읽는다."""
+    from muwon.strategy.registry import REGISTRY
+
+    for 정의 in REGISTRY:
+        if 정의.key == 키:
+            return 정의.화면이름
+    return 키
+
+
 def 안바꾼대조군(
     구간표: dict[str, list[잰구간]], 키: str, 돌아볼: int = 돌아볼구간
 ) -> 대조군 | None:
@@ -399,7 +409,7 @@ def 안바꾼대조군(
         return None
     값들 = [구간표[키][i].구간.수익률 for i in range(돌아볼, 칸수)]
     return 대조군(
-        이름=f"안 바꾸고 {키} 그대로", 판정수=len(값들),
+        이름=f"바꾸지 않고 {_전략이름(키)} 유지", 판정수=len(값들),
         중앙값=statistics.median(값들), 최악=min(값들),
         플러스비율=sum(1 for ㄱ in 값들 if ㄱ > 0) / len(값들) * 100,
     )
