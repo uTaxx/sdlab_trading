@@ -1,16 +1,22 @@
 name: Apps Script 배포
 
-# `apps-script/` 아래 두 프로젝트(trading, lxgroup)를 Google Apps Script에
-# 올린다. 배포 도구는 clasp이고, 로그인은 주인이 PC에서 한 번 한 뒤 생긴
-# `~/.clasprc.json`을 비밀값 CLASPRC_JSON에 넣어 둔 것을 쓴다.
+# `apps-script/trading`를 Google Apps Script에 올린다. 도구는 clasp이고,
+# 로그인은 주인이 PC에서 한 번 한 뒤 생긴 `~/.clasprc.json`을 비밀값
+# CLASPRC_JSON에 넣어 둔 것을 쓴다.
 #
 # ## 이 워크플로가 하는 일
 #
 # 1. Node 시험(apps-script/tests)을 먼저 돈다. 떨어지면 올리지 않는다.
-# 2. `.clasp.json`의 scriptId가 비어 있는 프로젝트는 건너뛴다(아직 안 만든 것).
-# 3. mode가 push면 코드만 올린다. deploy면 판을 만들고 웹 앱 배포를 갱신한다.
-#    deployment.json의 deploymentId가 비어 있으면 새 배포를 만들고 ID를
-#    로그에 찍는다. 그 값을 파일에 적어 커밋해야 주소가 고정된다.
+# 2. mode
+#    create  프로젝트를 새로 만들고 코드를 올린 뒤 scriptId를 로그에 찍는다.
+#            그 값을 .clasp.json에 적어 커밋해야 다음부터 push가 된다.
+#    push    코드만 올린다. main에 apps-script/**가 바뀔 때의 기본이다.
+#    deploy  판을 만들고 웹 앱 배포를 갱신한다. deployment.json의 deploymentId가
+#            비어 있으면 새 배포를 만들고 ID를 로그에 찍는다. 그 값을 적어
+#            커밋해야 주소가 고정된다.
+# 3. 비밀값이 없으면: 사람이 실행한 것(workflow_dispatch)은 빨갛게 끝내고,
+#    push로 온 것은 경고만 남기고 건너뛴다. 비밀값을 넣기 전의 합치기마다
+#    빨간불이 뜨면 진짜 실패와 구별이 안 된다.
 #
 # ## 사람이 한 번 할 것
 #
@@ -33,15 +39,10 @@ on:
       - ".github/workflows/apps-script-deploy.yml"
   workflow_dispatch:
     inputs:
-      project:
-        description: "올릴 프로젝트"
-        type: choice
-        options: [all, trading, lxgroup]
-        default: all
       mode:
-        description: "push는 코드만, deploy는 웹 앱 배포까지"
+        description: "create는 프로젝트 새로 만들기, push는 코드만, deploy는 웹 앱 배포까지"
         type: choice
-        options: [push, deploy]
+        options: [push, deploy, create]
         default: push
 
 permissions:
@@ -72,9 +73,10 @@ jobs:
     if: github.repository == 'uTaxx/sdlab_trading' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
-      PROJECT: ${{ github.event.inputs.project || 'all' }}
       MODE: ${{ github.event.inputs.mode || 'push' }}
       CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+      PROJECT_DIR: apps-script/trading
+      PROJECT_TITLE: "sdlab 매매"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,41 +84,56 @@ jobs:
           node-version: "22"
 
       - name: clasp 로그인 파일 만들기
-        # 비밀값이 비어 있으면 여기서 빨갛게 끝낸다. 조용히 넘어가면
-        # "올렸는데 안 올라간" 상태가 된다.
+        id: login
         run: |
           if [ -z "$CLASPRC_JSON" ]; then
-            echo "::error::CLASPRC_JSON 비밀값이 비어 있습니다. PC에서 clasp login 뒤 ~/.clasprc.json 내용을 넣으세요."
-            exit 1
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "::error::CLASPRC_JSON 비밀값이 비어 있습니다. PC에서 clasp login 뒤 ~/.clasprc.json 내용을 넣으세요."
+              exit 1
+            fi
+            echo "::warning::CLASPRC_JSON 비밀값이 아직 없어 올리지 않습니다. 시험만 통과했습니다."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
           chmod 600 "$HOME/.clasprc.json"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: 올리기
+        if: steps.login.outputs.skip != 'true'
         run: |
           set -eu
           npm install --no-audit --no-fund -g @google/clasp@3.4.1
-          for name in trading lxgroup; do
-            if [ "$PROJECT" != "all" ] && [ "$PROJECT" != "$name" ]; then continue; fi
-            dir="apps-script/$name"
-            script_id=$(node -e "console.log(require('./$dir/.clasp.json').scriptId || '')")
-            if [ -z "$script_id" ]; then
-              echo "::warning::$name: .clasp.json의 scriptId가 비어 있어 건너뜁니다. 프로젝트를 만든 뒤 ID를 적으세요."
-              continue
+          cd "$PROJECT_DIR"
+          script_id=$(node -e "console.log(require('./.clasp.json').scriptId || '')")
+          if [ "$MODE" = "create" ]; then
+            if [ -n "$script_id" ]; then
+              echo "::error::.clasp.json에 scriptId가 이미 있습니다($script_id). 새로 만들지 않습니다."
+              exit 1
             fi
-            echo "== $name: 코드 올리기 (mode=$MODE)"
-            (cd "$dir" && clasp push -f)
-            if [ "$MODE" = "deploy" ]; then
-              deploy_id=$(node -e "console.log(require('./$dir/deployment.json').deploymentId || '')")
-              (cd "$dir" && clasp create-version "배포 ${GITHUB_SHA::7}")
-              if [ -z "$deploy_id" ]; then
-                echo "== $name: 배포 ID가 없어 새 배포를 만듭니다. 아래 ID를 deployment.json에 적어 커밋하세요."
-                (cd "$dir" && clasp create-deployment -d "웹 앱 ${GITHUB_SHA::7}")
-              else
-                (cd "$dir" && clasp create-deployment -i "$deploy_id" -d "웹 앱 ${GITHUB_SHA::7}")
-              fi
+            rm -f .clasp.json
+            clasp create-script --title "$PROJECT_TITLE" --type standalone --rootDir src
+            echo "== 새 프로젝트를 만들었습니다. 아래 scriptId를 .clasp.json에 적어 커밋하세요."
+            cat .clasp.json
+            clasp push -f
+            exit 0
+          fi
+          if [ -z "$script_id" ]; then
+            echo "::error::.clasp.json의 scriptId가 비어 있습니다. mode=create로 먼저 만드세요."
+            exit 1
+          fi
+          echo "== 코드 올리기 (mode=$MODE)"
+          clasp push -f
+          if [ "$MODE" = "deploy" ]; then
+            deploy_id=$(node -e "console.log(require('./deployment.json').deploymentId || '')")
+            clasp create-version "배포 ${GITHUB_SHA::7}"
+            if [ -z "$deploy_id" ]; then
+              echo "== 배포 ID가 없어 새 배포를 만듭니다. 아래 ID를 deployment.json에 적어 커밋하세요."
+              clasp create-deployment -d "웹 앱 ${GITHUB_SHA::7}"
+            else
+              clasp create-deployment -i "$deploy_id" -d "웹 앱 ${GITHUB_SHA::7}"
             fi
-          done
+          fi
 
       - name: 로그인 파일 지우기
         if: always()

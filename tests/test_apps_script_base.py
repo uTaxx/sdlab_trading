@@ -2,8 +2,8 @@
 
 ## 왜 시험하나
 
-`apps-script/` 아래 두 프로젝트(trading, lxgroup)는 이 저장소가 공개인 채로
-Google Apps Script에 올라간다. 비밀값이 한 번 들어가면 되돌릴 수 없다.
+`apps-script/trading`은 이 저장소가 공개인 채로 Google Apps Script에
+올라간다. 회사 쪽 프로젝트는 muwon406에 있다. 비밀값이 한 번 들어가면 되돌릴 수 없다.
 그리고 매니페스트가 틀리면 배포는 초록불인데 웹 앱이 안 열리거나 권한을
 다시 묻는다. 둘 다 조용한 실패라 여기서 막는다.
 """
@@ -20,7 +20,7 @@ import pytest
 
 뿌리 = Path(__file__).resolve().parent.parent
 자리 = 뿌리 / "apps-script"
-프로젝트들 = ["trading", "lxgroup"]
+프로젝트들 = ["trading"]
 
 #: 비밀값처럼 생긴 글자. 이 저장소에 이런 것이 있으면 안 된다.
 비밀모양 = [
@@ -68,13 +68,6 @@ def test_매니페스트가_웹_앱과_시간대와_권한을_다_적는다(이�
         "https://www.googleapis.com/auth/script.scriptapp",
     ):
         assert 필요 in 범위, f"{이름}: {필요} 권한이 빠졌습니다"
-
-
-def test_회사_쪽은_드라이브_권한도_있다():
-    문서 = json.loads(
-        (자리 / "lxgroup" / "src" / "appsscript.json").read_text(encoding="utf-8")
-    )
-    assert "https://www.googleapis.com/auth/drive" in 문서["oauthScopes"]
 
 
 @pytest.mark.parametrize("이름", 프로젝트들)
