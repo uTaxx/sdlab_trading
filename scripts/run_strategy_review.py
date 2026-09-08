@@ -70,12 +70,14 @@ from muwon.analysis.strategy_fit import (
     후보내기,
 )
 from muwon.analysis.trend import 트렌드글, 트렌드재기
+from muwon.backtest.engine import BacktestEngine
 from muwon.cloud import strategy_approval as 승인
 from muwon.config import bootstrap_settings
 from muwon.data.price_cache import PriceCache
 from muwon.data.yahoo_client import YahooFinanceDataSource
 from muwon.db.session import ensure_schema, make_session_factory
 from muwon.notify.telegram_buttons import 전략버튼, 전략상태블록, 전략키보드
+from muwon.risk.manager import RiskManager
 from muwon.settings.from_sheet import build_policy_provider
 from muwon.settings.service import build_settings_service
 from muwon.strategy.registry import build_strategy, get_definition, list_definitions
@@ -136,6 +138,22 @@ def 대상종목(sheet_id: str):
     if not 목록:
         raise ValueError("시트에 켜져 있는 종목이 하나도 없습니다.")
     return 목록
+
+
+def 섹터매핑(sheet_id: str) -> tuple[dict[str, str], dict[str, str]]:
+    """종목코드→섹터코드, 섹터코드→섹터이름. `대상종목()`과 같은 시트를 읽는다.
+
+    시트를 두 번 읽지만 가격 시세가 아니라 설정 시트라 값싸다. `Ticker`에
+    섹터 칸이 없어서(다른 코드가 같이 쓰는 자료형이다) 이 자리에서 따로
+    구한다."""
+    if not sheet_id:
+        return {}, {}
+    from muwon.cloud.sector_sheet import read as 섹터시트읽기
+
+    내용 = 섹터시트읽기(sheet_id)
+    섹터표 = {m.symbol: s.코드 for s in 내용.섹터 if s.활성 for m in s.활성종목}
+    섹터이름표 = {s.코드: s.이름 for s in 내용.섹터}
+    return 섹터표, 섹터이름표
 
 
 def 구간순위내기(정의, histories, 끝, 정책, 지금키: str,
@@ -276,26 +294,22 @@ def 비슷한구간시트줄(찾은것, 끝, 잰때) -> list[list[str]]:
     ]
 
 
-def 비슷한구간남기기(sheet_id: str, 유니버스, 정책, 끝) -> str:
+def 비슷한구간남기기(sheet_id: str, 긴시세, 정책, 끝) -> str:
     """전략을 고르는 2단계. 최근 20거래일과 비슷했던 과거를 찾고, 그때
     어느 전략이 좋았는지 시트 `비슷한구간` 탭에 남긴다.
 
-    **시세를 3~4단계와 따로, 더 길게 받는다.** 3개월 검토가 받은 시세는
-    z점수를 내는 데 필요한 1년치보다 훨씬 짧다. 짧은 시세로 재면 매번
-    "비교할 과거가 짧습니다"만 나온다. 이 계산만을 위해 다시 받는다.
+    **시세는 main()이 한 번만 받아 건넨다.** 3개월 검토가 받은 시세는
+    z점수를 내는 데 필요한 1년치보다 훨씬 짧아서, 이 계산에는 처음부터
+    더 길게 받아 둔 것을 쓴다. 같은 시세를 섹터별성적남기기도 같이 쓴다.
 
     **실패해도 삼킨다.** 이 계산이 막혀도 3~4단계(구간별 순위, 예약)는
-    나가야 한다. 시세를 더 받는 것도 실패할 수 있는 자리다."""
+    나가야 한다."""
     if not sheet_id:
         return ""
     try:
         from muwon.analysis.similar_window import 찾기 as 비슷한구간찾기
         from muwon.cloud.sheet_log import append
 
-        긴시세 = load_histories(
-            YahooFinanceDataSource(), 유니버스,
-            끝 - timedelta(days=비슷한구간_돌아볼일수), 끝, cache=PriceCache(),
-        )
         전략들 = {ㅈ.key: (lambda k=ㅈ.key: build_strategy(k)) for ㅈ in list_definitions()}
         찾은것 = 비슷한구간찾기(긴시세, 전략들, 정책, 기준일=끝, 예수금=10_000_000.0)
 
@@ -308,6 +322,108 @@ def 비슷한구간남기기(sheet_id: str, 유니버스, 정책, 끝) -> str:
         return 표본글
     except Exception as 탈:  # noqa: BLE001 (2단계가 터져도 오늘 검토는 나가야 한다)
         print(f"비슷한 구간 찾기 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return ""
+
+
+섹터별성적탭 = "섹터별성적"
+섹터별성적머리 = [
+    "열쇠", "잰때", "전략키", "전략이름", "섹터코드", "섹터이름",
+    "거래수", "승률", "평균수익률", "최악", "최고", "표본충분",
+]
+
+#: 섹터 하나의 거래 수가 이보다 적으면 표본 부족으로 적는다. 기간 검증의
+#: 거래 20건 최소 기준과 같은 값이다.
+섹터별성적_최소표본 = 20
+
+
+def 섹터별성적계산(closed_trades, 섹터표: dict[str, str],
+             섹터이름표: dict[str, str]) -> list[dict]:
+    """청산된 거래를 섹터로 묶어 거래수·승률·평균수익률을 낸다. 순수 함수다.
+
+    섹터 매핑에 없는 종목(계산 도중 매매 대상에서 빠졌다가 청산된 것 등)은
+    뺀다. 합계가 아니라 평균으로 보는 것은 종목마다 거래 횟수가 달라서,
+    합계로 보면 거래가 잦은 종목 하나가 그 섹터 전체를 대표하게 되기
+    때문이다."""
+    묶음: dict[str, list[float]] = {}
+    for 거래 in closed_trades:
+        코드 = 섹터표.get(거래.symbol, "")
+        if not 코드:
+            continue
+        묶음.setdefault(코드, []).append(float(거래.pnl_pct))
+
+    성적들 = []
+    for 코드, 값들 in 묶음.items():
+        성적들.append({
+            "섹터코드": 코드,
+            "섹터이름": 섹터이름표.get(코드, 코드),
+            "거래수": len(값들),
+            "승률": sum(1 for v in 값들 if v > 0) / len(값들) * 100,
+            "평균수익률": sum(값들) / len(값들),
+            "최악": min(값들),
+            "최고": max(값들),
+            "표본충분": len(값들) >= 섹터별성적_최소표본,
+        })
+    성적들.sort(key=lambda ㄱ: -ㄱ["평균수익률"])
+    return 성적들
+
+
+def 섹터별성적시트줄(성적들: list[dict], 전략키: str, 끝, 잰때) -> list[list[str]]:
+    """섹터별성적계산() 결과를 시트 줄로. 순수 함수다.
+
+    섹터가 하나도 안 잡히면(매수가 한 건도 없었거나 섹터 매핑이 없음)
+    상태만 담은 줄 하나를 낸다."""
+    if not 성적들:
+        return [[f"G{끝}|{전략키}|없음", f"{잰때:%Y-%m-%d %H:%M}", 전략키,
+                 전략이름(전략키), "", "", "", "", "", "", "", ""]]
+    return [
+        [f"G{끝}|{전략키}|{ㄱ['섹터코드']}", f"{잰때:%Y-%m-%d %H:%M}", 전략키,
+         전략이름(전략키), ㄱ["섹터코드"], ㄱ["섹터이름"],
+         str(ㄱ["거래수"]), f"{ㄱ['승률']:.1f}", f"{ㄱ['평균수익률']:.2f}",
+         f"{ㄱ['최악']:.2f}", f"{ㄱ['최고']:.2f}", "예" if ㄱ["표본충분"] else ""]
+        for ㄱ in 성적들
+    ]
+
+
+def 섹터별성적남기기(sheet_id: str, 긴시세, 정책, 지금키: str,
+              섹터표: dict[str, str], 섹터이름표: dict[str, str], 끝) -> str:
+    """전략을 고르는 2단계 곁가지. 지금 설정된 전략을 그대로 한 번 돌려
+    보고, 산 종목을 섹터로 묶어 어느 섹터에서 벌었는지 시트
+    `섹터별성적` 탭에 남긴다.
+
+    **이 값으로 매매 판단을 하지 않는다.** 섹터 강도로 종목을 거르는
+    것은 이미 기각했다(analysis/sector_trend.py 머리말). 여기도 같은
+    이유로 참고 자료일 뿐이다.
+
+    **시세는 비슷한구간남기기와 같은 것을 쓴다.** 둘 다 같은 시점의
+    백테스트라, 따로 받으면 그사이 값이 바뀌어 두 계산이 다른 시세
+    위에 선다.
+
+    **실패해도 삼킨다.** 이 계산이 막혀도 나머지 검토는 나가야 한다."""
+    if not sheet_id or not 지금키 or not 섹터표:
+        return ""
+    try:
+        from muwon.cloud.sheet_log import append
+
+        전략 = build_strategy(지금키)
+        결과 = BacktestEngine(
+            strategy=전략,
+            risk_manager=RiskManager(policy_provider=lambda p=정책: p),
+            entry_at_open=True, exit_at_open=True,
+            initial_cash=10_000_000.0,
+        ).run(긴시세)
+
+        성적들 = 섹터별성적계산(결과.closed_trades, 섹터표, 섹터이름표)
+        잰때 = datetime.now(서울).replace(tzinfo=None)
+        줄들 = 섹터별성적시트줄(성적들, 지금키, 끝, 잰때)
+        올린수 = append(sheet_id, 섹터별성적탭, 섹터별성적머리, 줄들)
+        글 = (f"섹터 {len(성적들)}곳 · 거래 {len(결과.closed_trades)}건"
+             if 성적들 else "섹터로 묶을 거래가 없습니다.")
+        print(f"■ 섹터별 성적: {글}", file=sys.stderr)
+        print(f"시트 '{섹터별성적탭}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
+        return 글
+    except Exception as 탈:  # noqa: BLE001 (여기가 터져도 오늘 검토는 나가야 한다)
+        print(f"섹터별 성적 계산 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return ""
 
@@ -464,6 +580,7 @@ def main() -> int:
     정책 = 검증용정책(정책)
 
     유니버스 = 대상종목(sheet_id)
+    섹터표, 섹터이름표 = 섹터매핑(sheet_id)
     기준 = 기준글(정책, len(유니버스), "섹터시트") + f" · 순위 {판단.설명글()}"
     print(f"■ 대상 {len(유니버스)}종목 · 현재 전략 {전략이름(지금키)}")
 
@@ -574,7 +691,14 @@ def main() -> int:
             print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
 
     승인되짚기남기기(sheet_id, histories, 끝)
-    비슷한구간남기기(sheet_id, 유니버스, 정책, 끝)
+
+    if sheet_id:
+        긴시세 = load_histories(
+            YahooFinanceDataSource(), 유니버스,
+            끝 - timedelta(days=비슷한구간_돌아볼일수), 끝, cache=PriceCache(),
+        )
+        비슷한구간남기기(sheet_id, 긴시세, 정책, 끝)
+        섹터별성적남기기(sheet_id, 긴시세, 정책, 지금키, 섹터표, 섹터이름표, 끝)
 
     cfg = service.get_telegram_config()
     if not cfg.bot_token or not cfg.chat_id:
