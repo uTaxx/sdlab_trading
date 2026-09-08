@@ -404,6 +404,7 @@ def 찾기(
     costs: TransactionCosts | None = None,
     길이: int = 구간길이,
     앞으로: int = 지평,
+    예수금: float = 5_000_000.0,
     섹터표: dict[str, str] | None = None,
     섹터상한: int = 0,
 ) -> 찾은것:
@@ -415,7 +416,7 @@ def 찾기(
             기준일=(기준일 or (지금.끝일 if 지금 else datetime.now(tz=서울).date())),
             지금=지금, 사유=사유, 쓴특징=쓴것)
     순위 = 구간에서재기(구간들, 전략들, histories, 정책, costs=costs,
-                 앞으로=앞으로, 섹터표=섹터표, 섹터상한=섹터상한)
+                 앞으로=앞으로, 예수금=예수금, 섹터표=섹터표, 섹터상한=섹터상한)
     return 찾은것(
         기준일=지금.끝일 if 지금 else (기준일 or datetime.now(tz=서울).date()),
         지금=지금, 구간들=구간들, 순위=순위, 쓴특징=쓴것,
