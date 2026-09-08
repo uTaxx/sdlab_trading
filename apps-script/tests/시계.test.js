@@ -39,13 +39,14 @@ test('주말에는 평일 일을 고르지 않고 토요일 09:00은 기간 검�
   assert.equal(일.length, 0);
 });
 
-test('손절 감시는 09:00부터 30분마다 15:00까지다', () => {
+test('손절 감시는 09:00부터 1시간마다 15:00까지다', () => {
   const g = 불러오기('trading', 파일들);
   const 항목 = g.시간표.find((x) => x.워크플로 === 'watch-stops.yml');
   assert.equal(항목.시각[0], '09:00');
   assert.equal(항목.시각[항목.시각.length - 1], '15:00');
-  assert.equal(항목.시각.length, 13);
+  assert.equal(항목.시각.length, 7);
   assert.ok(!항목.시각.includes('15:30'));
+  assert.ok(!항목.시각.includes('09:30'));
 });
 
 test('시간표의 워크플로 파일이 전부 저장소에 있다', () => {
