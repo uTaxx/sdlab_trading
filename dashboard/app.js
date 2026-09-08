@@ -379,7 +379,7 @@
   //: 백테스트와 보유 상한 측정은 2026-09-06에 탭에서 뺐다. 둘 다 "왜 이
   //: 전략인가"의 근거이지 매일 보는 화면이 아니라, 검토 탭 안의 접이식으로
   //: 옮겼다. 구역의 id는 그대로라 그리는 코드는 안 바뀐다.
-  const 탭들 = ["손익", "승인", "기록", "검토", "시장", "기준", "도움말"];
+  const 탭들 = ["손익", "승인", "기록", "검토", "시장", "기준", "종목", "도움말"];
   const 불러온적 = new Set();
 
   function 탭보이기(이름) {
@@ -392,7 +392,7 @@
       불러온적.add(이름);
       ({ 손익: 손익불러오기, 승인: 승인불러오기, 기록: 기록불러오기,
          검토: 검토열기, 시장: 시장불러오기, 기준: 기준불러오기,
-         도움말: 용어그리기 })[이름]();
+         종목: 종목관리불러오기, 도움말: 용어그리기 })[이름]();
     }
   }
 
@@ -777,6 +777,125 @@
       이전.forEach(([ㄴ, ㅅ]) => ㄴ.setAttribute("aria-pressed", ㅅ));
       알림("승인알림", "경고", "저장하지 못했습니다. 이전 상태로 되돌렸습니다.",
         `${안전(e.message)}<br>화면 표시와 실제 저장값이 달라지지 않도록 되돌렸습니다.`);
+    } finally {
+      줄.querySelectorAll("button[data-값]").forEach((ㄴ) => { ㄴ.disabled = false; });
+    }
+  }
+
+  /* ── 탭 · 매매 종목 관리 (2026-09-08) ─────────────────
+     구글 시트 `종목`·`섹터` 탭을 그대로 보여주고 포함 여부만 저장한다.
+     시트가 여전히 원본이다. 종목을 새로 더하거나 지우는 것, 섹터를 바꾸는
+     것은 시트에서만 한다. */
+
+  const 섹터목록예시 = { 섹터목록: [
+    { 섹터코드: "SEMI", 섹터명: "반도체", 활성: true, 비중상한: 20,
+      전망출처: "섹터지수", 성격: "성장", 메모: "" },
+    { 섹터코드: "BATT", 섹터명: "2차전지", 활성: true, 비중상한: 15,
+      전망출처: "섹터지수", 성격: "성장", 메모: "" },
+  ] };
+
+  const 종목목록예시 = { 종목목록: [
+    { 종목코드: "005930", 종목명: "삼성전자", 시장: "KOSPI", 섹터코드: "SEMI",
+      활성: true, 메모: "" },
+    { 종목코드: "042700", 종목명: "한미반도체", 시장: "KOSPI", 섹터코드: "SEMI",
+      활성: false, 메모: "거래대금 880억으로 섹터 6위: 섹터당 5종목 상한에서 밀림" },
+    { 종목코드: "373220", 종목명: "LG에너지솔루션", 시장: "KOSPI", 섹터코드: "BATT",
+      활성: true, 메모: "" },
+  ] };
+
+  async function 종목관리불러오기() {
+    $("종목관리다시").disabled = true;
+    try {
+      const { 자료: 섹터자료, 진짜: 섹터진짜, 아직없음 } =
+        await n8n또는예시("섹터목록", 섹터목록예시, "종목관리알림");
+      if (아직없음) { $("종목관리몸").innerHTML = ""; return; }
+      const { 자료: 종목자료, 진짜: 종목진짜 } =
+        await n8n또는예시("종목목록", 종목목록예시, "종목관리알림");
+      종목관리그리기(섹터자료.섹터목록 || [], 종목자료.종목목록 || [], 섹터진짜 && 종목진짜);
+      $("종목관리때").textContent = `${지금()} 조회`;
+    } catch (e) {
+      알림("종목관리알림", "경고", "종목 목록을 불러오지 못했습니다.", 안전(e.message));
+    } finally {
+      $("종목관리다시").disabled = false;
+    }
+  }
+
+  function 종목관리그리기(섹터들, 종목들, 진짜) {
+    const 자리 = $("종목관리몸");
+    if (!자리) return;
+    if (!종목들.length) {
+      자리.innerHTML = '<div class="빔">시트에 매매 대상 종목이 없습니다.</div>';
+      return;
+    }
+
+    const 섹터이름표 = {};
+    섹터들.forEach((ㅅ) => { 섹터이름표[ㅅ.섹터코드] = ㅅ.섹터명 || ㅅ.섹터코드; });
+
+    // 시트에 적힌 순서를 그대로 따라간다. 화면에서 다시 정렬하면 시트를
+    // 열어 봤을 때 순서가 달라서 어느 줄을 말하는지 헷갈린다.
+    const 섹터순서 = [];
+    const 묶음 = new Map();
+    종목들.forEach((ㅈ) => {
+      const 키 = ㅈ.섹터코드 || "";
+      if (!묶음.has(키)) { 묶음.set(키, []); 섹터순서.push(키); }
+      묶음.get(키).push(ㅈ);
+    });
+
+    자리.innerHTML = 섹터순서.map((섹터코드) => {
+      const 목록 = 묶음.get(섹터코드);
+      const 활성수 = 목록.filter((ㅈ) => ㅈ.활성).length;
+      return `<h3 style="margin-top:20px">${안전(섹터이름표[섹터코드] || 섹터코드)}
+        <span class="곁말">(${활성수} / ${목록.length} 포함)</span></h3>
+        <div class="표싸개"><table>
+          <thead><tr><th>종목</th><th>시장</th><th>메모</th><th>포함</th></tr></thead>
+          <tbody>${목록.map((ㅈ) => `
+            <tr data-코드="${안전(ㅈ.종목코드)}">
+              <td style="text-align:left">${안전(ㅈ.종목명)}
+                <br><span class="곁말">${안전(ㅈ.종목코드)}</span></td>
+              <td class="가운데">${안전(ㅈ.시장)}</td>
+              <td style="text-align:left">${안전(ㅈ.메모) || "—"}</td>
+              <td class="가운데">
+                <div class="고르기">
+                  <button class="작게 고름" data-값="Y" aria-pressed="${ㅈ.활성 === true}"
+                    ${진짜 ? "" : "disabled"}>포함</button>
+                  <button class="작게 거름" data-값="N" aria-pressed="${ㅈ.활성 === false}"
+                    ${진짜 ? "" : "disabled"}>제외</button>
+                </div>
+              </td>
+            </tr>`).join("")}</tbody>
+        </table></div>`;
+    }).join("");
+
+    if (!진짜) return;
+    자리.querySelectorAll("button[data-값]").forEach((단추) => {
+      단추.addEventListener("click", () => 종목활성누름(단추));
+    });
+  }
+
+  async function 종목활성누름(단추) {
+    // 활성 칸은 항상 Y 또는 N으로만 적는다. 빈 값을 적으면 시트 규칙상
+    // "켜짐"과 같은 뜻이 되어, 제외를 눌렀는데 다시 켜지는 것과 같아진다.
+    if (단추.getAttribute("aria-pressed") === "true") return;
+
+    const 줄 = 단추.closest("tr");
+    const 코드 = 줄.dataset.코드;
+    const 값 = 단추.dataset.값;
+
+    const 이전 = [...줄.querySelectorAll("button[data-값]")]
+      .map((ㄴ) => [ㄴ, ㄴ.getAttribute("aria-pressed")]);
+
+    줄.querySelectorAll("button[data-값]").forEach((ㄴ) => {
+      ㄴ.setAttribute("aria-pressed", String(ㄴ.dataset.값 === 값));
+      ㄴ.disabled = true;
+    });
+
+    try {
+      await n8n부르기("종목저장", { 종목코드: 코드, 활성: 값 });
+      $("종목관리때").textContent = `${지금()} 저장됨`;
+    } catch (e) {
+      이전.forEach(([ㄴ, ㅅ]) => ㄴ.setAttribute("aria-pressed", ㅅ));
+      알림("종목관리알림", "경고", "저장하지 못했습니다. 이전 상태로 되돌렸습니다.",
+        안전(e.message));
     } finally {
       줄.querySelectorAll("button[data-값]").forEach((ㄴ) => { ㄴ.disabled = false; });
     }
@@ -4175,6 +4294,7 @@
 
   $("기준다시").addEventListener("click", 기준불러오기);
   $("승인다시").addEventListener("click", 승인불러오기);
+  $("종목관리다시").addEventListener("click", 종목관리불러오기);
   $("기록다시").addEventListener("click", 기록불러오기);
   $("다시").addEventListener("click", 손익불러오기);
   $("자동전환").addEventListener("click", () => 자동맞추기(!자동));
