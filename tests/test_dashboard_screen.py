@@ -251,7 +251,7 @@ def test_검토탭이_백테스트탭과_섞이지_않는다():
     # 구간별 순위 표와 한눈에 섞이지 않는다.
     assert 검증 > 검토
     assert 'class="근거"' in 쪽
-    assert '<h2>구간별 전략 순위</h2>' in 쪽
+    assert '<h2>③ 구간별 전략 순위</h2>' in 쪽
     assert '<h2>매매 대상 종목 트렌드</h2>' in 쪽
 
 
@@ -286,10 +286,10 @@ def test_트렌드가_매수_판단에_안_쓰인다고_적는다():
 
 def test_검토표의_빈줄_칸수가_머리_칸수와_같다():
     표 = _표들()
-    assert 표["검토몸"] == 8
+    assert 표["검토몸"] == 9
     assert 표["트렌드몸"] == 5
     assert 표["변경몸"] == 7
-    assert 'colspan="8" class="빔">검토 기록이 없습니다' in 글
+    assert 'colspan="9" class="빔">검토 기록이 없습니다' in 글
     assert 'colspan="5" class="빔">트렌드 기록이 없습니다' in 글
 
 
