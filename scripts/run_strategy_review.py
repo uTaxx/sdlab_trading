@@ -243,6 +243,75 @@ def 승인되짚기남기기(sheet_id: str, histories, 끝) -> None:
         print(f"승인 되짚기는 못 남겼습니다: {type(탈).__name__}: {탈}", file=sys.stderr)
 
 
+비슷한구간탭 = "비슷한구간"
+비슷한구간머리 = [
+    "열쇠", "잰때", "기준일", "상태글", "표본글", "구간수", "표본충분", "사유",
+    "전략키", "전략이름", "전략중앙값", "전략최악", "전략최고", "이긴구간", "거래합", "순위",
+]
+
+#: 달력일. `similar_window.돌아보기`(250거래일)에 지평·묶는간격·주말을
+#: 더한 여유다. 3개월 검토가 받은 시세는 이보다 훨씬 짧아서 따로 받는다.
+비슷한구간_돌아볼일수 = 420
+
+
+def 비슷한구간시트줄(찾은것, 끝, 잰때) -> list[list[str]]:
+    """`찾은것`(similar_window.찾기 결과)을 시트 줄로. 순수 함수다.
+
+    전략이 하나도 없으면(비교할 과거가 짧거나 구간을 못 찾음) 상태·사유만
+    담은 줄 하나를 낸다. 그래야 화면이 "왜 못 찾았는지"를 보여 줄 수 있다."""
+    상태글 = 찾은것.지금.한줄() if 찾은것.지금 else ""
+    표본글 = 찾은것.표본글()
+    기본줄 = [
+        f"{잰때:%Y-%m-%d %H:%M}", f"{찾은것.기준일}", 상태글, 표본글,
+        str(찾은것.구간수), "예" if 찾은것.표본충분 else "", 찾은것.사유,
+    ]
+    if not 찾은것.순위:
+        return [[f"F{끝}|없음"] + 기본줄 + ["", "", "", "", "", "", "", ""]]
+    return [
+        [f"F{끝}|{ㅅ.키}"] + 기본줄 + [
+            ㅅ.키, 전략이름(ㅅ.키), f"{ㅅ.중앙값:.2f}", f"{ㅅ.최악:.2f}",
+            f"{ㅅ.최고:.2f}", str(ㅅ.이긴구간), str(ㅅ.거래합), str(i),
+        ]
+        for i, ㅅ in enumerate(찾은것.순위, 1)
+    ]
+
+
+def 비슷한구간남기기(sheet_id: str, 유니버스, 정책, 끝) -> str:
+    """전략을 고르는 2단계. 최근 20거래일과 비슷했던 과거를 찾고, 그때
+    어느 전략이 좋았는지 시트 `비슷한구간` 탭에 남긴다.
+
+    **시세를 3~4단계와 따로, 더 길게 받는다.** 3개월 검토가 받은 시세는
+    z점수를 내는 데 필요한 1년치보다 훨씬 짧다. 짧은 시세로 재면 매번
+    "비교할 과거가 짧습니다"만 나온다. 이 계산만을 위해 다시 받는다.
+
+    **실패해도 삼킨다.** 이 계산이 막혀도 3~4단계(구간별 순위, 예약)는
+    나가야 한다. 시세를 더 받는 것도 실패할 수 있는 자리다."""
+    if not sheet_id:
+        return ""
+    try:
+        from muwon.analysis.similar_window import 찾기 as 비슷한구간찾기
+        from muwon.cloud.sheet_log import append
+
+        긴시세 = load_histories(
+            YahooFinanceDataSource(), 유니버스,
+            끝 - timedelta(days=비슷한구간_돌아볼일수), 끝, cache=PriceCache(),
+        )
+        전략들 = {ㅈ.key: (lambda k=ㅈ.key: build_strategy(k)) for ㅈ in list_definitions()}
+        찾은것 = 비슷한구간찾기(긴시세, 전략들, 정책, 기준일=끝, 예수금=10_000_000.0)
+
+        잰때 = datetime.now(서울).replace(tzinfo=None)
+        줄들 = 비슷한구간시트줄(찾은것, 끝, 잰때)
+        올린수 = append(sheet_id, 비슷한구간탭, 비슷한구간머리, 줄들)
+        표본글 = 찾은것.표본글()
+        print(f"■ 2단계 비슷한 구간: {표본글}", file=sys.stderr)
+        print(f"시트 '{비슷한구간탭}'에 {올린수}줄 올렸습니다.", file=sys.stderr)
+        return 표본글
+    except Exception as 탈:  # noqa: BLE001 (2단계가 터져도 오늘 검토는 나가야 한다)
+        print(f"비슷한 구간 찾기 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return ""
+
+
 def 막는까닭(session, 오늘, 최소운용일: int) -> str:
     """이 구간 밖에서 정해지는 이유. 있으면 후보를 아예 안 낸다."""
     지난 = 승인.지난거래일수(승인.마지막반영(session), 오늘)
@@ -505,6 +574,7 @@ def main() -> int:
             print(f"시트 기록 실패: {type(탈).__name__}: {탈}", file=sys.stderr)
 
     승인되짚기남기기(sheet_id, histories, 끝)
+    비슷한구간남기기(sheet_id, 유니버스, 정책, 끝)
 
     cfg = service.get_telegram_config()
     if not cfg.bot_token or not cfg.chat_id:
