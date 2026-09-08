@@ -1,0 +1,9 @@
+{
+  "name": "sdlab-apps-script",
+  "private": true,
+  "description": "매매 Apps Script 프로젝트의 순수 함수 시험. Node 22의 내장 test runner를 쓴다.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "check": "node --check trading/src/*.js"
+  }
+}
