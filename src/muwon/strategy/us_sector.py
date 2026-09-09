@@ -71,6 +71,24 @@ class USSectorGateParams:
     지연: int = 0
 
 
+@dataclass(frozen=True)
+class 게이트정보:
+    """`USSectorGateStrategy.evaluate()`가 하루치 판단 뒤에 남기는 진단.
+
+    "원래 전략(거래량 급증 등)이 아예 신호를 안 냈나, 신호는 났는데 미국
+    섹터 조건에 걸려 빠졌나"에 답하려고 만들었다. 둘 다 결과는 "매수 후보
+    0개"로 똑같아서, 이 값이 없으면 그 둘을 구별할 방법이 없다."""
+
+    #: 원래 전략(미국 섹터를 보기 전)이 낸 매수 신호 수.
+    원래전략매수수: int
+    #: 그중 미국 섹터 조건을 통과해 실제로 남은 수.
+    통과매수수: int
+    #: 오늘 미국 섹터 조건을 통과한 국내 섹터 코드.
+    강한섹터: frozenset[str]
+    #: 원래 신호는 났지만 미국 섹터 조건에 안 걸려 빠진 (심볼, 섹터코드).
+    막힌것: tuple[tuple[str, str], ...] = ()
+
+
 #: (심볼, 시작, 끝) → trade_date·close가 있는 DataFrame. 테스트는 가짜를 넣는다.
 시세가져오기 = Callable[[str, date, date], pd.DataFrame]
 
@@ -228,6 +246,8 @@ class USSectorGateStrategy(PortfolioStrategy):
         self._섹터표 = 섹터표 if 섹터표 is not None else 섹터표만들기()
         self._강한섹터: pd.Series = pd.Series(dtype=object)
         self.미국시세없음 = False
+        #: 가장 최근 evaluate() 판단의 진단. 아직 안 불렀으면 None.
+        self.마지막게이트: 게이트정보 | None = None
 
     @property
     def params(self) -> USSectorGateParams:
@@ -263,5 +283,18 @@ class USSectorGateStrategy(PortfolioStrategy):
     def evaluate(self, ctx: MarketContext) -> list[Signal]:
         신호 = self._원래.evaluate(ctx)
         강한 = self._강한섹터.get(pd.Timestamp(ctx.as_of)) or frozenset()
-        return [s for s in 신호
-                if s.signal_type != SignalType.BUY or self._섹터표.get(s.symbol) in 강한]
+        통과 = [s for s in 신호
+              if s.signal_type != SignalType.BUY or self._섹터표.get(s.symbol) in 강한]
+
+        매수신호 = [s for s in 신호 if s.signal_type == SignalType.BUY]
+        self.마지막게이트 = 게이트정보(
+            원래전략매수수=len(매수신호),
+            통과매수수=sum(1 for s in 통과 if s.signal_type == SignalType.BUY),
+            강한섹터=frozenset(강한),
+            막힌것=tuple(
+                (s.symbol, self._섹터표.get(s.symbol) or "")
+                for s in 매수신호
+                if self._섹터표.get(s.symbol) not in 강한
+            ),
+        )
+        return 통과

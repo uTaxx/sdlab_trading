@@ -171,3 +171,46 @@ def test_문도_미국_시세를_못_받으면_매수를_전부_막는다():
     assert 전략.미국시세없음 is True
     신호 = 전략.evaluate(MarketContext(as_of=날들[-1].date(), histories=시세))
     assert not [s for s in 신호 if s.signal_type == SignalType.BUY]
+
+
+class _안사는전략(PortfolioStrategy):
+    """시험용. 매수 신호를 아예 안 낸다."""
+
+    name = "안사기"
+    max_holding_days = None
+    take_profit_pct = 0.0
+
+    def prepare(self, histories):
+        pass
+
+    def evaluate(self, ctx):
+        return []
+
+
+def test_원래_전략이_신호를_안내면_그렇게_진단한다():
+    """"거래량 급증이 없는 건가, 미국 섹터가 문제인 건가"를 가르는 진단이다.
+
+    원래 전략 자체가 0개면 미국 섹터는 이번 판단에 관여하지 않은 것이다."""
+    전략 = USSectorGateStrategy(_안사는전략(), "안사기", N=60, k=1, 지연=1,
+                               가져오기=가짜미국("SEMI"), 섹터표=섹터표)
+    시세 = {"A": _오르는()}
+    전략.prepare(시세)
+    전략.evaluate(MarketContext(as_of=날들[-1].date(), histories=시세))
+
+    assert 전략.마지막게이트.원래전략매수수 == 0
+    assert 전략.마지막게이트.통과매수수 == 0
+    assert 전략.마지막게이트.막힌것 == ()
+
+
+def test_원래_신호는_났는데_미국_섹터에_막힌_것을_적는다():
+    전략 = USSectorGateStrategy(_다사는전략(), "다사기", N=60, k=1, 지연=1,
+                               가져오기=가짜미국("SEMI"), 섹터표=섹터표)
+    시세 = {"A": _오르는(), "B": _오르는()}  # A는 반도체(강함), B는 바이오(안 강함)
+    전략.prepare(시세)
+    전략.evaluate(MarketContext(as_of=날들[-1].date(), histories=시세))
+
+    게이트 = 전략.마지막게이트
+    assert 게이트.원래전략매수수 == 2
+    assert 게이트.통과매수수 == 1
+    assert 게이트.막힌것 == (("B", "BIO"),)
+    assert 게이트.강한섹터 == frozenset({"SEMI"})
