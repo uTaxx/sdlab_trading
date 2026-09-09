@@ -387,7 +387,8 @@ def main() -> int:
         print(알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                    전략=selection.describe(), 섹터요약=강한섹터,
                    섹터강도=순위, 보유=보유알림, 전략변경=전략변경,
-                   상한초과=상한넘긴것들))
+                   상한초과=상한넘긴것들, 전략키들=selection.active_keys,
+                   못본것=못본것))
         print("─── 여기까지 ───")
         return 0
 
@@ -437,7 +438,8 @@ def main() -> int:
             글 = 알림글(고른것, 오늘, 주소, 살펴본수=살펴본수,
                      전략=selection.describe(), 섹터요약=강한섹터,
                      섹터강도=순위, 보유=보유알림, 전략변경=전략변경,
-                     상한초과=상한넘긴것들)
+                     상한초과=상한넘긴것들, 전략키들=selection.active_keys,
+                     못본것=못본것)
             send(cfg.bot_token, cfg.chat_id, 글,
                  reply_markup=keyboard(고른것, 오늘) if 고른것 else None)
             print("텔레그램으로 알렸습니다(버튼 포함).", file=sys.stderr)
