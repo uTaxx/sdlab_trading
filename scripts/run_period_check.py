@@ -490,12 +490,17 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     )
     print(f"■ 시세 {len(histories)}종목 · {처음} 앞 예열 포함\n")
 
+    # 표본 부족 판정 문턱. 시트 설정 `min_sample_trades`가 원본이고,
+    # 시트를 못 읽었을 때만 기준표의 기본값(5)으로 돈다.
+    최소거래수 = int(시트설정.가져오기("min_sample_trades")) if 시트설정 else 5
+
     # 골라서 재는 모드. 지금 걸린 것 하나만 재는 것과 섞지 않는다.
     if 골라진전략 is not None:
         열쇠들, 파는키, 파는쪽전부비교 = 골라진전략
         return 비교하기(골라진것, 잰때, sheet_id, histories, 끝, 정책, 기준,
                     열쇠들, 파는키, 지금키=(고름.active_keys or ("",))[0],
-                    파는쪽전부비교=파는쪽전부비교, 판단=판단)
+                    파는쪽전부비교=파는쪽전부비교, 판단=판단,
+                    최소거래수=최소거래수)
 
     # 구간마다 새로 만든다. 전략이 예열 결과를 안에 들고 있어서, 같은
     # 객체를 여러 구간에 쓰면 앞 구간 자료가 남는다.
@@ -505,7 +510,7 @@ def 진짜로(골라진것, 잰때: datetime, 인자, sheet_id: str) -> int:
     성적들 = []
     못돌린것 = []
     for 정의 in 골라진것:
-        성적 = 돌려보기(정의, 전략만들기, histories, 끝, 정책)
+        성적 = 돌려보기(정의, 전략만들기, histories, 끝, 정책, 최소거래수=최소거래수)
         if 성적 is None:
             못돌린것.append(정의.이름)
             continue
@@ -551,7 +556,7 @@ def _자리(줄들, 지금키: str):
 def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 정책,
           기준: str, 열쇠들: list[str], 파는키들: list[str] | None = None,
           지금키: str = "", 파는쪽전부비교: bool = False,
-          판단=None) -> int:
+          판단=None, 최소거래수: int = 20) -> int:
     """등록된 전략들을 **같은 구간·같은 기준**으로 돌려 순위를 낸다.
 
     빠지는 구간에서 어느 전략이 덜 잃었는지를 보는 자리다. 시세를 한 번만
@@ -604,7 +609,7 @@ def 비교하기(골라진것, 잰때: datetime, sheet_id: str, histories, 끝, 
         for 열쇠 in 도는것:
             try:
                 성적 = 돌려보기(정의, (lambda k=열쇠: 만들기(k)),
-                            histories, 끝, 정책)
+                            histories, 끝, 정책, 최소거래수=최소거래수)
             except Exception as 탈:  # noqa: BLE001 (하나가 터져도 나머지는 봐야 한다)
                 못만든것.append(f"{열쇠} ({type(탈).__name__}: {탈})")
                 continue

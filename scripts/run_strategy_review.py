@@ -61,7 +61,6 @@ from muwon.analysis.period_check import (
 from muwon.analysis.strategy_fit import (
     구간순위,
     기본우위배수,
-    기본최소운용일,
     모아등급,
     변경후보,
     전략줄,
@@ -457,14 +456,13 @@ def 섹터별성적남기기(sheet_id: str, 긴시세, 정책, 지금키: str,
         return ""
 
 
-def 막는까닭(session, 오늘, 최소운용일: int) -> str:
-    """이 구간 밖에서 정해지는 이유. 있으면 후보를 아예 안 낸다."""
-    지난 = 승인.지난거래일수(승인.마지막반영(session), 오늘)
-    if 지난 is not None and 지난 < 최소운용일:
-        return (
-            f"직전 전략 변경으로부터 {지난}일이 지났습니다. "
-            f"최소 운용기간 {최소운용일}일이 지난 뒤에 다시 검토합니다."
-        )
+def 막는까닭(session) -> str:
+    """이 구간 밖에서 정해지는 이유. 있으면 후보를 아예 안 낸다.
+
+    **최소 운용기간으로 후보를 막던 것은 2026-09-09에 없앴다.** 그 값이
+    대시보드 어디에도 보이지 않고 바꿀 수도 없어서, 실제로는 더 나은
+    후보가 있어도 사람이 그 사실 자체를 알 방법이 없었다. 이제는 계산될
+    때마다 순위를 그대로 보여주고, 바꿀지는 사람이 매번 판단한다."""
     앞 = 승인.지금예약(session)
     if 앞 is not None:
         상태말 = "확정되어 반영을 기다리는" if 앞.상태 == 승인.확정 else "선택된"
@@ -558,8 +556,6 @@ def main() -> int:
     parser.add_argument("--folder-id", default=os.environ.get("GDRIVE_FOLDER_ID", ""))
     parser.add_argument("--dry-run", action="store_true",
                         help="계산만 한다. 시트에도 안 올리고 알림도 안 보낸다")
-    parser.add_argument("--최소운용일", type=int, default=기본최소운용일,
-                        help="직전 변경 뒤 이만큼 지나기 전에는 후보를 안 낸다")
     parser.add_argument("--우위배수", type=float, default=기본우위배수,
                         help="1위가 지금 전략보다 이 배수만큼 앞서야 후보로 낸다")
     parser.add_argument("--추적일수", type=int, default=그림자.추적일수,
@@ -599,6 +595,8 @@ def main() -> int:
     # 적힌 지침과 실제로 매긴 순위가 다른 날이 생긴다.
     판단 = 시트지침(시트설정)
     print(f"■ 판단 지침  {판단.설명글()}")
+    # 표본 부족 판정 문턱. 시트 설정 `min_sample_trades`가 원본이다.
+    최소거래수 = int(시트설정.가져오기("min_sample_trades")) if 시트설정 else 5
     적힌것 = 판단기준(
         일순위=str((시트설정.가져오기("rank_1st") if 시트설정 else "") or 판단.일순위),
         이순위=str((시트설정.가져오기("rank_2nd") if 시트설정 else "") or 판단.이순위),
@@ -637,7 +635,7 @@ def main() -> int:
     ensure_schema(bootstrap_settings.database_url)
     session_factory = make_session_factory(bootstrap_settings.database_url)
     with session_factory() as session:
-        막힘 = 막는까닭(session, 끝, 인자.최소운용일)
+        막힘 = 막는까닭(session)
     if 막힘:
         print(f"■ 후보를 안 냅니다: {막힘}\n")
 
@@ -645,7 +643,8 @@ def main() -> int:
     순위들: dict = {}
     for 정의 in 정의들:
         순위, 못돌린것 = 구간순위내기(정의, histories, 끝, 정책, 지금키, 판단)
-        후보 = 후보내기(순위, 우위배수=인자.우위배수, 막혔나=막힘)
+        후보 = 후보내기(순위, 우위배수=인자.우위배수, 막혔나=막힘,
+                     최소거래수=최소거래수)
         후보들.append(후보)
         순위들[정의.이름] = 순위
         print(f"■ {정의.이름} · 계산된 전략 {len(순위.차례)}개")
