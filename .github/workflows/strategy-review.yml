@@ -38,9 +38,6 @@ on:
         description: "계산만 한다. 시트에도 안 올리고 알림도 안 보낸다"
         type: boolean
         default: false
-      min_hold_days:
-        description: "직전 변경 뒤 이만큼 지나기 전에는 후보를 안 낸다 (기본 30)"
-        default: "30"
       edge_ratio:
         description: "1위가 지금 전략보다 이 배수만큼 앞서야 후보로 낸다 (기본 1.15)"
         default: "1.15"
@@ -96,7 +93,6 @@ jobs:
           # 스크립트 글자 안으로 그대로 치환되므로, `$(...)`가 섞인 값이 오면
           # 그게 명령으로 실행된다.
           MUWON_DRY_RUN: ${{ github.event.inputs.dry_run }}
-          MUWON_MIN_HOLD: ${{ github.event.inputs.min_hold_days || '30' }}
           MUWON_EDGE: ${{ github.event.inputs.edge_ratio || '1.15' }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 조용히 성공한 척하는
@@ -110,7 +106,7 @@ jobs:
             ARGS="--dry-run"
           fi
           python scripts/run_strategy_review.py $ARGS \
-            --최소운용일 "$MUWON_MIN_HOLD" --우위배수 "$MUWON_EDGE"
+            --우위배수 "$MUWON_EDGE"
 
       # **그림자 추적이 상태 DB에 쓴다.** 안 올리면 러너가 사라질 때 오늘
       # 남긴 순위가 통째로 없어지고, 그런데도 텔레그램에는 검토 결과가 뜬다.
