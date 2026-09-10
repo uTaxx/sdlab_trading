@@ -75,7 +75,7 @@ from muwon.strategy.portfolio import (
     as_portfolio_strategy,
     bars_since,
 )
-from muwon.strategy.registry import build_strategies
+from muwon.strategy.registry import build_strategies, get_definition
 
 KST = ZoneInfo("Asia/Seoul")
 #: 지표 예열에 필요한 기간. 짧으면 이동평균이 안 나와 신호가 통째로 빈다.
@@ -165,7 +165,12 @@ def main() -> int:
                         help="한 섹터에서 몇 종목까지 (0이면 제한 없음)")
     parser.add_argument("--sector-filter", action="store_true",
                         help="강도 상위 섹터만 매수 대상으로 (근거 없음. docs/섹터선정_검증.md)")
+    parser.add_argument("--전략시험", default="",
+                        help="이 실행에서만 다른 전략으로 계산해 본다. 설정은 안 바꾼다. "
+                             "--dry-run과 같이 써야 한다(실거래에 영향을 주면 안 되므로)")
     args = parser.parse_args()
+    if args.전략시험 and not args.dry_run:
+        raise SystemExit("--전략시험은 --dry-run과 같이 써야 합니다.")
 
     sheet_id = args.sheet_id
     if not sheet_id:
@@ -184,6 +189,13 @@ def main() -> int:
     ensure_schema(bootstrap_settings.database_url)
     service = build_settings_service()
     selection = service.get_strategy_selection()
+    if args.전략시험:
+        from dataclasses import replace as _바꾸기
+
+        get_definition(args.전략시험)  # 등록 안 된 키면 여기서 바로 에러
+        selection = _바꾸기(selection, active_keys=(args.전략시험,), sell_keys=())
+        print(f"■ --전략시험으로 {args.전략시험}을(를) 임시로 씁니다. 설정은 그대로입니다.",
+              file=sys.stderr)
     strategy = build_strategies(selection.active_keys, selection.combine, selection.sell_keys)
     print(f"■ 전략: {selection.describe()}", file=sys.stderr)
     print(f"■ 기초설정: {기초설정글(설정, service, 섹터당)}", file=sys.stderr)

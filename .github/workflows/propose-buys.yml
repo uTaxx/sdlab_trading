@@ -49,6 +49,9 @@ on:
         description: "오늘 후보가 이미 시트에 있어도 다시 뽑는다 (전략을 바꾸고 다시 제안할 때)"
         type: boolean
         default: false
+      strategy_override:
+        description: "이 실행에서만 다른 전략으로 계산해 본다 (dry_run=true일 때만 먹는다). 등록된 전략 키"
+        default: ""
 
 concurrency:
   group: propose-buys
@@ -101,6 +104,8 @@ jobs:
           # 입력을 `run:` 글자 안으로 치환하지 않고 환경변수로 넘긴다.
           # 치환하면 값 안의 `$(...)`가 명령으로 실행된다.
           MUWON_FORCE: ${{ github.event.inputs.force }}
+          MUWON_STRATEGY_OVERRIDE: ${{ github.event.inputs.strategy_override }}
+          MUWON_DRY_RUN_ACTIVE: ${{ github.event_name != 'schedule' && github.event.inputs.dry_run != 'false' }}
         run: |
           # `| tee`는 파이썬의 종료 코드를 삼킨다. 파이프라인의 결과는
           # 맨 끝 tee의 것이고 tee는 거의 안 죽는다. 2026-08-25에 매수가
@@ -111,6 +116,14 @@ jobs:
           FORCE_ARG=""
           if [ "$MUWON_FORCE" = "true" ]; then FORCE_ARG="--force"; fi
           echo "■ 다시 뽑기: ${FORCE_ARG:-아니오}"
+          # 전략 키만 영문·숫자·밑줄로 자른다. 워크플로 안에서 셸 글자로
+          # 이어지므로, 따옴표나 $(...)가 섞이면 명령으로 실행될 수 있다.
+          # dry-run이 아니면 절대 안 쓴다 — 실거래 전략은 이 자리에서 안 바뀐다.
+          SAFE_STRATEGY=$(printf '%s' "$MUWON_STRATEGY_OVERRIDE" | tr -cd 'A-Za-z0-9_')
+          STRATEGY_ARG=""
+          if [ -n "$SAFE_STRATEGY" ] && [ "$MUWON_DRY_RUN_ACTIVE" = "true" ]; then
+            STRATEGY_ARG="--전략시험 $SAFE_STRATEGY"
+          fi
           # `--max-per-sector`의 기본값은 **-1이어야 한다.** 여기에 숫자를
           # 박아 두면 `propose_buys.py`가 `args.max_per_sector >= 0`을 보고
           # 시트의 `max_per_sector`를 아예 안 읽는다. 예약 실행은 inputs가
@@ -123,6 +136,7 @@ jobs:
             ${{ github.event.inputs.sector_filter == 'true' && '--sector-filter' || '' }} \
             ${{ github.event_name != 'schedule' && github.event.inputs.dry_run != 'false' && '--dry-run' || '' }} \
             $FORCE_ARG \
+            $STRATEGY_ARG \
             | tee propose.txt
 
       - name: 결과 아티팩트로 올리기
