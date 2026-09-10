@@ -39,9 +39,6 @@ on:
         description: "무엇을 반영할지 보기만 한다. DB를 안 고친다"
         type: boolean
         default: false
-      min_hold_days:
-        description: "직전 변경 뒤 이만큼 지나기 전에는 반영하지 않는다 (기본 30)"
-        default: "30"
 
 concurrency:
   # 상태 DB가 드라이브의 파일 하나라 겹치면 나중 것이 앞 것을 통째로 덮는다.
@@ -76,7 +73,6 @@ jobs:
           GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
           MUWON_DRY_RUN: ${{ github.event.inputs.dry_run }}
-          MUWON_MIN_HOLD: ${{ github.event.inputs.min_hold_days || '30' }}
         run: |
           set -o pipefail
           # **셸 변수 이름은 영문이어야 한다.** `인자=""`를 쓰면 bash가
@@ -86,7 +82,7 @@ jobs:
           if [ "$MUWON_DRY_RUN" = "true" ]; then
             ARGS="--dry-run"
           fi
-          python scripts/apply_strategy_change.py $ARGS --최소운용일 "$MUWON_MIN_HOLD"
+          python scripts/apply_strategy_change.py $ARGS
 
       # 반영에 실패했더라도 올린다. 스크립트가 예외로 끝나면 DB는 안 고쳐진
       # 상태라 올려도 같은 내용이고, 막힘으로 표시한 경우는 그 표시가 남아야

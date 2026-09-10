@@ -50,7 +50,6 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from muwon.analysis.strategy_fit import 기본최소운용일
 from muwon.cloud import strategy_approval as 승인
 
 # 막힌 까닭은 f"...{줄.새전략}"으로 만들어져 전략 키가 그대로 섞인다.
@@ -227,8 +226,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true",
                         help="무엇을 반영할지 보기만 한다. DB를 안 고친다")
-    parser.add_argument("--최소운용일", type=int, default=기본최소운용일,
-                        help="직전 변경 뒤 이만큼 지나기 전에는 반영하지 않는다")
     parser.add_argument("--sheet-id", default=os.environ.get("MUWON_SHEET_ID", ""))
     parser.add_argument("--folder-id", default=os.environ.get("GDRIVE_FOLDER_ID", ""))
     인자 = parser.parse_args()
@@ -247,9 +244,7 @@ def main() -> int:
     session_factory = make_session_factory(bootstrap_settings.database_url)
 
     with session_factory() as session:
-        줄, 까닭 = 승인.반영할것(
-            session, 이제.date(), 지금키, 아는것, 최소운용일=인자.최소운용일
-        )
+        줄, 까닭 = 승인.반영할것(session, 지금키, 아는것)
 
         if 줄 is None and not 까닭:
             print("■ 반영할 예약이 없습니다. 아무것도 바꾸지 않습니다.")
