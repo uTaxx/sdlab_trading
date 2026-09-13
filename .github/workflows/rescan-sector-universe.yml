@@ -1,0 +1,99 @@
+name: 실거래 목록 다시 재기
+
+# 실거래가 실제로 읽는 종목 목록(구글 시트의 섹터·종목 탭, 지금 39종목)을
+# 2026-09-06에 정한 규칙으로 다시 계산한다.
+#
+#     섹터마다 거래대금 상위 5종목, 최근 20거래일 평균 거래대금 250억 이상.
+#
+# ## `update-universe.yml`과 다르다
+#
+# 그 워크플로는 시가총액 상위로 **DB 스냅샷**을 갱신한다. 그 스냅샷은
+# 모의투자 엔진과 백테스트가 읽을 뿐, 실거래 매수 후보를 뽑는
+# `propose_buys.py`는 그 스냅샷을 읽지 않는다. 실거래는 구글 시트만 읽는다.
+# 그래서 그 워크플로가 매주 알림을 보내도 실제로 사고파는 종목은 안
+# 바뀌었다. 이 워크플로가 실거래 목록을 직접 다룬다.
+#
+# ## 새 회사를 찾아내지는 않는다
+#
+# 시트에 이미 올라간 종목(활성이든 아니든)만 다시 순위를 매긴다. 아직
+# 시트에 없는 회사가 새로 섹터에 들어와야 하는지는 사람이 판단해서
+# `sector-sheet.yml`(mode=push-catalog)로 더해야 한다.
+#
+# ## 상태 DB를 건드리지 않는다
+#
+# 구글 시트만 읽고 쓴다. `muwon.db`와 무관해서 state-write 자물쇠가 필요
+# 없다(`sector-sheet.yml`과 같다).
+
+on:
+  # 매주 일요일 15:00 UTC = 월요일 00:00 KST. `update-universe.yml`과 같은
+  # 시각이라, 새 주가 시작되기 전에 실거래 목록도 같이 다시 잰다.
+  schedule:
+    - cron: "0 15 * * 0"
+
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "실제로 시트에 반영할지 (false면 미리보기만)"
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      per_sector:
+        description: "섹터당 활성 상한 (기본 5)"
+        default: "5"
+      min_turnover:
+        description: "최근 20거래일 평균 거래대금 문턱 (억원, 기본 250)"
+        default: "250"
+
+jobs:
+  rescan:
+    # 예약은 운영 저장소에서만 돈다(다른 워크플로와 같은 규칙, 2026-09-07).
+    # 손으로 부르는 것은 어느 저장소에서든 그대로 된다.
+    if: github.event_name != 'schedule' || github.repository == 'uTaxx/sdlab_trading'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -e ".[dev,cloud]"
+
+      - name: 텔레그램 설정 갱신
+        run: |
+          python scripts/configure.py telegram \
+            --bot-token "${{ secrets.TELEGRAM_BOT_TOKEN }}" --chat-id "${{ secrets.TELEGRAM_CHAT_ID }}"
+
+      - name: 다시 재기
+        env:
+          GDRIVE_SA_KEY_JSON: ${{ secrets.GDRIVE_SA_KEY_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          # 입력을 `run:` 글자 안으로 치환하지 않고 환경변수로 넘긴다.
+          # 치환하면 값 안의 `$(...)`가 명령으로 실행된다.
+          MUWON_PER_SECTOR: ${{ github.event.inputs.per_sector || '5' }}
+          MUWON_MIN_TURNOVER: ${{ github.event.inputs.min_turnover || '250' }}
+        run: |
+          set -o pipefail
+          python scripts/rescan_sector_universe.py \
+            --per-sector "$MUWON_PER_SECTOR" \
+            --min-turnover "$MUWON_MIN_TURNOVER" \
+            ${{ (github.event_name == 'schedule' || github.event.inputs.apply == 'true') && '--apply --notify' || '' }} \
+            | tee rescan.txt
+
+      - name: 결과 아티팩트로 올리기
+        uses: actions/upload-artifact@v4
+        with:
+          name: rescan-sector-universe-${{ github.run_number }}
+          path: rescan.txt
+
+      # **실패했으면 반드시 알린다.** GitHub 화면의 빨간불을 매일 보는
+      # 사람이 없으면 빨간불은 없는 것과 같다.
+      - name: 실패했으면 알린다
+        if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          what: "실거래 목록 다시 재기"
+          extra: "이번 주 편입·제외 후보 계산이 되지 않았습니다."

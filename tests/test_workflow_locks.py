@@ -330,6 +330,9 @@ def test_섹터당_상한을_워크플로에_박아_두지_않는다():
     "collect-intraday.yml",  # 분봉 (그날 안에만 받을 수 있다)
     "store-window-scan.yml",
     "update-universe.yml",
+    # 실거래가 실제로 읽는 종목 목록(시트)을 매주 다시 잰다. 조용히
+    # 실패하면 그 주에는 편입·제외 후보를 아무도 모른다.
+    "rescan-sector-universe.yml",
     # 배포가 실패하면 화면만 옛것으로 남는다. 매매는 그대로 돌아서
     # 아무 데도 안 빨개진다. 2026-09-03에 이틀치가 안 보였다.
     "deploy-dashboard.yml",
