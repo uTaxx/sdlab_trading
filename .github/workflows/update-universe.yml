@@ -1,14 +1,21 @@
 name: 매매 대상 종목 갱신
 
-# 손으로 고른 고정 종목 목록은 시간이 지나면 낡는다(상장폐지·순위 역전·
-# 신규 대형주 누락). 시가총액 상위로 주기적으로 다시 뽑아 스냅샷으로 쌓고,
-# 매매 스크립트가 자동으로 최신 스냅샷을 쓰게 한다.
+# 시가총액 상위로 **DB 스냅샷**을 다시 뽑아 쌓는다. 모의투자 엔진과
+# 백테스트(`active_universe()`를 부르는 스크립트들)가 이 스냅샷을 읽는다.
 #
-# 매주 일요일 밤(한국시간 월요일 새벽)에 돌려 새 주가 시작되기 전에 갱신한다.
+# **실거래 매수 후보를 뽑는 `propose_buys.py`는 이 스냅샷을 읽지 않는다.**
+# 실거래는 구글 시트의 섹터·종목 탭만 읽는다(`sector_sheet.read()`, 지금
+# 39종목). 그 목록을 다시 재는 것은 `rescan-sector-universe.yml`이 한다.
+#
+# ## 2026-09-13에 예약을 껐다
+#
+# 전에는 이 워크플로도 매주 일요일 밤에 자동으로 돌면서 "매매 대상 종목
+# 갱신" 알림을 보냈다. 그런데 위에 적었듯 이 스냅샷은 실거래를 안 바꾼다.
+# 매주 오는 알림이 실거래 목록이 바뀐 것처럼 보여서 혼동을 줬다
+# (사람이 직접 지적했다). 그래서 자동 실행을 껐다. 모의투자·백테스트용
+# 스냅샷을 새로 뽑고 싶을 때는 아래 workflow_dispatch로 손으로 부른다.
 
 on:
-  schedule:
-    - cron: "0 15 * * 0" # 일요일 15:00 UTC = 월요일 00:00 KST
   workflow_dispatch:
     inputs:
       kind:
@@ -39,13 +46,7 @@ concurrency:
 
 jobs:
   update:
-    # ── 예약은 운영 저장소에서만 돈다 ──────────────────────────
-    # 운영 저장소는 uTaxx/sdlab_trading 하나다(2026-09-07에 muwon406에서
-    # 분리, docs/저장소_분리_2026-09-07.md). 이 파일이 다른 저장소에
-    # 복사돼 있어도 거기서는 예약이 건너뛰어진다. 양쪽에서 울리면 같은
-    # 일이 하루에 두 번 돌고 push-records는 시트에 같은 줄을 두 번 쌓는다.
-    # 손으로 부르는 것(workflow_dispatch)은 어느 저장소에서든 그대로 된다.
-    if: github.event_name != 'schedule' || github.repository == 'uTaxx/sdlab_trading'
+    # 예약이 없어 어느 저장소에서 손으로 불러도 그대로 된다.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +84,7 @@ jobs:
             --kind "${{ github.event.inputs.kind || 'market_cap' }}" \
             --basis "${{ github.event.inputs.basis || 'amount' }}" \
             --size "${{ github.event.inputs.size || '30' }}" \
-            ${{ (github.event_name == 'schedule' || github.event.inputs.apply == 'true') && '--apply --notify' || '' }}
+            ${{ github.event.inputs.apply == 'true' && '--apply --notify' || '' }}
 
       # 갱신에 실패해도(모의투자 미지원 등) 기존 스냅샷은 그대로 남아야 하므로
       # 업로드는 성공했을 때만 한다.
