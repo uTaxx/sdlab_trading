@@ -27,8 +27,10 @@ name: 실거래 목록 다시 재기
 on:
   # 매주 일요일 15:00 UTC = 월요일 00:00 KST. `update-universe.yml`과 같은
   # 시각이라, 새 주가 시작되기 전에 실거래 목록도 같이 다시 잰다.
-  schedule:
-    - cron: "0 15 * * 0"
+  # 자동 실행 중단(2026-09-21). 기존 트레이딩 시스템 전체를 멈췄다.
+  # workflow_dispatch는 남겨 뒀으므로 손으로는 언제든 돌릴 수 있다.
+  # schedule:
+  #   - cron: "0 15 * * 0"
 
   workflow_dispatch:
     inputs:

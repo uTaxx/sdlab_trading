@@ -64,19 +64,42 @@ def test_a_malformed_cron_does_not_crash_the_screen():
     assert describe_cron("*/5") == "*/5"
 
 
-def test_it_reads_the_real_workflow_files():
+def test_it_reads_workflow_files_from_disk(tmp_path: Path):
     """시각을 화면에 손으로 적지 않는다는 것이 이 기능의 핵심이다.
 
     실제 파일을 안 읽고 상수를 쓰기 시작하면, 일정을 바꿨을 때 화면만
-    옛 시각으로 남는다."""
-    jobs = upcoming(datetime(2026, 8, 19, 8, 0, tzinfo=KST))
-    # 어느 워크플로가 켜져 있는지는 때에 따라 다르다(지금은 자동매매가
-    # 꺼져 있다). 여기서 못 박을 것은 "파일을 실제로 읽어 온다"까지다.
-    # 특정 일정이 있어야 한다고 쓰면, 일정을 끌 때마다 테스트가 깨진다.
+    옛 시각으로 남는다.
+
+    실제 저장소의 워크플로에 지금 살아 있는 cron이 있다고 못 박으면 안
+    된다(2026-09-21, 전체 자동 실행을 껐다). 그래서 가짜 파일로 "파일을
+    읽어서 반영한다"만 확인한다.
+
+    파일 이름은 `WATCHED`에 있는 것 중 하나를 그대로 써야 한다. `upcoming`이
+    지켜보는 파일 이름을 고정해 두고 그것만 읽기 때문이다."""
+    workflow = tmp_path / "market-report.yml"
+    workflow.write_text('name: 샘플\non:\n  schedule:\n    - cron: "5 0 * * 1-5"\n', encoding="utf-8")
+    jobs = upcoming(datetime(2026, 8, 19, 8, 0, tzinfo=KST), workflow_dir=tmp_path)
     assert jobs, "워크플로에서 살아 있는 cron을 하나도 못 읽었다"
     for job in jobs:
         assert job.설명문, f"{job.이름}: 사람이 읽을 문장이 비었다"
         assert job.다음실행 is not None, f"{job.이름}: 다음 실행 시각을 못 구했다"
+
+
+def test_모든_자동실행이_지금은_꺼져_있다():
+    """기존 트레이딩 시스템 전체를 멈췄다(2026-09-21). 주인이 운영해 본
+    결과 지금 구조로는 의미가 없다고 판단해서, n8n의 AutoTrading_Schedule·
+    AutoTrading_계좌조회·AutoTrading_Telegram을 unpublish하고 이 저장소에
+    남아 있던 GitHub Actions 스케줄(매수 후보, 시장·섹터 리포트, 30분봉
+    수집, 기록을 시트로, 기준 제안, 실거래 목록 다시 재기, 분석 리포트)
+    일곱 개를 전부 주석 처리했다.
+
+    새로 시작하는 시뮬레이터가 자리 잡을 때까지, 실제 워크플로 파일에
+    살아 있는 cron이 하나도 없어야 한다. 다시 켤 때 이 테스트가 실패하면서
+    '의도한 변경인가'를 한 번 묻게 된다."""
+    jobs = upcoming(datetime(2026, 8, 19, 8, 0, tzinfo=KST))
+    assert jobs == [], (
+        f"자동 실행을 다시 켰다면 이 테스트도 함께 고치세요: {[j.이름 for j in jobs]}"
+    )
 
 
 def test_missing_workflow_directory_is_not_an_error(tmp_path: Path):

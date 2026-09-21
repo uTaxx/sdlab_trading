@@ -7,8 +7,10 @@ name: 분석 리포트 발송
 # 주 1회(금요일 장마감 후)로 잡았다.
 
 on:
-  schedule:
-    - cron: "0 8 * * 5" # 금요일 08:00 UTC = 17:00 KST
+  # 자동 실행 중단(2026-09-21). 기존 트레이딩 시스템 전체를 멈췄다.
+  # workflow_dispatch는 남겨 뒀으므로 손으로는 언제든 돌릴 수 있다.
+  # schedule:
+  #   - cron: "0 8 * * 5" # 금요일 08:00 UTC = 17:00 KST
   workflow_dispatch:
     inputs:
       days:

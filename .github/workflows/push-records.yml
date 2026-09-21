@@ -12,8 +12,10 @@ name: 기록을 시트로
 # 전부 틀린다.
 
 on:
-  schedule:
-    - cron: "40 8 * * 1-5"    # 평일 08:40 UTC = 17:40 KST (장 끝난 뒤)
+  # 자동 실행 중단(2026-09-21). 기존 트레이딩 시스템 전체를 멈췄다.
+  # workflow_dispatch는 남겨 뒀으므로 손으로는 언제든 돌릴 수 있다.
+  # schedule:
+  #   - cron: "40 8 * * 1-5"    # 평일 08:40 UTC = 17:40 KST (장 끝난 뒤)
   workflow_dispatch:
     inputs:
       days:

@@ -21,8 +21,10 @@ name: 30분봉 수집
 # 받게 된다.
 
 on:
-  schedule:
-    - cron: "40 6 * * 1-5"
+  # 자동 실행 중단(2026-09-21). 기존 트레이딩 시스템 전체를 멈췄다.
+  # workflow_dispatch는 남겨 뒀으므로 손으로는 언제든 돌릴 수 있다.
+  # schedule:
+  #   - cron: "40 6 * * 1-5"
   workflow_dispatch:
     inputs:
       date:
