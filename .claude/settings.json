@@ -15,6 +15,11 @@
       "mcp__n8n__get_node_types",
       "mcp__n8n__execute_workflow",
       "mcp__n8n__update_workflow",
+      "mcp__n8n__publish_workflow",
+      "mcp__n8n__unpublish_workflow",
+      "mcp__n8n__archive_workflow",
+      "mcp__n8n__create_workflow_from_code",
+      "mcp__n8n__restore_workflow_version",
       "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__search_workflows",
       "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_details",
       "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_workflow_version",
@@ -29,6 +34,11 @@
       "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__get_node_types",
       "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__execute_workflow",
       "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__update_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__publish_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__unpublish_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__archive_workflow",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__create_workflow_from_code",
+      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__restore_workflow_version",
       "mcp__github__actions_list",
       "mcp__github__actions_get",
       "mcp__github__get_job_logs",
@@ -44,17 +54,6 @@
       "Bash(pytest *)",
       "Bash(ruff check *)"
     ],
-    "ask": [
-      "mcp__n8n__publish_workflow",
-      "mcp__n8n__unpublish_workflow",
-      "mcp__n8n__archive_workflow",
-      "mcp__n8n__create_workflow_from_code",
-      "mcp__n8n__restore_workflow_version",
-      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__publish_workflow",
-      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__unpublish_workflow",
-      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__archive_workflow",
-      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__create_workflow_from_code",
-      "mcp__f64080dc-29c7-49fc-8c32-4e933df89563__restore_workflow_version"
-    ]
+    "ask": []
   }
 }
